@@ -5,10 +5,10 @@ set -euo pipefail
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 compiler="${CXX:-c++}"
 configuration=portable
-flags=(-std=c++20 -O2 -g -Wall -Wextra -Wpedantic)
+flags=(-std=c++20 -O2 -g -Wall -Wextra -Wpedantic -pthread)
 if [[ "${1:-}" == --sanitize ]]; then
     configuration=portable-sanitized
-    flags=(-std=c++20 -O1 -g -Wall -Wextra -Wpedantic -fno-omit-frame-pointer
+    flags=(-std=c++20 -O1 -g -Wall -Wextra -Wpedantic -pthread -fno-omit-frame-pointer
         -fsanitize=address,undefined)
     shift
 fi
@@ -21,11 +21,12 @@ mkdir -p -- "$output"
 
 printf 'Compiling portable simulation and synthesis tests with %s\n' "$compiler"
 "$compiler" "${flags[@]}" "$repo/tests/world_tests.cpp" "$repo/src/world.cpp" -o "$output/world_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_streamer_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_streamer.cpp" -o "$output/world_streamer_tests"
 "$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" "$repo/src/visuals.cpp" -o "$output/game_tests"
 "$compiler" "${flags[@]}" "$repo/tests/audio_tests.cpp" -o "$output/audio_tests"
 "$compiler" "${flags[@]}" "$repo/tests/cinematics_tests.cpp" "$repo/src/world.cpp" -o "$output/cinematics_tests"
 
-for suite in world game audio cinematics; do
+for suite in world world_streamer game audio cinematics; do
     printf 'Running %s tests\n' "$suite"
     "$output/${suite}_tests"
 done
