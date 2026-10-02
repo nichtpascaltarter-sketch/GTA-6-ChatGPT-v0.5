@@ -290,7 +290,7 @@ Vec3 Game::cameraTarget() const {
     Vec3 direction=forward(yaw)*std::cos(pitch)+Vec3{0,-std::sin(pitch),0};
     return player+Vec3{0,occupied>=0?1.65f:1.45f,0}+direction*35;
 }
-void Game::update(const Input& input,float elapsed){
+void Game::update(const Input& input,float elapsed,bool streamWorld){
     if(paused||!finite(elapsed)||elapsed<=0)return;
     const float dt=std::min(elapsed,.05f);
     Input in=input;
@@ -304,7 +304,7 @@ void Game::update(const Input& input,float elapsed){
     yaw=wrapAngle(yaw+in.lookX);pitch=clamp(pitch+in.lookY,-.85f,1.12f);aiming=in.aim&&occupied<0;
     if(std::abs(in.lookX)+std::abs(in.lookY)>.001f)cameraFollowDelay=2.4f;else cameraFollowDelay=std::max(0.0f,cameraFollowDelay-dt);
     if(occupied>=int(vehicles.size())||occupied< -1)occupied=-1;
-    world.stream(player);
+    if(streamWorld)world.stream(player);
     if(trafficTargets.size()!=vehicles.size()){trafficTargets.clear();for(size_t i=0;i<vehicles.size();++i)trafficTargets.push_back(nextTrafficTarget(world,vehicles[i],uint32_t(i)));}
     if(pedestrianTargets.size()!=pedestrians.size()){pedestrianTargets.clear();for(size_t i=0;i<pedestrians.size();++i)pedestrianTargets.push_back(pedestrianCorner(world,pedestrians[i].position,uint32_t(i)));}
     if(radio){radioStation=(radioStation+1)%4;static const char* names[]={"Radio off","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};message=names[radioStation];messageTime=4;}
@@ -574,7 +574,7 @@ void Game::update(const Input& input,float elapsed){
         health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
     }else if(wanted==0&&health<35)health=std::min(35.0f,health+dt*1.5f);
-    world.stream(player);
+    if(streamWorld)world.stream(player);
 }
 bool Game::save(const std::string& path) const {
     try {

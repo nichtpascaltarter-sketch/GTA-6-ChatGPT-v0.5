@@ -26,7 +26,7 @@ struct Game {
     Vec3 shotEnd; bool paused=false;std::string message;float messageTime=0;
     std::vector<Vehicle> vehicles;std::vector<Pedestrian> pedestrians;
     void initialize();
-    void update(const Input&,float dt);
+    void update(const Input&,float dt,bool streamWorld=true);
     Mesh dynamicMesh() const;
     std::vector<Light> lightSources() const;
     Vec3 cameraEye() const; Vec3 cameraTarget() const;
