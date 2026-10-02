@@ -1,0 +1,24 @@
+Source HEAD: e048adf3f1d41394b5f9a08048cc1902b411f379
+Compiler: g++ (Debian 14.2.0-19) 14.2.0
+Both probe exit statuses: 0. Build output: empty (no warnings/errors).
+Assertions enabled; NDEBUG is not defined.
+
+Exact build/run script used:
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/GTA-6-ChatGPT-v0.5-police
+output=/workspace/scratch/police-capture-compatibility-e048adf
+flags=(-std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror -Isrc)
+for source in game game_law law law_navigation pedestrians visuals world world_geometry; do
+    g++ "${flags[@]}" -c "src/$source.cpp" -o "$output/$source.o"
+done
+g++ "${flags[@]}" validation/routines/native-capture-probe.cpp "$output/"*.o -o "$output/resident-probe"
+g++ "${flags[@]}" validation/tide-hall-market/integration/view_probe.cpp "$output/"*.o -o "$output/market-probe"
+"$output/resident-probe" > "$output/resident.log" 2>&1
+"$output/market-probe" > "$output/market.log" 2>&1
+sha256sum -c "$output/source-before.sha256" > "$output/source-verification.log"
+
+Dependency discovery before compilation:
+g++ -std=c++20 -Isrc -MM src/game.cpp src/game_law.cpp src/law.cpp src/law_navigation.cpp src/pedestrians.cpp src/visuals.cpp src/world.cpp src/world_geometry.cpp validation/routines/native-capture-probe.cpp validation/tide-hall-market/integration/view_probe.cpp
+
+SHA256 manifests include the sorted union of those project dependencies.

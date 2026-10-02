@@ -1,0 +1,7 @@
+Resident capture: scene=residents-carry; identity=5; activity=Carrying; warmup=1.16667; hour=8.01555; people=84; residents=16; groups=0; displacement=1.52504; position=71.7304,0,154.296; eye=67.0443,2.25,157.175; target=71.7304,1.15,154.296
+Resident capture: scene=residents-work; identity=42; activity=Checking stock; warmup=30.0333; hour=8.40042; people=84; residents=16; groups=0; displacement=0; position=85.3323,0,34.9926; eye=86.8746,1.8,31.9625; target=85.3323,1.15,34.9926
+Resident capture: scene=residents-bench; identity=7; activity=Seated; warmup=74.4667; hour=12.9928; people=84; residents=16; groups=0; displacement=0; position=100.358,0,86.7885; eye=97.4752,2.03004,83.3109; target=100.35,0.930042,87.9998
+Resident capture: scene=residents-talk; identity=5; activity=Talking; warmup=117.433; hour=19.5657; people=84; residents=16; groups=2; displacement=0; position=49.3498,0,63.0002; eye=52.2822,2.25,68.6594; target=49.3599,1.15,64
+Resident capture: scene=residents-startle; identity=5; activity=Startled; warmup=117.567; hour=19.5674; people=84; residents=16; groups=0; displacement=0; position=49.3498,0,63.0002; eye=52.2721,2.25,67.6596; target=49.3498,1.15,63.0002
+Resident capture: scene=residents-flee; identity=5; activity=Fleeing; warmup=118.367; hour=19.5781; people=84; residents=16; groups=0; displacement=2.34666; position=49.2999,0,60.6541; eye=46.123,2.25,56.1644; target=49.2999,1.15,60.6541
+All six natural resident captures and cancellation checks passed.
