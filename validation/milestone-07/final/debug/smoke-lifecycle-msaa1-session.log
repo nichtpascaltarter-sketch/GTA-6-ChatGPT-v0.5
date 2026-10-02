@@ -1,0 +1,14 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Smoke scene: lifecycle
+Distant startup: ms=680.303; ready=2050.76; cacheTiles=1450; cacheBytes=54597680; selected=1089
+World revision 1 / render 1453: 733093 detailed vertices, 346731 detailed triangles; selected tiles=1089
+Lifecycle: resize at frame 30
+Lifecycle verified client: 976x657 at frame 30
+Lifecycle: fullscreen at frame 60
+Lifecycle verified client: 1024x768 at frame 60
+Lifecycle: windowed at frame 90
+Lifecycle verified client: 976x657 at frame 90
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=120; completed=120; pending=0; samples=120; gpuSamples=120; invalid=0; latest=120; cpuMean=175.499150; cpuMax=291.519700; waitMean=172.292612; prepareMean=0.259408; recordMean=1.925878; presentMean=1.016862; gpuMean=221.074977; gpuMax=320.683400; worldCalls=1; worldMean=90.639800; worldMax=90.639800
+Exit 0 after 120 frames

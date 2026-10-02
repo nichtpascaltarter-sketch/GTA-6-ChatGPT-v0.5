@@ -1,0 +1,9 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Workshop capture: scene=workshop-door; position=160,0.16,96; occupied=-1; money=250; health=100
+Smoke scene: workshop-door
+Distant startup: ms=277.84; ready=2074.69; cacheTiles=1450; cacheBytes=53837656; selected=1089
+World revision 2 / render 1454: 729811 detailed vertices, 344967 detailed triangles; selected tiles=1089
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=8; completed=8; pending=0; samples=8; gpuSamples=8; invalid=0; latest=8; cpuMean=450.457337; cpuMax=734.608100; waitMean=445.945750; prepareMean=1.197863; recordMean=2.889225; presentMean=0.423800; gpuMean=727.101063; gpuMax=773.835900; worldCalls=1; worldMean=41.060600; worldMax=41.060600
+Exit 0 after 8 frames

@@ -1,0 +1,67 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "lifecycle",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 2,
+  "requestedSampleLimit": 2,
+  "timingRequired": true,
+  "gpuTimestampsForcedDisabled": false,
+  "gpuTimestampStatus": "enabled; frequency=10000000 Hz; slots=2; history=120",
+  "renderTiming": {
+    "cpu": 1,
+    "gpu": 1,
+    "frequency": 10000000,
+    "submitted": 120,
+    "completed": 120,
+    "pending": 0,
+    "samples": 120,
+    "gpuSamples": 120,
+    "invalid": 0,
+    "latest": 120,
+    "cpuMean": 191.074738,
+    "cpuMax": 241.7411,
+    "waitMean": 188.331596,
+    "prepareMean": 0.260366,
+    "recordMean": 1.884602,
+    "presentMean": 0.593607,
+    "gpuMean": 236.492651,
+    "gpuMax": 278.3944,
+    "worldCalls": 1,
+    "worldMean": 90.1527,
+    "worldMax": 90.1527
+  },
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": true,
+  "verifiedWindowStates": [
+    {
+      "frame": 30,
+      "width": 976,
+      "height": 657
+    },
+    {
+      "frame": 60,
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "frame": 90,
+      "width": 976,
+      "height": 657
+    }
+  ],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "lodVerified": false,
+  "lodPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 120,
+  "renderedFrames": 120,
+  "exitCode": 0,
+  "elapsedSeconds": 29.736,
+  "width": 976,
+  "height": 657,
+  "sampledColors": 821,
+  "executableSha256": "88493c81f153de4690148249577669f0fb204604b7abbff87baf52107ea714f3",
+  "screenshotSha256": "74f0bf66248da1eb44a019a2168f2af31557c598c809a727d8d488717b94e9a2"
+}

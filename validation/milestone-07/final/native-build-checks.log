@@ -1,0 +1,481 @@
+windows (Release)	Compile embedded shaders, game, and simulation tests	﻿2026-10-02T01:24:23.4038434Z ##[group]Run build.bat Release
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:23.4038913Z [36;1mbuild.bat Release[0m
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:23.4062259Z shell: C:\Windows\system32\cmd.EXE /D /E:ON /V:OFF /S /C "CALL "{0}""
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:23.4062677Z ##[endgroup]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:30.0173119Z Compiling shader world_vs (vs_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.3199743Z Compiling shader world_ps (ps_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.4693766Z Compiling shader world_far_ps (ps_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.6006847Z Compiling shader world_rt_ps (ps_6_5)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.7530439Z Compiling shader shadow_vs (vs_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.7854185Z Compiling shader ui_vs (vs_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.8080423Z Compiling shader ui_ps (ps_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.8286264Z Compiling shader sky_vs (vs_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.8521385Z Compiling shader sky_ps (ps_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.9056635Z Compiling shader post_ps (ps_6_0)
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:31.9453529Z Building Release x64 executable with static C/C++ runtime
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:32.1359670Z main.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:39.1882235Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.0664696Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.7635915Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.7637557Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.7638033Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.7638373Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.7639190Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:40.9959028Z world_streamer.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:42.0239877Z game.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1963997Z visuals.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:45.0120038Z renderer.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:47.9820547Z audio.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:52.9403638Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.3838850Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8273448Z Windows x64 PE; inbox Windows imports only:
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8274114Z d3d12.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8274415Z dxgi.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8274693Z kernel32.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8274960Z ole32.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8275234Z shell32.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8275482Z user32.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8275830Z xinput9_1_0.dll
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8354428Z Building and running world tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.8546829Z world_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.6548232Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:03.5347488Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.2158048Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.2160128Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.2160558Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.2160921Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.2161301Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:04.5906861Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:06.8351959Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8429645Z Central light sources: 588 street lamps, 125 shop/market downlights
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8430705Z Clinic launch: 1330 owner-chunk triangles, four collision sections, attached red hazard beacon
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8431862Z Harbor Motor Works: 1408 clear route samples, 8 all-day lights, 11855 owner triangles, 344967 loaded triangles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8432880Z Central 49 chunks: 733093 vertices, 346731 triangles, 19 collision solids in block 0,0
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8433803Z Countryside: 221134 triangles, 861 collision solids, 1776 clear road samples, 3112 clear paths
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8434784Z Wetlands: 294430 triangles, 861 collision solids, 2802 clear road samples, 4831 clear paths
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8435877Z Island: 132888 triangles, 685 collision solids, 1035 clear road samples, 1858 clear paths
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8436871Z Coast: 140226 triangles, 543 collision solids, 2586 clear road samples, 4213 clear paths
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8437947Z Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8439072Z Ground surfaces: paved roads, sidewalks and 360 path triangles; wood, soil, grass and sand independent of streaming
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8439902Z World tests passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8477076Z Building and running world_streamer tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.8630540Z world_streamer_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.5180015Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:12.3706756Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.0243821Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.0244953Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.2503525Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.2503994Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.2504330Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:13.2504605Z world_streamer.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:14.3414581Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9316000Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8324421Z Request protocol: stable overlap tickets, stale epochs, duplicate rejection, atomic 49-chunk publication
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8325452Z Worker publication: 7 scheduled, 7 installed, no synchronous fallback
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8326486Z Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8327712Z Reset and teleport: blocked old workers rejected; synchronous collision recovery immediately complete
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8328857Z Backpressure: cancellation and destruction drain a full queue without publishing partial chunks
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8330062Z Builder failures: oversized capacities, exceptions and mismatched identities report bounded errors
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8330854Z World streamer tests passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8362033Z Building and running world_lod_geometry tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8495990Z world_lod_geometry_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:19.7754940Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:20.6152290Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.2659917Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.2661019Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.2661299Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.2661525Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.2661786Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.5762645Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:23.7599831Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7945490Z Terrain: 512/160/80 triangles, canonical eight-metre boundaries, 288 mixed-LOD seams; no unmatched interior edges
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7946833Z Chunks: deterministic geometry and bounds in 16 regions; visual-only LODs stay within per-tile capacity budget
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7947951Z Skyline: all six city styles and suburban chimney/roof maxima preserved across 21 LOD samples
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7949146Z Landmarks: exchange spire, clock pavilion, market roofs, hangar, dock and clinic launch retain defining geometry at every LOD
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7950525Z Vegetation: 374 coarse trunk anchors match deterministic descriptors and detail collision across all four tree kinds
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7951777Z Road visibility: 19800 triangle centroids across 119 regional chunks retain at least 0.024999 m terrain clearance
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7953072Z Workshop LODs: 11855/1012/636 triangles, 1496856/79824/51312 capacity bytes; open entrances and matched roof 7.76m
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7954279Z Prefetch cache (0,0): 1450 visual tiles, 735100 triangles, 54597680 capacity bytes; largest tile 84456 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7955155Z   Downtown: Medium 13723768B/225 tiles, Far 16812424B/420 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7955736Z   Residential: Medium 0B/0 tiles, Far 20829184B/664 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7956277Z   Countryside: Medium 0B/0 tiles, Far 1850524B/88 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7956781Z   Wetland: Medium 0B/0 tiles, Far 1116672B/39 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7957259Z   Beach: Medium 0B/0 tiles, Far 254164B/13 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7957706Z   Island: Medium 0B/0 tiles, Far 0B/0 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.7958154Z   Ocean: Medium 0B/0 tiles, Far 10944B/1 tiles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:25.1963518Z Prefetch cache (-4,4): 1450 visual tiles, 738358 triangles, 56602336 capacity bytes; largest tile 84456 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:25.5896208Z Prefetch cache (5,5): 1450 visual tiles, 678595 triangles, 49920700 capacity bytes; largest tile 84456 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:25.9876837Z Prefetch cache (-8,-5): 1450 visual tiles, 715965 triangles, 53002220 capacity bytes; largest tile 72680 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:26.3335530Z Prefetch cache (20,0): 1450 visual tiles, 394993 triangles, 26166236 capacity bytes; largest tile 75920 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:26.7094857Z Prefetch cache (-32,15): 1450 visual tiles, 570404 triangles, 35691208 capacity bytes; largest tile 58120 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:27.1052023Z Prefetch cache (8,-22): 1450 visual tiles, 475688 triangles, 29683096 capacity bytes; largest tile 71968 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:27.4526695Z Prefetch cache (20,6): 1450 visual tiles, 400715 triangles, 26644740 capacity bytes; largest tile 75920 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:27.7588100Z Prefetch cache (32,-2): 1450 visual tiles, 242798 triangles, 13874936 capacity bytes; largest tile 69328 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.1353272Z Prefetch cache (-32,16): 1450 visual tiles, 569748 triangles, 35539696 capacity bytes; largest tile 58120 bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.1354011Z World LOD geometry tests passed
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.1394277Z Building and running world_lod_streaming tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.1522402Z world_lod_streaming_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:29.8458905Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7057935Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.3686011Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.3686985Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.3687211Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.3687455Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.3687701Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.5915627Z world_streamer.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:32.6714324Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.4301848Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7350401Z LOD default/readiness: unchanged detail49; exact off-center missing-cell distance; disable clears visuals
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7351634Z LOD requests: overlap tickets stable; stale epochs, wrong LOD/ticket, malformed and duplicate results rejected
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7352825Z LOD handover: detail publishes atomically, wins overlapping cells, and remains until coarse coverage arrives
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7354057Z LOD fallback cap: oversized departing detail is replaced with generated Far geometry without coverage holes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7355218Z LOD saturated handover: eviction preserves departing cells' sole coarse coverage after detail publication
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7356328Z LOD cache cap: capacity-based accounting defers over-budget work and preserves installed coverage
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7357384Z LOD world edge: genuine Far chunks cover the prefetch envelope beyond old detail-only limits
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7358472Z LOD workers: blocked old-world jobs cannot install after replacement; teleport restores collision49 immediately
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7359634Z LOD cancellation: disabling during blocked coarse builds discards queued and in-flight visual work
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7360684Z LOD real warmup: 1450 cached tiles, 49/176/864 selected LODs, 2056m ready, 54597680 cache bytes
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7361793Z LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7362461Z World LOD streaming tests passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7385890Z Building and running render_visibility tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.7512701Z render_visibility_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:39.7788186Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.2251710Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.4177479Z Culling math: 200000 perspective (half reverse-Z) + 200000 shadow cases passed; 8-corner supports matched; no false culls against float clip oracle.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.4178851Z Perspective oracle-visible=120022; extra conservative draws=2292 (padding/roundoff).
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.4180142Z Explicit cases passed: camera inside, near-plane intersection, edge-on zero-volume box, outside side/far planes, shadow depth-disabled caster, invalid input fallback, reverse-Z near=1/far=0 and monotonic depth.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.4216300Z Building and running render_timing tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.4344836Z render_timing_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:40.9294729Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:41.0689686Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:41.1190708Z Render timing: measured frame rates, startup/wake/reset intervals, timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:41.1228195Z Building and running game tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:41.1355545Z game_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:43.3606296Z game.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:45.5110394Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:46.3681844Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.0226169Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.0227283Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.0227529Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.0227753Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.0227997Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:47.2509940Z visuals.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:48.2810219Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:55.0807876Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0465541Z Dynamic mesh triangles: spawn 34176, urban teleport 46014
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0466329Z PASS initialization and geometry
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0466811Z PASS lighting activation and vehicle transforms
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0467334Z PASS lighting capacity, range, and order
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0467848Z PASS movement, pause, and timestep bounds
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0468338Z PASS movement sound follows displacement and contact
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0468831Z PASS vehicle interaction
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0469216Z PASS vehicle boarding respects walls
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0469697Z PASS vehicle exit requires a clear path
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0470130Z PASS workshop bay repairs
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0470492Z PASS workshop service boundaries
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0470745Z PASS workshop counter first aid
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0471120Z Populated workshop visit: 8.73333 s drive, 11.25 s walk, repair and first aid $100
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0471532Z PASS workshop populated service visit
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0471795Z PASS workshop interior save round trip
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0472058Z PASS camera close walls and workshop sweep
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0472323Z PASS boat handling and swimming
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0472578Z PASS aircraft flight, stall, and landing
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0472862Z PASS hard aircraft landings across frame offsets
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0473323Z PASS aircraft altitude separates road contacts
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0473676Z PASS ditched aircraft exit and swimming
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0473940Z PASS aircraft exit prefers a clear dock
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0474189Z PASS weapons and radio
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0474408Z PASS shoulder aim and nearest hit
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0474648Z PASS police damage respects solid walls
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0474898Z PASS patrol detection uses altitude
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0475140Z PASS officer detection uses altitude
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0475541Z PASS road campaign progression and rescue unlock
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0475965Z PASS delivery deadline and retry
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0476204Z PASS save round trip and corruption
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0476612Z PASS version 1 save migration
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0477003Z PASS version 2 save migration
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0477226Z PASS version 3 save migration
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0477472Z PASS rescue contract and hold persistence
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0477810Z PASS survey contract flight and landing
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0478067Z PASS craft contract failure and recovery
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0478344Z PASS craft loans preserve occupied vehicles
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0478612Z PASS craft contract visuals survive load
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0478871Z PASS Harbor Split start and objectives
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0479386Z PASS Harbor Split failure and loan recovery
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0479675Z PASS Harbor Split ordered gates and medal rewards
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0479968Z PASS Harbor Split collision penalties
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0480256Z PASS Harbor Split save interruption and corruption
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0480687Z Harbor Split driven: 67.8333 s, peak penalty 0 s, path deviation 4.2646 m, bike health 100
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0481143Z PASS Harbor Split populated control-driven course
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0481458Z PASS unoccupied aircraft motion and persistence
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0481748Z PASS thirty second simulation smoke
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0483078Z 44/44 game tests passed
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0535281Z Building and running workshop_lighting tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.0659003Z workshop_lighting_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:12.7670662Z game.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:14.8509623Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:15.6965871Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.3391886Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.3393121Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.3393390Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.3393644Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.3393953Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:16.5583320Z visuals.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:17.4577979Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:20.6462581Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:20.8494695Z Authored workshop: 8 powered lights retained at bay, counter and approach by day/night; 416 luminous vertices.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:20.8496657Z Workshop lighting: constant fixture energy, ordinary night scaling, weather independence, input validation, range culling, stable 64-light selection, useful beam coverage and nearby attendant passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:20.8536390Z Building and running audio tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:20.8669208Z audio_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:21.6308396Z audio.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:22.8213465Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:23.5255177Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:26.4709302Z Procedural audio: stations, stereo, finite peaks, silence, four engines, ambience, five contact surfaces, alternating steps/cadence, water strokes, tire scrub/gating, transitions, weather, siren, shot, pause, gain, device rates and buffer determinism passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:26.4750522Z Building and running cinematics tests
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:26.4878872Z cinematics_tests.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:27.1784409Z world.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.0260175Z world_geometry.cpp
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.6730098Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.6731360Z         with
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.6731620Z         [
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.6731851Z             _Elem=int
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.6732147Z         ]
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:28.9611256Z Generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:30.8531458Z Finished generating code
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:31.3674624Z Cinematic timing, dialogue, camera and skip tests passed.
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:31.4658286Z Built D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\build\Release\MeridianCoast.exe
+windows (Release)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:31.4667051Z SHA256 d7e14d953d1baa417f4b5e4967afb0e5c74374a67a03d7e8e315b2ca689f0371
+windows (Debug)	Compile embedded shaders, game, and simulation tests	﻿2026-10-02T01:24:24.8016389Z ##[group]Run build.bat Debug
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:24.8016775Z [36;1mbuild.bat Debug[0m
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:24.8032126Z shell: C:\Windows\system32\cmd.EXE /D /E:ON /V:OFF /S /C "CALL "{0}""
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:24.8032467Z ##[endgroup]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:32.8035067Z Compiling shader world_vs (vs_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.3782484Z Compiling shader world_ps (ps_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.4981502Z Compiling shader world_far_ps (ps_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.6014790Z Compiling shader world_rt_ps (ps_6_5)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.7215609Z Compiling shader shadow_vs (vs_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.7463202Z Compiling shader ui_vs (vs_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.7635498Z Compiling shader ui_ps (ps_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.7791608Z Compiling shader sky_vs (vs_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.7967105Z Compiling shader sky_ps (ps_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.8361756Z Compiling shader post_ps (ps_6_0)
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:34.8670734Z Building Debug x64 executable with static C/C++ runtime
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:35.0465621Z main.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:43.0788754Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:43.6792454Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1724547Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1725516Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1725728Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1725931Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.1726144Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:44.3365867Z world_streamer.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:45.0732085Z game.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:46.5873780Z visuals.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:47.1491168Z renderer.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:49.4595581Z audio.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:24:50.4874628Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1830164Z Windows x64 PE; inbox Windows imports only:
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1830611Z d3d12.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1830796Z dxgi.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1830975Z kernel32.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1831191Z ole32.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1831377Z shell32.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1831564Z user32.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1831915Z xinput9_1_0.dll
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.1878807Z Building and running world tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.2000219Z world_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:01.7419351Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.3523428Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.7997065Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.7997961Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.7998189Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.7998361Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.7998562Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:02.9644514Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5946878Z Central light sources: 588 street lamps, 125 shop/market downlights
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5947642Z Clinic launch: 1330 owner-chunk triangles, four collision sections, attached red hazard beacon
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5948429Z Harbor Motor Works: 1408 clear route samples, 8 all-day lights, 11855 owner triangles, 344967 loaded triangles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5949171Z Central 49 chunks: 733093 vertices, 346731 triangles, 19 collision solids in block 0,0
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5949876Z Countryside: 221134 triangles, 861 collision solids, 1776 clear road samples, 3112 clear paths
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5950566Z Wetlands: 294430 triangles, 861 collision solids, 2802 clear road samples, 4831 clear paths
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5951229Z Island: 132888 triangles, 685 collision solids, 1035 clear road samples, 1858 clear paths
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5951908Z Coast: 140226 triangles, 543 collision solids, 2586 clear road samples, 4213 clear paths
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5952594Z Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5953372Z Ground surfaces: paved roads, sidewalks and 360 path triangles; wood, soil, grass and sand independent of streaming
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5953955Z World tests passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.5985108Z Building and running world_streamer tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:09.6103928Z world_streamer_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:10.8331505Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.4278758Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.8739140Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.8739959Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.8740147Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.8740329Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:11.8740588Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:12.0380621Z world_streamer.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:12.7230333Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9245489Z Request protocol: stable overlap tickets, stale epochs, duplicate rejection, atomic 49-chunk publication
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9247242Z Worker publication: 7 scheduled, 7 installed, no synchronous fallback
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9247830Z Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9248429Z Reset and teleport: blocked old workers rejected; synchronous collision recovery immediately complete
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9248958Z Backpressure: cancellation and destruction drain a full queue without publishing partial chunks
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9249470Z Builder failures: oversized capacities, exceptions and mismatched identities report bounded errors
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9249832Z World streamer tests passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9272950Z Building and running world_lod_geometry tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:16.9383170Z world_lod_geometry_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:17.6210797Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.2195628Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.6688164Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.6689035Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.6689234Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.6689410Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.6689619Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:18.8317865Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3223759Z Terrain: 512/160/80 triangles, canonical eight-metre boundaries, 288 mixed-LOD seams; no unmatched interior edges
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3224425Z Chunks: deterministic geometry and bounds in 16 regions; visual-only LODs stay within per-tile capacity budget
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3224942Z Skyline: all six city styles and suburban chimney/roof maxima preserved across 21 LOD samples
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3225472Z Landmarks: exchange spire, clock pavilion, market roofs, hangar, dock and clinic launch retain defining geometry at every LOD
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3226056Z Vegetation: 374 coarse trunk anchors match deterministic descriptors and detail collision across all four tree kinds
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3226648Z Road visibility: 19800 triangle centroids across 119 regional chunks retain at least 0.024999 m terrain clearance
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3227183Z Workshop LODs: 11855/1012/636 triangles, 1496856/79824/51312 capacity bytes; open entrances and matched roof 7.76m
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3227726Z Prefetch cache (0,0): 1450 visual tiles, 735100 triangles, 54597680 capacity bytes; largest tile 84456 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3228139Z   Downtown: Medium 13723768B/225 tiles, Far 16812424B/420 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3228421Z   Residential: Medium 0B/0 tiles, Far 20829184B/664 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3228682Z   Countryside: Medium 0B/0 tiles, Far 1850524B/88 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3228925Z   Wetland: Medium 0B/0 tiles, Far 1116672B/39 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3229156Z   Beach: Medium 0B/0 tiles, Far 254164B/13 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3229373Z   Island: Medium 0B/0 tiles, Far 0B/0 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:21.3229589Z   Ocean: Medium 0B/0 tiles, Far 10944B/1 tiles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:22.2416421Z Prefetch cache (-4,4): 1450 visual tiles, 738358 triangles, 56602336 capacity bytes; largest tile 84456 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:23.0805714Z Prefetch cache (5,5): 1450 visual tiles, 678595 triangles, 49920700 capacity bytes; largest tile 84456 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:23.9947738Z Prefetch cache (-8,-5): 1450 visual tiles, 715965 triangles, 53002220 capacity bytes; largest tile 72680 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:24.6538153Z Prefetch cache (20,0): 1450 visual tiles, 394993 triangles, 26166236 capacity bytes; largest tile 75920 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:25.5982895Z Prefetch cache (-32,15): 1450 visual tiles, 570404 triangles, 35691208 capacity bytes; largest tile 58120 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:26.4067752Z Prefetch cache (8,-22): 1450 visual tiles, 475688 triangles, 29683096 capacity bytes; largest tile 71968 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:27.0766639Z Prefetch cache (20,6): 1450 visual tiles, 400715 triangles, 26644740 capacity bytes; largest tile 75920 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:27.5906311Z Prefetch cache (32,-2): 1450 visual tiles, 242798 triangles, 13874936 capacity bytes; largest tile 69328 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.5313211Z Prefetch cache (-32,16): 1450 visual tiles, 569748 triangles, 35539696 capacity bytes; largest tile 58120 bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.5313853Z World LOD geometry tests passed
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.5350103Z Building and running world_lod_streaming tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:28.5459873Z world_lod_streaming_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:29.7532355Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.3534312Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7994404Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7994993Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7995140Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7995281Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.7995436Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:30.9617708Z world_streamer.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:31.6557571Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8204831Z LOD default/readiness: unchanged detail49; exact off-center missing-cell distance; disable clears visuals
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8205896Z LOD requests: overlap tickets stable; stale epochs, wrong LOD/ticket, malformed and duplicate results rejected
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8206730Z LOD handover: detail publishes atomically, wins overlapping cells, and remains until coarse coverage arrives
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8207600Z LOD fallback cap: oversized departing detail is replaced with generated Far geometry without coverage holes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8208434Z LOD saturated handover: eviction preserves departing cells' sole coarse coverage after detail publication
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8209211Z LOD cache cap: capacity-based accounting defers over-budget work and preserves installed coverage
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8209922Z LOD world edge: genuine Far chunks cover the prefetch envelope beyond old detail-only limits
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8210693Z LOD workers: blocked old-world jobs cannot install after replacement; teleport restores collision49 immediately
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8211518Z LOD cancellation: disabling during blocked coarse builds discards queued and in-flight visual work
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8212253Z LOD real warmup: 1450 cached tiles, 49/176/864 selected LODs, 2056m ready, 54597680 cache bytes
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8213011Z LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8213628Z World LOD streaming tests passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8235054Z Building and running render_visibility tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:35.8340419Z render_visibility_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:37.8603551Z Culling math: 200000 perspective (half reverse-Z) + 200000 shadow cases passed; 8-corner supports matched; no false culls against float clip oracle.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:37.8604259Z Perspective oracle-visible=120022; extra conservative draws=2292 (padding/roundoff).
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:37.8605024Z Explicit cases passed: camera inside, near-plane intersection, edge-on zero-volume box, outside side/far planes, shadow depth-disabled caster, invalid input fallback, reverse-Z near=1/far=0 and monotonic depth.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:37.8634439Z Building and running render_timing tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:37.8739613Z render_timing_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.3604705Z Render timing: measured frame rates, startup/wake/reset intervals, timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.3630963Z Building and running game tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:38.3730891Z game_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:39.9922665Z game.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:41.5032612Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.1017986Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.5499164Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.5499768Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.5499923Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.5500356Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.5500513Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:42.7149386Z visuals.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:25:43.2674009Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3878634Z Dynamic mesh triangles: spawn 34176, urban teleport 46014
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3879137Z PASS initialization and geometry
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3879500Z PASS lighting activation and vehicle transforms
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3879860Z PASS lighting capacity, range, and order
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3880186Z PASS movement, pause, and timestep bounds
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3880565Z PASS movement sound follows displacement and contact
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3880915Z PASS vehicle interaction
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3881178Z PASS vehicle boarding respects walls
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3881506Z PASS vehicle exit requires a clear path
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3881810Z PASS workshop bay repairs
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3882079Z PASS workshop service boundaries
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3882373Z PASS workshop counter first aid
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3882808Z Populated workshop visit: 8.73333 s drive, 11.25 s walk, repair and first aid $100
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3883269Z PASS workshop populated service visit
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3883657Z PASS workshop interior save round trip
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3883998Z PASS camera close walls and workshop sweep
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3884317Z PASS boat handling and swimming
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3884620Z PASS aircraft flight, stall, and landing
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3884951Z PASS hard aircraft landings across frame offsets
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3885299Z PASS aircraft altitude separates road contacts
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3885644Z PASS ditched aircraft exit and swimming
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3885945Z PASS aircraft exit prefers a clear dock
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3886220Z PASS weapons and radio
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3886466Z PASS shoulder aim and nearest hit
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3886735Z PASS police damage respects solid walls
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3887010Z PASS patrol detection uses altitude
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3887287Z PASS officer detection uses altitude
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3887606Z PASS road campaign progression and rescue unlock
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3887955Z PASS delivery deadline and retry
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3888238Z PASS save round trip and corruption
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3888527Z PASS version 1 save migration
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3888801Z PASS version 2 save migration
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3889045Z PASS version 3 save migration
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3889358Z PASS rescue contract and hold persistence
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3889741Z PASS survey contract flight and landing
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3890048Z PASS craft contract failure and recovery
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3890353Z PASS craft loans preserve occupied vehicles
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3890661Z PASS craft contract visuals survive load
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3890935Z PASS Harbor Split start and objectives
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3891223Z PASS Harbor Split failure and loan recovery
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3891546Z PASS Harbor Split ordered gates and medal rewards
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3891860Z PASS Harbor Split collision penalties
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3892166Z PASS Harbor Split save interruption and corruption
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3892651Z Harbor Split driven: 67.8333 s, peak penalty 0 s, path deviation 4.2646 m, bike health 100
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3893137Z PASS Harbor Split populated control-driven course
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3893768Z PASS unoccupied aircraft motion and persistence
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3894088Z PASS thirty second simulation smoke
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3894349Z 44/44 game tests passed
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.3944361Z Building and running workshop_lighting tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.4050999Z workshop_lighting_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:37.9118264Z game.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:39.4303964Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.0327766Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.4833160Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.4833753Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.4835050Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.4835197Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.4835360Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:40.6461674Z visuals.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:41.1990055Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:41.8870799Z Authored workshop: 8 powered lights retained at bay, counter and approach by day/night; 416 luminous vertices.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:41.8871731Z Workshop lighting: constant fixture energy, ordinary night scaling, weather independence, input validation, range culling, stable 64-light selection, useful beam coverage and nearby attendant passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:41.8903586Z Building and running audio tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:41.9009167Z audio_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:42.4563999Z audio.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:43.2699813Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:47.9431055Z Procedural audio: stations, stereo, finite peaks, silence, four engines, ambience, five contact surfaces, alternating steps/cadence, water strokes, tire scrub/gating, transitions, weather, siren, shot, pause, gain, device rates and buffer determinism passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:47.9468660Z Building and running cinematics tests
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:47.9573039Z cinematics_tests.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:48.4546374Z world.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.0448148Z world_geometry.cpp
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.4919997Z D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\src\world_geometry.cpp(1000): warning C4244: 'initializing': conversion from 'const _Elem' to 'float', possible loss of data
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.4920913Z         with
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.4921125Z         [
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.4921327Z             _Elem=int
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.4921538Z         ]
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:49.6547086Z Generating Code...
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:50.7001180Z Cinematic timing, dialogue, camera and skip tests passed.
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:51.2505244Z Built D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\build\Debug\MeridianCoast.exe
+windows (Debug)	Compile embedded shaders, game, and simulation tests	2026-10-02T01:26:51.2511017Z SHA256 88493c81f153de4690148249577669f0fb204604b7abbff87baf52107ea714f3
