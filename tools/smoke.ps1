@@ -3,7 +3,7 @@ param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
-    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'trial', 'trial-run', 'trial-map', 'workshop', 'workshop-day', 'workshop-night', 'workshop-office', 'workshop-door', 'workshop-service', 'residents-carry', 'residents-bench', 'residents-talk', 'residents-startle', 'residents-flee', 'residents-work', 'market-day', 'market-night', 'market-citrus', 'market-tea', 'market-bread', 'lifecycle', 'streaming', 'lod')]
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'trial', 'trial-run', 'trial-map', 'workshop', 'workshop-day', 'workshop-night', 'workshop-office', 'workshop-door', 'workshop-service', 'residents-carry', 'residents-bench', 'residents-talk', 'residents-startle', 'residents-flee', 'residents-work', 'market-day', 'market-night', 'market-citrus', 'market-tea', 'market-bread', 'police-aim', 'police-fire', 'police-reload', 'lifecycle', 'streaming', 'lod')]
     [string] $Scene = 'city',
     [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0,
     [switch] $RequireTiming,

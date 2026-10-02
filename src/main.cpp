@@ -28,6 +28,7 @@
 #include "timing_probe.h"
 #include "resident_scenes.h"
 #include "market_scenes.h"
+#include "police_scenes.h"
 
 namespace {
 using namespace mc;
@@ -166,9 +167,13 @@ int execute(HINSTANCE instance,const Options& options) {
         Renderer renderer;std::string error;
         if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
-        Game game;game.initialize();ResidentCapture residentCapture;MarketCapture marketCapture;if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
+        Game game;game.initialize();ResidentCapture residentCapture;MarketCapture marketCapture;PoliceCapture policeCapture;if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         if(options.smoke){
-            if(options.scene.rfind("market-",0)==0){
+            if(options.scene.rfind("police-",0)==0){
+                auto pump=[&](){MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(message.message==WM_QUIT)app.running=false;TranslateMessage(&message);DispatchMessageW(&message);}return app.running;};
+                if(!policeCapture.prepare(game,options.scene,log,error,pump)){log<<error<<'\n';throw std::runtime_error(error);}
+            }
+            else if(options.scene.rfind("market-",0)==0){
                 if(!marketCapture.prepare(game,options.scene,log,error)){log<<error<<'\n';throw std::runtime_error(error);}
             }
             else if(options.scene.rfind("residents-",0)==0){
@@ -325,6 +330,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene.rfind("workshop",0)==0){game.paused=true;game.dayTime=options.scene=="workshop-night"?23.0f:14.0f;game.rain=0;}
             if(residentCapture.active)game.paused=true;
             if(marketCapture.active)game.paused=true;
+            if(policeCapture.active)game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(options.smoke&&options.scene=="lod"){
                 lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
@@ -344,12 +350,13 @@ int execute(HINSTANCE instance,const Options& options) {
                     if(padPressed&XINPUT_GAMEPAD_B)app.mapOpen=false;
                 }
                 else if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
-                else {
+                else if(!policeCapture.active) {
                     int previousMission=game.activeMission;simulationAdvanced=!game.paused;game.update(input,dt,false);
                     if(!options.smoke&&previousMission<0&&game.activeMission>=0){cinematic.start(game.activeMission,game.player,game.yaw);game.messageTime=0;}
                 }
             }
             if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
+            if(policeCapture.active&&!policeCapture.retained(game)){error="Police inspection lost its captured pose or emitted shot.";result=10;break;}
             RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;
             if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
@@ -375,6 +382,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="lod")lodProbe.camera(game,frame.eye,frame.target);
             if(residentCapture.active){frame.eye=residentCapture.eye;frame.target=residentCapture.target;}
             if(marketCapture.active){frame.eye=marketCapture.eye;frame.target=marketCapture.target;}
+            if(policeCapture.active){frame.eye=policeCapture.eye;frame.target=policeCapture.target;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);
             audioState.shore=listenerBiome==Biome::Ocean||listenerBiome==Biome::Beach?1.f:listenerBiome==Biome::Island?.55f:0;
