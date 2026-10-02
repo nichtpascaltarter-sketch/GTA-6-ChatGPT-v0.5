@@ -127,7 +127,7 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         // Read the manifest while the right hand checks entries. Rotate the
         // complete authored head around the neck, including facial normals.
         const Vec3 pivot=point({0,1.47f,0}),axis=right(yaw);
-        const float angle=.78f+std::sin(activityTime*.65f)*.025f,c=std::cos(angle),s=std::sin(angle);
+        const float angle=.95f+std::sin(activityTime*.65f)*.025f,c=std::cos(angle),s=std::sin(angle);
         auto tilt=[&](Vec3 vector){return vector*c+cross(axis,vector)*s+axis*(dot(axis,vector)*(1-c));};
         for(size_t index=headFirst;index<mesh.vertices.size();++index){auto& vertex=mesh.vertices[index];vertex.position=pivot+tilt(vertex.position-pivot);vertex.normal=normalized(tilt(vertex.normal));}
     }

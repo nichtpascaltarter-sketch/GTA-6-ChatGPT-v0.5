@@ -67,15 +67,16 @@ void gesturesAndOwnership(){
     person.activity=PedestrianActivity::Flee;person.motion=1;assert(!sameGeometry(talking,nearby(game,{})));
 }
 void concreteStockCheck(){
-    for(float observerDistance:{10.f,60.f}){
-        Game game=actor(PedestrianActivity::Work);game.player={observerDistance,0,0};
-        const auto working=nearby(game,{});size_t paper=0,pencil=0,graphite=0,eyes=0;
-        float paperTop=-100,tipBottom=100;Vec3 gaze{};
+    for(float observerDistance:{10.f,60.f})for(float activityTime:{0.f,1.f,3.f,5.f}){
+        Game game=actor(PedestrianActivity::Work);game.player={observerDistance,0,0};game.pedestrians.back().activityTime=activityTime;
+        const auto working=nearby(game,{});size_t paper=0,pencil=0,graphite=0,eyes=0,pupils=0;
+        float paperTop=-100,tipBottom=100;Vec3 gaze{},pupil{};
         for(const auto& vertex:working){
             if(same(vertex.color,{.85f,.84f,.72f})){++paper;paperTop=std::max(paperTop,vertex.position.y);}
             if(same(vertex.color,{.78f,.51f,.09f}))++pencil;
             if(same(vertex.color,{.12f,.13f,.14f})){++graphite;tipBottom=std::min(tipBottom,vertex.position.y);}
             if(same(vertex.color,{.81f,.79f,.71f})){gaze+=vertex.position;++eyes;}
+            if(same(vertex.color,{.075f,.092f,.08f})){pupil+=vertex.position;++pupils;}
         }
         assert(paper>0&&pencil>0&&graphite>0);
         assert(std::abs(tipBottom-paperTop)<.008f);
@@ -88,6 +89,11 @@ void concreteStockCheck(){
         if(observerDistance<32){
             assert(eyes>0&&eyes==idleEyes);gaze=gaze/float(eyes);idleGaze=idleGaze/float(idleEyes);
             assert(gaze.y<idleGaze.y-.05f&&gaze.z>idleGaze.z+.08f);
+            assert(pupils>0);pupil=pupil/float(pupils);const Vec3 direction=normalized(pupil-gaze);
+            assert(direction.y<-.3f);const Vec3 readingPoint=gaze+direction*((paperTop-gaze.y)/direction.y);
+            // The actual emitted pupil/eye centers must aim inside the paper,
+            // rather than merely lowering the head somewhere near the board.
+            assert(std::abs(readingPoint.x)<.15f&&readingPoint.z>.26f&&readingPoint.z<.62f);
         }
     }
 }
