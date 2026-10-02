@@ -21,10 +21,11 @@ mkdir -p -- "$output"
 
 printf 'Compiling portable simulation and synthesis tests with %s\n' "$compiler"
 "$compiler" "${flags[@]}" "$repo/tests/world_tests.cpp" "$repo/src/world.cpp" -o "$output/world_tests"
-"$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" -o "$output/game_tests"
+"$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" "$repo/src/visuals.cpp" -o "$output/game_tests"
 "$compiler" "${flags[@]}" "$repo/tests/audio_tests.cpp" -o "$output/audio_tests"
+"$compiler" "${flags[@]}" "$repo/tests/cinematics_tests.cpp" "$repo/src/world.cpp" -o "$output/cinematics_tests"
 
-for suite in world game audio; do
+for suite in world game audio cinematics; do
     printf 'Running %s tests\n' "$suite"
     "$output/${suite}_tests"
 done

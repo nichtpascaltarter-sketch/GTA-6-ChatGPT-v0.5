@@ -87,7 +87,7 @@ try {
     $systemLibraries = @('kernel32.lib', 'user32.lib', 'gdi32.lib', 'shell32.lib',
         'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'xinput9_1_0.lib', 'ole32.lib',
         'uuid.lib', 'avrt.lib')
-    $sourceNames = @('main', 'world', 'game', 'renderer', 'audio')
+    $sourceNames = @('main', 'world', 'game', 'visuals', 'renderer', 'audio')
     $sources = @($sourceNames | ForEach-Object { Join-Path $repo "src\$_.cpp" })
     $executable = Join-Path $output 'MeridianCoast.exe'
     Write-Host "Building $Configuration x64 executable with static C/C++ runtime"
@@ -100,8 +100,9 @@ try {
     if (-not $SkipTests) {
         $testSets = @(
             @{ Name = 'world'; Sources = @('world') },
-            @{ Name = 'game'; Sources = @('game', 'world') },
-            @{ Name = 'audio'; Sources = @('audio') }
+            @{ Name = 'game'; Sources = @('game', 'world', 'visuals') },
+            @{ Name = 'audio'; Sources = @('audio') },
+            @{ Name = 'cinematics'; Sources = @('world') }
         )
         foreach ($test in $testSets) {
             $testObjects = Join-Path $objects $test.Name
