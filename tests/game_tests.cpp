@@ -728,7 +728,7 @@ void campaignProgression() {
     game.initialize();
     game.vehicles.clear();
     game.pedestrians.clear();
-    require(mc::Game::missions().size() == 4, "campaign mission count changed");
+    require(mc::Game::missions().size() >= 6, "campaign is missing the two craft contracts");
     const auto place = [&](mc::Vec3 destination) {
         destination.y = game.world.height(destination.x, destination.z);
         game.player = destination;
@@ -811,9 +811,10 @@ void campaignProgression() {
     tick(game);
     expectedMoney += mc::Game::missions()[3].reward;
     require(game.completedMissions == 4 && game.activeMission == -1,
-            "final mission did not complete the campaign");
+            "fourth mission did not complete the road campaign");
     require(game.money == expectedMoney, "final mission reward is incorrect");
-    require(game.missionInfo() == nullptr, "completed campaign still exposes an active contact");
+    require(game.missionInfo() == &mc::Game::missions()[4],
+            "road campaign did not unlock the rescue contract");
 }
 
 void missionDeadline() {
@@ -1020,7 +1021,7 @@ void legacySaveMigration() {
     std::ifstream input(save.path, std::ios::binary);
     const std::vector<char> current((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(current, 8) == 2, "new saves do not use version 2");
+    require(littleEndian(current, 8) == 3, "new saves do not use version 3");
     require(littleEndian(current, 112) == legacyVehicleCount,
             "migration fixture has an unexpected vehicle count");
     constexpr size_t vehicleStart = 116, currentStride = 76, legacyStride = 64;
@@ -1031,7 +1032,7 @@ void legacySaveMigration() {
         const size_t start = vehicleStart + i * currentStride;
         legacy.insert(legacy.end(), current.begin() + start, current.begin() + start + legacyStride);
     }
-    legacy.insert(legacy.end(), current.begin() + tail, current.end());
+    legacy.insert(legacy.end(), current.begin() + tail, current.end() - 4);
     setLittleEndian(legacy, 8, 1);
     setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
     refreshSaveChecksum(legacy);
@@ -1053,9 +1054,317 @@ void legacySaveMigration() {
     require(countKind(mc::VehicleKind::Boat) == 1 && countKind(mc::VehicleKind::Aircraft) == 1,
             "legacy migration duplicated or omitted a starter craft");
     require(game.save(save.path.string()) && game.load(save.path.string()),
-            "migrated save could not be saved and reloaded as version 2");
+            "migrated save could not be saved and reloaded as version 3");
     require(game.vehicles.size() == legacyVehicleCount + 2,
             "reloading a migrated save duplicated starter craft");
+}
+
+void versionTwoSaveMigration() {
+    mc::Game game;
+    game.initialize();
+    game.completedMissions = 4;
+    game.money = 7654;
+    game.vehicles[0].pitch = 0.14f;
+    game.vehicles[0].roll = -0.2f;
+    game.vehicles[0].throttle = 0.3f;
+    const size_t vehicleCount = game.vehicles.size();
+    TemporarySave save;
+    require(game.save(save.path.string()), "could not create version 2 migration fixture");
+    std::ifstream input(save.path, std::ios::binary);
+    std::vector<char> legacy((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    require(littleEndian(legacy, 8) == 3, "version 2 fixture requires a version 3 source save");
+    legacy.resize(legacy.size() - 4);
+    setLittleEndian(legacy, 8, 2);
+    setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
+    refreshSaveChecksum(legacy);
+    writeBytes(save.path, legacy);
+    require(game.load(save.path.string()), "valid version 2 save was rejected");
+    require(game.completedMissions == 4 && game.money == 7654 &&
+            game.missionInfo() == &mc::Game::missions()[4],
+            "version 2 migration lost progress or failed to unlock the rescue contract");
+    require(game.vehicles.size() == vehicleCount && close(game.vehicles[0].pitch, 0.14f) &&
+            close(game.vehicles[0].roll, -0.2f) && close(game.vehicles[0].throttle, 0.3f),
+            "version 2 migration changed the fleet or craft orientation");
+    require(game.save(save.path.string()), "migrated version 2 save could not be upgraded");
+    std::ifstream upgradedInput(save.path, std::ios::binary);
+    const std::vector<char> upgraded((std::istreambuf_iterator<char>(upgradedInput)), {});
+    require(littleEndian(upgraded, 8) == 3 && littleEndian(upgraded, upgraded.size() - 4) == 0,
+            "version 2 migration did not initialize the rescue hold to zero");
+}
+
+size_t vehicleOfKind(const mc::Game& game, mc::VehicleKind kind) {
+    for (size_t i = 0; i < game.vehicles.size(); ++i)
+        if (game.vehicles[i].kind == kind) return i;
+    throw std::runtime_error("contract did not supply its required craft");
+}
+
+void acceptCraftContract(mc::Game& game, int chapter) {
+    tick(game);
+    mc::Input accept;
+    accept.mission = true;
+    tick(game, accept);
+    require(game.activeMission == chapter, "contact did not start the craft contract");
+    tick(game);
+}
+
+void positionCraft(mc::Game& game, size_t index, mc::Vec3 position, float speed = 0) {
+    mc::Vehicle& craft = game.vehicles[index];
+    craft.position = position;
+    craft.yaw = craft.pitch = craft.roll = 0;
+    craft.speed = speed;
+    craft.velocity = mc::forward(craft.yaw) * speed;
+    craft.throttle = speed > 0 ? 0.7f : 0;
+    game.occupied = static_cast<int>(index);
+    game.player = position;
+}
+
+void rescueContractAndHoldPersistence() {
+    mc::Game game;
+    game.completedMissions = 4;
+    mc::Vehicle car;
+    car.position = mc::Game::missions()[4].start;
+    car.parked = true;
+    game.vehicles.push_back(car);
+    game.player = car.position;
+    game.occupied = 0;
+    const int initialMoney = game.money;
+    acceptCraftContract(game, 4);
+    require(game.missionStage == 0, "rescue accepted a road vehicle as its boat");
+    const size_t boat = vehicleOfKind(game, mc::VehicleKind::Boat);
+    positionCraft(game, boat, game.vehicles[boat].position);
+    tick(game);
+    require(game.missionStage == 1, "boarding the rescue boat did not advance the contract");
+    const mc::Vec3 alongside{3080, mc::World::WaterLevel, 1080};
+    positionCraft(game, boat, alongside, 3);
+    tick(game, {}, 185);
+    require(game.missionStage == 1, "rescue transfer completed while the boat was moving too fast");
+    positionCraft(game, boat, alongside);
+    tick(game, {}, 90);
+    require(game.missionStage == 1, "rescue transfer completed before three seconds");
+    positionCraft(game, boat, {3050, mc::World::WaterLevel, 1080});
+    tick(game);
+    positionCraft(game, boat, alongside);
+    tick(game, {}, 95);
+    require(game.missionStage == 1, "leaving the rescue radius did not reset the transfer hold");
+    TemporarySave save;
+    require(game.save(save.path.string()), "rescue hold could not be saved");
+    std::ifstream input(save.path, std::ios::binary);
+    const std::vector<char> original((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    for (uint32_t invalidHold : {0x7fc00000u, 0xbf800000u, 0x40800000u}) {
+        std::vector<char> corrupted = original;
+        setLittleEndian(corrupted, corrupted.size() - 4, invalidHold);
+        refreshSaveChecksum(corrupted);
+        writeBytes(save.path, corrupted);
+        require(!game.load(save.path.string()) && game.activeMission == 4 && game.missionStage == 1,
+                "invalid rescue hold was accepted or partially overwrote mission state");
+    }
+    writeBytes(save.path, original);
+    require(game.load(save.path.string()), "rescue hold could not be restored");
+    tick(game, {}, 90);
+    require(game.missionStage == 2, "saved rescue transfer hold did not resume after loading");
+    positionCraft(game, boat, {2678, mc::World::WaterLevel, 768});
+    tick(game);
+    require(game.completedMissions == 5 && game.activeMission == -1 &&
+            game.money == initialMoney + mc::Game::missions()[4].reward,
+            "returning the rescued passenger did not complete and reward the contract");
+    tick(game, {}, 3);
+    require(game.money == initialMoney + 1800, "rescue reward was duplicated or incorrect");
+}
+
+void surveyContractFlightAndLanding() {
+    mc::Game game;
+    game.completedMissions = 5;
+    game.player = mc::Game::missions()[5].start;
+    const int initialMoney = game.money;
+    acceptCraftContract(game, 5);
+    const size_t plane = vehicleOfKind(game, mc::VehicleKind::Aircraft);
+    mc::Vehicle car;
+    car.position = game.missionTarget();
+    car.position.y = game.world.height(car.position.x, car.position.z);
+    car.parked = true;
+    game.vehicles.push_back(car);
+    positionCraft(game, game.vehicles.size() - 1, car.position, 30);
+    tick(game);
+    require(game.missionStage == 0, "survey accepted a road vehicle at a flight gate");
+    const mc::Vec3 gate = game.missionTarget();
+    const float ground = game.world.height(gate.x, gate.z);
+    positionCraft(game, plane, gate + mc::Vec3{100, 0, 0}, 40);
+    tick(game);
+    require(game.missionStage == 0, "survey accepted a pass outside the gate radius");
+    for (float altitude : {20.0f, 180.0f}) {
+        positionCraft(game, plane, {gate.x, ground + altitude, gate.z}, 40);
+        tick(game);
+        require(game.missionStage == 0, "survey accepted a flight outside its altitude band");
+    }
+    positionCraft(game, plane, gate);
+    tick(game);
+    require(game.missionStage == 0, "survey accepted a gate without flight speed");
+    for (int stage = 0; stage < 3; ++stage) {
+        positionCraft(game, plane, game.missionTarget(), 40);
+        tick(game);
+        require(game.missionStage == stage + 1, "valid survey pass did not advance exactly one gate");
+    }
+    mc::Vec3 runway = game.missionTarget();
+    runway.y = game.world.height(runway.x, runway.z);
+    positionCraft(game, game.vehicles.size() - 1, runway);
+    tick(game);
+    require(game.activeMission == 5, "survey accepted a car instead of landing its aircraft");
+    positionCraft(game, plane, runway + mc::Vec3{0, 2, 0});
+    tick(game);
+    require(game.activeMission == 5, "survey completed while the aircraft was still airborne");
+    positionCraft(game, plane, runway, 10);
+    tick(game);
+    require(game.activeMission == 5, "survey completed before the aircraft slowed down");
+    positionCraft(game, plane, runway + mc::Vec3{40, 0, 0});
+    tick(game);
+    require(game.activeMission == 5, "survey accepted a stop outside the runway corridor");
+    positionCraft(game, plane, runway);
+    tick(game);
+    require(game.completedMissions == 6 && game.activeMission == -1 && game.missionInfo() == nullptr,
+            "survey landing did not finish the six-contract campaign");
+    require(game.money == initialMoney + 2600, "survey reward was incorrect");
+    TemporarySave save;
+    require(game.save(save.path.string()) && game.load(save.path.string()) &&
+            game.completedMissions == 6 && game.missionInfo() == nullptr,
+            "completed six-contract campaign did not survive save/load");
+}
+
+void craftContractFailureAndRecovery() {
+    for (int chapter : {4, 5}) {
+        mc::Game game;
+        game.completedMissions = chapter;
+        game.player = mc::Game::missions()[chapter].start;
+        mc::Vehicle broken;
+        broken.kind = chapter == 4 ? mc::VehicleKind::Boat : mc::VehicleKind::Aircraft;
+        broken.position = {0, 0, 0};
+        broken.health = 0;
+        game.vehicles.push_back(broken);
+        const int initialMoney = game.money;
+        acceptCraftContract(game, chapter);
+        require(game.vehicles.size() == 1 && close(game.vehicles[0].health, 100),
+                "contact did not recover an existing destroyed loan craft");
+        require(mc::length(game.vehicles[0].position - game.player) < 50,
+                "replacement loan craft was not placed near its contact");
+        game.missionTimer = 0.001f;
+        tick(game);
+        require(game.activeMission == -1 && game.completedMissions == chapter && game.money == initialMoney,
+                "expired craft contract advanced progress or paid a reward");
+        acceptCraftContract(game, chapter);
+        require(game.missionTimer > 200, "craft contract retry did not reset its deadline");
+        game.missionStage = chapter == 4 ? 2 : 3;
+        const mc::Vec3 finish = chapter == 4 ? mc::Vec3{2678, mc::World::WaterLevel, 768}
+            : mc::Vec3{-3200, game.world.height(-3200, -1000), -1000};
+        positionCraft(game, 0, finish);
+        game.vehicles[0].health = 0;
+        tick(game);
+        require(game.activeMission == -1 && game.completedMissions == chapter && game.money == initialMoney,
+                "destroyed craft completed its contract in the delivery zone");
+        game.occupied = -1;
+        game.player = mc::Game::missions()[chapter].start;
+        game.vehicles[0].health = 100;
+        game.vehicles[0].position = {400, 0, 400};
+        acceptCraftContract(game, chapter);
+        require(game.vehicles.size() == 1 && game.vehicles[0].health > 0 &&
+                mc::length(game.vehicles[0].position - game.player) < 50,
+                "contact did not recover a stranded unoccupied loan craft");
+    }
+
+    mc::Game fatalLanding;
+    fatalLanding.completedMissions = fatalLanding.activeMission = 5;
+    fatalLanding.missionStage = 3;
+    fatalLanding.missionTimer = 100;
+    fatalLanding.health = 1;
+    fatalLanding.money = 1234;
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {-3200, fatalLanding.world.height(-3200, -1000) + 0.05f, -1000};
+    aircraft.velocity.y = -5;
+    fatalLanding.vehicles.push_back(aircraft);
+    fatalLanding.player = aircraft.position;
+    fatalLanding.occupied = 0;
+    fatalLanding.update({}, 0.05f);
+    require(fatalLanding.vehicles[0].health > 0 && fatalLanding.completedMissions == 5 &&
+            fatalLanding.money <= 1234,
+            "fatal landing paid the survey reward and revived the pilot");
+}
+
+void craftLoansPreserveOccupiedVehicles() {
+    for (int chapter : {4, 5}) {
+        mc::Game game;
+        game.completedMissions = chapter;
+        mc::Vehicle current;
+        current.kind = chapter == 4 ? mc::VehicleKind::Boat : mc::VehicleKind::Aircraft;
+        current.position = chapter == 4 ? mc::Vec3{2678, mc::World::WaterLevel, 768}
+            : mc::Vec3{-3195, game.world.height(-3195, -1185), -1185};
+        current.health = 73;
+        game.vehicles.push_back(current);
+        game.player = current.position;
+        game.occupied = 0;
+        acceptCraftContract(game, chapter);
+        require(game.occupied == 0 && game.vehicles.size() == 2 && close(game.vehicles[0].health, 73),
+                "provisioning a loan replaced or repaired the occupied craft");
+        require(close(game.vehicles[0].position.x, current.position.x) &&
+                close(game.vehicles[0].position.z, current.position.z),
+                "provisioning a loan teleported the occupied craft");
+        require(game.vehicles[1].kind == current.kind && close(game.vehicles[1].health, 100) &&
+                mc::length(game.vehicles[1].position - game.vehicles[0].position) > 10,
+                "replacement loan craft overlapped the occupied craft");
+    }
+}
+
+void craftContractVisualsSurviveLoad() {
+    mc::Game game;
+    game.completedMissions = game.activeMission = 4;
+    game.missionStage = 1;
+    game.missionTimer = 200;
+    mc::Vehicle boat;
+    boat.kind = mc::VehicleKind::Boat;
+    boat.position = {3080, mc::World::WaterLevel, 1080};
+    game.vehicles.push_back(boat);
+    game.player = boat.position;
+    game.occupied = 0;
+    const auto nearbyVertices = [](const mc::Mesh& mesh, mc::Vec3 center,
+                                  float halfX, float halfZ, float low, float high) {
+        return std::count_if(mesh.vertices.begin(), mesh.vertices.end(),
+            [&](const mc::Vertex& vertex) {
+                const mc::Vec3 relative = vertex.position - center;
+                return std::fabs(relative.x) < halfX && std::fabs(relative.z) < halfZ &&
+                    relative.y > low && relative.y < high;
+            });
+    };
+    const mc::Vec3 clinic{3090, mc::World::WaterLevel, 1080};
+    TemporarySave save;
+    require(game.save(save.path.string()) && game.load(save.path.string()),
+            "pickup visual fixture could not be saved and restored");
+    const mc::Mesh pickup = game.dynamicMesh();
+    verifyDynamicMesh(pickup, "restored rescue pickup");
+    require(nearbyVertices(pickup, clinic, 1.5f, 2.5f, 0.3f, 2.9f) > 100,
+            "restored rescue pickup has no survivor and supplies at the clinic launch");
+
+    game.activeMission = -1;
+    game.missionStage = 0;
+    const auto emptyBoat = nearbyVertices(game.dynamicMesh(), boat.position, 3, 3, 0.2f, 3);
+    game.activeMission = 4;
+    game.missionStage = 2;
+    require(game.save(save.path.string()) && game.load(save.path.string()),
+            "passenger visual fixture could not be saved and restored");
+    const mc::Mesh passenger = game.dynamicMesh();
+    verifyDynamicMesh(passenger, "restored rescue passenger");
+    require(nearbyVertices(passenger, boat.position, 3, 3, 0.2f, 3) > emptyBoat + 100,
+            "restored rescue passenger and supplies are missing from the occupied boat");
+
+    game = mc::Game{};
+    game.completedMissions = game.activeMission = 5;
+    game.missionTimer = 300;
+    const mc::Vec3 gate = game.missionTarget();
+    game.player = gate + mc::Vec3{0, 0, -100};
+    const mc::Mesh survey = game.dynamicMesh();
+    verifyDynamicMesh(survey, "airborne survey gate");
+    require(nearbyVertices(survey, gate, 80, 3, 38, 42) > 10 &&
+            nearbyVertices(survey, gate, 80, 3, -42, -38) > 10,
+            "survey gate was flattened to the terrain instead of retaining its flight altitude");
 }
 
 void unoccupiedAircraftMotionAndPersistence() {
@@ -1174,10 +1483,16 @@ int main() {
         {"police damage respects solid walls", policeObstruction},
         {"patrol detection uses altitude", patrolDetectionUsesAltitude},
         {"officer detection uses altitude", officerDetectionUsesAltitude},
-        {"complete campaign progression", campaignProgression},
+        {"road campaign progression and rescue unlock", campaignProgression},
         {"delivery deadline and retry", missionDeadline},
         {"save round trip and corruption", saveRoundTripAndCorruption},
         {"version 1 save migration", legacySaveMigration},
+        {"version 2 save migration", versionTwoSaveMigration},
+        {"rescue contract and hold persistence", rescueContractAndHoldPersistence},
+        {"survey contract flight and landing", surveyContractFlightAndLanding},
+        {"craft contract failure and recovery", craftContractFailureAndRecovery},
+        {"craft loans preserve occupied vehicles", craftLoansPreserveOccupiedVehicles},
+        {"craft contract visuals survive load", craftContractVisualsSurviveLoad},
         {"unoccupied aircraft motion and persistence", unoccupiedAircraftMotionAndPersistence},
         {"thirty second simulation smoke", simulationSmoke},
     };
