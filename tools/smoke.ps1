@@ -4,7 +4,8 @@ param(
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
     [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'lifecycle')]
-    [string] $Scene = 'city'
+    [string] $Scene = 'city',
+    [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -14,6 +15,7 @@ if ($Scene -eq 'lifecycle' -and $Frames -lt 91) {
 $Executable = (Resolve-Path -LiteralPath $Executable).Path
 $directory = Split-Path -Parent $Executable
 $prefix = if ($Scene -eq 'city') { 'smoke' } else { "smoke-$Scene" }
+if ($MsaaLimit -gt 0) { $prefix += "-msaa$MsaaLimit" }
 $screenshot = Join-Path $directory "$prefix.bmp"
 $stdout = Join-Path $directory "$prefix-stdout.log"
 $stderr = Join-Path $directory "$prefix-stderr.log"
@@ -27,12 +29,14 @@ New-Item -ItemType Directory -Path $runDirectory | Out-Null
 $isolatedExecutable = Join-Path $runDirectory $fileName
 $process = $null
 $processTimer = [Diagnostics.Stopwatch]::new()
+$previousMsaaLimit = [Environment]::GetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', 'Process')
 $exitCode = -1
 $startedAt = [DateTime]::UtcNow
 try {
     # The launch directory contains exactly one file. Build products, external
     # shaders, and neighboring DLLs cannot silently satisfy runtime dependencies.
     Copy-Item -LiteralPath $Executable -Destination $isolatedExecutable
+    if ($MsaaLimit -gt 0) { [Environment]::SetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', "$MsaaLimit", 'Process') }
     $processTimer.Start()
     $process = Start-Process -FilePath $isolatedExecutable -WorkingDirectory $runDirectory -PassThru -NoNewWindow `
         -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
@@ -48,6 +52,7 @@ try {
     $exitCode = $process.ExitCode
 } finally {
     $processTimer.Stop()
+    if ($MsaaLimit -gt 0) { [Environment]::SetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', $previousMsaaLimit, 'Process') }
     try {
         if ($process) {
             if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
@@ -66,6 +71,15 @@ try {
 if ($exitCode -ne 0) {
     if (Test-Path $stderr) { Get-Content $stderr | Write-Host }
     throw "WARP smoke test failed with exit code $exitCode."
+}
+$stderrText = [IO.File]::ReadAllText($stderr)
+$targetMatch = [regex]::Match($stderrText, 'Scene target: ([^;\r\n]+); samples=([0-9]+); requested limit=([0-9]+)')
+if (-not $targetMatch.Success) { throw 'The renderer did not report its HDR target and sample count.' }
+$actualSamples = [int] $targetMatch.Groups[2].Value
+$requestedSamples = [int] $targetMatch.Groups[3].Value
+if ($actualSamples -notin @(1, 2, 4) -or $actualSamples -gt $requestedSamples -or
+    ($MsaaLimit -gt 0 -and $requestedSamples -ne $MsaaLimit)) {
+    throw 'The renderer selected an invalid sample count or did not honor the requested limit.'
 }
 if (-not (Test-Path $sessionCopy -PathType Leaf)) { throw 'Smoke test did not produce a current session log.' }
 $sessionText = [IO.File]::ReadAllText($sessionCopy)
@@ -125,6 +139,9 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
 [ordered] @{
     adapter = 'D3D12 WARP'
     scene = $Scene
+    renderTargetFormat = $targetMatch.Groups[1].Value
+    sampleCount = $actualSamples
+    requestedSampleLimit = $requestedSamples
     originalFilename = $fileName
     singleExeDirectory = $true
     windowTransitionsVerified = ($Scene -eq 'lifecycle')

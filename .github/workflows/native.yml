@@ -43,6 +43,16 @@ jobs:
         shell: pwsh
         run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle
 
+      - name: Validate single-sample HDR resize path
+        if: matrix.configuration == 'Debug'
+        shell: pwsh
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 1
+
+      - name: Validate two-sample HDR resolve and resize
+        if: matrix.configuration == 'Debug'
+        shell: pwsh
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 2
+
       - name: Capture geography, weather, and vehicle scenes
         if: matrix.configuration == 'Release'
         shell: pwsh
