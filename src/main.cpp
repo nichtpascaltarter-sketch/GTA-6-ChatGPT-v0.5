@@ -153,15 +153,32 @@ int execute(HINSTANCE instance,const Options& options) {
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
         auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;
+        RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
             auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);fps=lerp(fps,1/std::max(elapsed,.0001f),.04f);
             if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(IsIconic(app.window)){WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(options.smoke&&options.scene=="lifecycle"){
-                if(renderer.frameCount()==30){SetWindowPos(app.window,nullptr,0,0,1280,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);log<<"Lifecycle: resize at frame 30\n";}
-                if(renderer.frameCount()==60){fullscreen(app,true);log<<"Lifecycle: fullscreen at frame 60\n";}
-                if(renderer.frameCount()==90){fullscreen(app,false);log<<"Lifecycle: windowed at frame 90\n";}
+                const uint64_t frameNumber=renderer.frameCount();
+                if(frameNumber==30){
+                    if(!SetWindowPos(app.window,nullptr,0,0,1280,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE)||!GetWindowRect(app.window,&lifecycleWindow)||lifecycleWindow.right-lifecycleWindow.left!=1280||lifecycleWindow.bottom-lifecycleWindow.top!=760){error="Lifecycle resize did not reach its requested window dimensions.";result=8;break;}
+                    log<<"Lifecycle: resize at frame 30\n";
+                }
+                if(frameNumber==60){
+                    fullscreen(app,true);RECT actual{};MONITORINFO monitor{sizeof(monitor)};
+                    if(!GetWindowRect(app.window,&actual)||!GetMonitorInfoW(MonitorFromWindow(app.window,MONITOR_DEFAULTTONEAREST),&monitor)||!EqualRect(&actual,&monitor.rcMonitor)||(GetWindowLongPtrW(app.window,GWL_STYLE)&WS_OVERLAPPEDWINDOW)!=0){error="Lifecycle fullscreen did not cover its monitor without window borders.";result=8;break;}
+                    log<<"Lifecycle: fullscreen at frame 60\n";
+                }
+                if(frameNumber==90){
+                    fullscreen(app,false);RECT actual{};
+                    if(!GetWindowRect(app.window,&actual)||!EqualRect(&actual,&lifecycleWindow)||(GetWindowLongPtrW(app.window,GWL_STYLE)&WS_OVERLAPPEDWINDOW)!=WS_OVERLAPPEDWINDOW){error="Lifecycle windowed transition did not restore its original rectangle and style.";result=8;break;}
+                    log<<"Lifecycle: windowed at frame 90\n";
+                }
+                if(frameNumber==30||frameNumber==60||frameNumber==90){RECT client{};
+                    if(!GetClientRect(app.window,&client)||client.right<=0||client.bottom<=0||unsigned(client.right)!=app.width||unsigned(client.bottom)!=app.height){error="Lifecycle client dimensions disagree with the resize event.";result=8;break;}
+                    log<<"Lifecycle verified client: "<<client.right<<'x'<<client.bottom<<" at frame "<<frameNumber<<'\n';
+                }
             }
             if(app.resized&&app.width&&app.height){if(!renderer.resize(app.width,app.height,error)){result=4;break;}app.resized=false;}
             const bool menuAtInput=app.menu;
