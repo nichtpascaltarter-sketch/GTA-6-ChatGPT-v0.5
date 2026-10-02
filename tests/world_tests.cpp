@@ -236,6 +236,7 @@ void geography() {
     assert(w.biome(-4200,1500)==Biome::Countryside);assert(w.biome(1100,-2800)==Biome::Wetland);
     assert(w.biome(4140,-250)==Biome::Island);assert(w.biome(5900,500)==Biome::Ocean);
     assert(w.road(3200,0));assert(close(w.height(3200,0),5.2f));assert(close(w.height(3200,10),5.2f));
+    for(int sample=1;sample<512;++sample){const Vec3 p=World::coastalRoadPoint(sample/512.f);assert(w.road(p.x,p.z));}
     for(float z=-5000;z<5000;z+=187)for(float x=-5000;x<5000;x+=197) {
         float h=w.height(x,z);assert(std::isfinite(h));assert(h>-100&&h<300);
         // Natural terrain is continuous away from the elevated bridge's intentional edge.

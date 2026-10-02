@@ -29,8 +29,11 @@ public:
     void circle(float x,float y,float radius,Vec3 color,float alpha=1) {
         for(int i=0;i<24;++i){float a=i*Pi/12,b=(i+1)*Pi/12;triangle({x,y},{x+std::cos(a)*radius,y+std::sin(a)*radius},{x+std::cos(b)*radius,y+std::sin(b)*radius},color,alpha);}
     }
-    float textWidth(const char* text,float size) const {return float(std::strlen(text))*size*6;}
+    float textWidth(const char* text,float size) const {return float(std::strlen(text))*std::max(1.f,size)*6;}
     void text(float x,float y,const char* str,float size,Vec3 color={.94f,.96f,.94f},float alpha=1) {
+        // Every authored bitmap cell needs at least one physical pixel. Smaller
+        // rectangles dropped entire rows at the minimum supported window size.
+        size=std::max(1.f,size);
         float start=x;
         for(const char* s=str;*s;++s){if(*s=='\n'){x=start;y+=size*10;continue;}const auto* g=glyph(*s);
             for(int row=0;row<7;++row)for(int col=0;col<5;++col)if(g[row]&(1<<(4-col)))rect(x+col*size,y+row*size,size,size,color,alpha);
@@ -38,6 +41,7 @@ public:
         }
     }
     void wrapped(float x,float y,const char* str,float size,float maxWidth,Vec3 color={.8f,.84f,.84f}) {
+        size=std::max(1.f,size);
         float cursor=x;const char* p=str;
         while(*p){const char* end=p;while(*end&&*end!=' '&&*end!='\n')++end;float w=float(end-p)*size*6;
             if(cursor>x&&cursor+w>x+maxWidth){cursor=x;y+=size*10;}
@@ -104,7 +108,7 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     if(waypoint){float dx=(waypoint->x-g.player.x)*map/(range*2),dy=-(waypoint->z-g.player.z)*map/(range*2);
         float extent=std::max(std::fabs(dx),std::fabs(dy));if(extent>limit){dx*=limit/extent;dy*=limit/extent;}
         ui.line(cx+dx-4*s,cy+dy,cx+dx+4*s,cy+dy,2*s,teal);ui.line(cx+dx,cy+dy-4*s,cx+dx,cy+dy+4*s,2*s,teal);
-        std::snprintf(b,sizeof(b),"WAYPOINT %.2f KM",length(*waypoint-g.player)*.001f);ui.text(ui.width-margin-260*s,110*s,b,1.4f*s,teal);
+        std::snprintf(b,sizeof(b),"WAYPOINT %.2f KM",std::hypot(waypoint->x-g.player.x,waypoint->z-g.player.z)*.001f);ui.text(ui.width-margin-260*s,110*s,b,1.4f*s,teal);
     }
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
@@ -123,8 +127,8 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
             std::snprintf(b,sizeof(b),"THROTTLE    %d%%",int(vehicle.throttle*100));ui.text(x,y+55*s,b,1.45f*s);
             const bool stall=altitude>2&&vehicle.speed<22;
             ui.text(x,y+83*s,stall?"LOW AIRSPEED":"W/S THROTTLE  A/D BANK",1.2f*s,stall?gold:muted);
-            ui.text(x,y+106*s,"SHIFT CLIMB / SPACE DESCEND",1.1f*s,muted);
-            ui.text(x,y+129*s,"PAD A CLIMB / B DESCEND",1.1f*s,muted);
+            ui.text(x,y+106*s,"SHIFT / PAD A  CLIMB",1.1f*s,muted);
+            ui.text(x,y+129*s,"SPACE / PAD B  DESCEND",1.1f*s,muted);
         }else if(vehicle.kind==VehicleKind::Boat){
             float x=ui.width-margin-218*s,y=ui.height-margin-208*s;
             ui.rect(x-12*s,y-12*s,230*s,112*s,{.02f,.04f,.055f},.88f);ui.text(x,y,"GLASSWATER RUNABOUT",1.4f*s,teal);

@@ -54,8 +54,7 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     }
     auto project=[&](Vec3 v){return Vec2{p.x+(v.x-left)/map.span*p.size,p.y+p.size-(v.z-bottom)/map.span*p.size};};
     auto inside=[&](Vec2 v,float margin=0.f){return v.x>=p.x+margin&&v.y>=p.y+margin&&v.x<=p.x+p.size-margin&&v.y<=p.y+p.size-margin;};
-    // Road segments follow the world's road predicate, including rural spacing
-    // and the coastal causeway, instead of painting a universal grid.
+    // Grid roads follow their actual rural spacing and the coastal causeway.
     const int beginX=int(std::ceil(left/128)),endX=int(std::floor((left+map.span)/128));
     const int beginZ=int(std::ceil(bottom/128)),endZ=int(std::floor((bottom+map.span)/128));
     const Vec3 roadColor{.43f,.51f,.5f};
@@ -69,6 +68,18 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
             if(game.world.road(wx,wz)){Vec2 aa=project(a),bb=project(b);ui.line(aa.x,aa.y,bb.x,bb.y,std::max(.65f,p.size/map.span*7),roadColor);}
         }
     }
+    // The coastal road winds between grid lines. Clip its own sampled centerline
+    // to the map so it remains continuous at every zoom and pan position.
+    auto clippedRoad=[&](Vec3 a,Vec3 b){
+        Vec2 aa=project(a),bb=project(b);float dx=bb.x-aa.x,dy=bb.y-aa.y,first=0,last=1;
+        auto clip=[&](float direction,float distance){
+            if(std::fabs(direction)<.00001f)return distance>=0;
+            float t=distance/direction;if(direction<0)first=std::max(first,t);else last=std::min(last,t);return first<=last;
+        };
+        if(clip(-dx,aa.x-p.x)&&clip(dx,p.x+p.size-aa.x)&&clip(-dy,aa.y-p.y)&&clip(dy,p.y+p.size-aa.y))
+            ui.line(aa.x+dx*first,aa.y+dy*first,aa.x+dx*last,aa.y+dy*last,std::max(.75f,p.size/map.span*7),roadColor);
+    };
+    for(int part=0;part<512;++part)clippedRoad(World::coastalRoadPoint(part/512.f),World::coastalRoadPoint((part+1)/512.f));
     auto dot=[&](Vec3 at,Vec3 color,float radius){Vec2 v=project(at);if(inside(v,radius*s))ui.circle(v.x,v.y,radius*s,color);};
     for(const auto& landmark:World::landmarks()){
         Vec2 at=project(landmark.position);if(!inside(at,8*s))continue;
@@ -95,7 +106,7 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     ui.text(x,p.y+312*s,"DELETE / X  CLEAR",1.2f*s,muted);
     ui.text(x,p.y+337*s,"F / Y  CENTER ON YOU",1.2f*s,muted);
     ui.text(x,p.y+362*s,"TAB / BACK / B  CLOSE",1.2f*s,muted);
-    if(map.hasWaypoint){std::snprintf(text,sizeof(text),"WAYPOINT  %.2f KM",length(map.waypoint-game.player)*.001f);ui.text(x,p.y+p.size-64*s,text,1.4f*s,teal);}
+    if(map.hasWaypoint){std::snprintf(text,sizeof(text),"WAYPOINT  %.2f KM",std::hypot(map.waypoint.x-game.player.x,map.waypoint.z-game.player.z)*.001f);ui.text(x,p.y+p.size-64*s,text,1.4f*s,teal);}
     std::snprintf(text,sizeof(text),"MAP WIDTH  %.2f KM",map.span*.001f);ui.text(p.x,p.y+p.size+18*s,text,1.3f*s,muted);
     ui.text(p.x+p.size-15*s,p.y+10*s,"N",1.5f*s,{.9f,.94f,.94f});
 }

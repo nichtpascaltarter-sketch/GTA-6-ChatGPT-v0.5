@@ -815,6 +815,10 @@ Mesh World::combinedMesh() const {
     Mesh m;size_t v=0,i=0;for(const auto& c:chunks){v+=c.mesh.vertices.size();i+=c.mesh.indices.size();}
     m.vertices.reserve(v);m.indices.reserve(i);for(const auto& c:chunks)appendMesh(m,c.mesh);return m;
 }
+Vec3 World::coastalRoadPoint(float fraction) {
+    const float z=lerp(-4210.f,5500.f,clamp(fraction,0,1));
+    return {coast(z)-185,0,z};
+}
 const char* World::district(Vec3 p) const {
     Biome b=biome(p.x,p.z);
     switch(b) {

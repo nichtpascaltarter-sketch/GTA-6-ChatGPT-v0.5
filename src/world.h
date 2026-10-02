@@ -34,6 +34,8 @@ public:
     Mesh combinedMesh() const;
     const char* district(Vec3 position) const;
     static const std::vector<Landmark>& landmarks();
+    // Position along the complete winding coastal road; fraction is in [0,1].
+    static Vec3 coastalRoadPoint(float fraction);
 private:
     int centerX=0x7fffffff,centerZ=0x7fffffff;
     Chunk generate(int x,int z) const;
