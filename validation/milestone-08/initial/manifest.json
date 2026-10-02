@@ -1,0 +1,329 @@
+{
+  "sourceCommit": "c90828a6794afa309f1783b9352df75a3f2c52c9",
+  "workflowRun": 36952070205,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36952070205",
+  "workflowConclusion": "success",
+  "visualAcceptance": "failed",
+  "blockingVisualFinding": "In residents-work the worker and clipboard are fully hidden behind static market crates/stall geometry. Collider-only camera visibility checks passed incorrectly because these rendered props are not colliders. Root is repairing capture visibility against actual static triangles; this snapshot was not promoted.",
+  "releaseArtifact": 11204687345,
+  "debugArtifact": 11204832272,
+  "executables": {
+    "release": {
+      "bytes": 1084928,
+      "sha256": "92f9c18e37aeac085722962b8fb1ab239d6bd264e075bd189e9c74ab0b26d1a4"
+    },
+    "debug": {
+      "bytes": 2934272,
+      "sha256": "d007303dcb489de5b7ef37b2477d3c96436c7010ecc0a8941a7c134b467f05ee"
+    }
+  },
+  "nativeTestSuites": [
+    "world",
+    "world_streamer",
+    "world_lod_geometry",
+    "world_lod_streaming",
+    "render_visibility",
+    "render_timing",
+    "game (49/49)",
+    "pedestrian (9/9)",
+    "workshop_lighting",
+    "pedestrian_visuals",
+    "procedural audio",
+    "cinematics"
+  ],
+  "precompiledShaderVariants": 10,
+  "compilerWarningOccurrences": 2,
+  "distinctCompilerWarnings": [
+    {
+      "location": "tests/pedestrian_tests.cpp:205",
+      "code": "C4244",
+      "cause": "Assigning parked?0:8 to float car.speed converts exactly representable integer constants.",
+      "impact": "Harmless test-fixture conversion; float-literal cleanup requested in the next unfrozen source snapshot."
+    }
+  ],
+  "releaseAdditionalScenes": 34,
+  "standaloneLaunches": 44,
+  "renderedFramesTotal": 1872,
+  "debugValidation": "All seven Debug launches enabled the D3D12 debug layer and corruption/error checks without a diagnostic failure. HDR4x/1x/2x and GPU-timestamp-disabled lifecycle checks passed; captured client dimensions agree with verified restored windows.",
+  "verifiedWindowStates": {
+    "smoke-lifecycle-msaa1-report.json": [
+      {
+        "frame": 30,
+        "width": 976,
+        "height": 657
+      },
+      {
+        "frame": 60,
+        "width": 1024,
+        "height": 768
+      },
+      {
+        "frame": 90,
+        "width": 976,
+        "height": 657
+      }
+    ],
+    "smoke-lifecycle-msaa2-report.json": [
+      {
+        "frame": 30,
+        "width": 976,
+        "height": 657
+      },
+      {
+        "frame": 60,
+        "width": 1024,
+        "height": 768
+      },
+      {
+        "frame": 90,
+        "width": 976,
+        "height": 657
+      }
+    ],
+    "smoke-lifecycle-no-gpu-timestamps-report.json": [
+      {
+        "frame": 30,
+        "width": 976,
+        "height": 657
+      },
+      {
+        "frame": 60,
+        "width": 1024,
+        "height": 768
+      },
+      {
+        "frame": 90,
+        "width": 976,
+        "height": 657
+      }
+    ],
+    "smoke-lifecycle-report.json": [
+      {
+        "frame": 30,
+        "width": 976,
+        "height": 657
+      },
+      {
+        "frame": 60,
+        "width": 1024,
+        "height": 768
+      },
+      {
+        "frame": 90,
+        "width": 976,
+        "height": 657
+      }
+    ]
+  },
+  "streamingValidation": "Both configurations passed the eight-phase incremental route and five-phase 2 km LOD route with required residency, epoch reset, useful culling, and zero ordinary/pressure/repack waits.",
+  "timingValidation": "All 44 reports contain finite drained CPU samples; enabled GPU timestamps run at10MHz with matching sample counts. Forced-disabled lifecycle retains120 CPU samples with zero GPU frequency/samples/durations.",
+  "selectedTimingReports": {
+    "release/smoke-lod-report.json": {
+      "cpu": 1,
+      "gpu": 1,
+      "frequency": 10000000,
+      "submitted": 320,
+      "completed": 320,
+      "pending": 0,
+      "samples": 120,
+      "gpuSamples": 120,
+      "invalid": 0,
+      "latest": 320,
+      "cpuMean": 118.152446,
+      "cpuMax": 132.0231,
+      "waitMean": 116.237939,
+      "prepareMean": 0.145408,
+      "recordMean": 1.658452,
+      "presentMean": 0.109502,
+      "gpuMean": 119.205848,
+      "gpuMax": 133.0516,
+      "worldCalls": 127,
+      "worldMean": 14.032151,
+      "worldMax": 67.5184
+    },
+    "release/smoke-report.json": {
+      "cpu": 1,
+      "gpu": 1,
+      "frequency": 10000000,
+      "submitted": 120,
+      "completed": 120,
+      "pending": 0,
+      "samples": 120,
+      "gpuSamples": 120,
+      "invalid": 0,
+      "latest": 120,
+      "cpuMean": 220.776826,
+      "cpuMax": 249.466,
+      "waitMean": 217.940878,
+      "prepareMean": 0.523954,
+      "recordMean": 2.144823,
+      "presentMean": 0.165806,
+      "gpuMean": 231.671434,
+      "gpuMax": 303.3707,
+      "worldCalls": 1,
+      "worldMean": 49.6928,
+      "worldMax": 49.6928
+    },
+    "debug/smoke-lifecycle-no-gpu-timestamps-report.json": {
+      "cpu": 1,
+      "gpu": 0,
+      "frequency": 0,
+      "submitted": 120,
+      "completed": 120,
+      "pending": 0,
+      "samples": 120,
+      "gpuSamples": 0,
+      "invalid": 0,
+      "latest": 120,
+      "cpuMean": 242.851744,
+      "cpuMax": 316.1472,
+      "waitMean": 238.904397,
+      "prepareMean": 0.416435,
+      "recordMean": 2.185897,
+      "presentMean": 1.340667,
+      "gpuMean": 0.0,
+      "gpuMax": 0.0,
+      "worldCalls": 1,
+      "worldMean": 119.6172,
+      "worldMax": 119.6172
+    },
+    "debug/smoke-lod-report.json": {
+      "cpu": 1,
+      "gpu": 1,
+      "frequency": 10000000,
+      "submitted": 320,
+      "completed": 320,
+      "pending": 0,
+      "samples": 120,
+      "gpuSamples": 120,
+      "invalid": 0,
+      "latest": 320,
+      "cpuMean": 131.477561,
+      "cpuMax": 140.7554,
+      "waitMean": 129.350261,
+      "prepareMean": 0.12577,
+      "recordMean": 1.666841,
+      "presentMean": 0.331716,
+      "gpuMean": 137.529077,
+      "gpuMax": 146.7418,
+      "worldCalls": 198,
+      "worldMean": 22.143604,
+      "worldMax": 108.9916
+    },
+    "debug/smoke-report.json": {
+      "cpu": 1,
+      "gpu": 1,
+      "frequency": 10000000,
+      "submitted": 120,
+      "completed": 120,
+      "pending": 0,
+      "samples": 120,
+      "gpuSamples": 120,
+      "invalid": 0,
+      "latest": 120,
+      "cpuMean": 227.442548,
+      "cpuMax": 272.9977,
+      "waitMean": 223.704183,
+      "prepareMean": 0.403264,
+      "recordMean": 3.008848,
+      "presentMean": 0.321867,
+      "gpuMean": 289.352049,
+      "gpuMax": 374.192,
+      "worldCalls": 1,
+      "worldMean": 120.9598,
+      "worldMax": 120.9598
+    }
+  },
+  "elapsedSecondsByReport": {
+    "release/smoke-aircraft-report.json": 2.078,
+    "release/smoke-boat-report.json": 1.813,
+    "release/smoke-cinematic-report.json": 2.656,
+    "release/smoke-coast-report.json": 1.617,
+    "release/smoke-drive-report.json": 2.483,
+    "release/smoke-lod-report.json": 45.864,
+    "release/smoke-map-report.json": 2.584,
+    "release/smoke-night-report.json": 5.976,
+    "release/smoke-passenger-bike-report.json": 2.801,
+    "release/smoke-passenger-boat-report.json": 1.797,
+    "release/smoke-passenger-car-report.json": 2.924,
+    "release/smoke-passenger-plane-report.json": 2.315,
+    "release/smoke-portrait-report.json": 2.722,
+    "release/smoke-report.json": 28.565,
+    "release/smoke-rescue-report.json": 1.636,
+    "release/smoke-residents-bench-report.json": 4.712,
+    "release/smoke-residents-carry-report.json": 2.574,
+    "release/smoke-residents-flee-report.json": 9.169,
+    "release/smoke-residents-startle-report.json": 12.587,
+    "release/smoke-residents-talk-report.json": 12.85,
+    "release/smoke-residents-work-report.json": 3.399,
+    "release/smoke-rural-report.json": 2.2,
+    "release/smoke-storm-report.json": 2.627,
+    "release/smoke-streaming-report.json": 24.56,
+    "release/smoke-suburbs-report.json": 2.196,
+    "release/smoke-survey-report.json": 2.214,
+    "release/smoke-trial-map-report.json": 2.488,
+    "release/smoke-trial-report.json": 2.363,
+    "release/smoke-trial-run-report.json": 5.643,
+    "release/smoke-vehicle-report.json": 2.644,
+    "release/smoke-wetland-report.json": 2.234,
+    "release/smoke-workshop-day-report.json": 4.269,
+    "release/smoke-workshop-door-report.json": 5.147,
+    "release/smoke-workshop-night-report.json": 10.442,
+    "release/smoke-workshop-office-report.json": 5.345,
+    "release/smoke-workshop-report.json": 4.122,
+    "release/smoke-workshop-service-report.json": 5.029,
+    "debug/smoke-lifecycle-msaa1-report.json": 35.573,
+    "debug/smoke-lifecycle-msaa2-report.json": 38.24,
+    "debug/smoke-lifecycle-no-gpu-timestamps-report.json": 41.373,
+    "debug/smoke-lifecycle-report.json": 41.434,
+    "debug/smoke-lod-report.json": 61.455,
+    "debug/smoke-report.json": 39.367,
+    "debug/smoke-streaming-report.json": 30.829
+  },
+  "otherVisualFindings": "Carry, bench, talk, startle and flee subjects are readable. The narrow foreground polygon in talk/startle was traced to real fountain rim geometry 2.8\u20134.5m from the camera, not near-plane clipping or malformed triangles. Boat/plane captures are byte-identical to the accepted prior snapshot; foreground car/bike/portrait comparisons found no model regression.",
+  "selectedCaptures": [
+    {
+      "scene": "residents-carry",
+      "path": "captures/residents-carry.bmp",
+      "sha256": "d937ec977659366d6d7f24e677b7cbacf2d2add9c158fb0e88d8110bebf0c0db"
+    },
+    {
+      "scene": "residents-bench",
+      "path": "captures/residents-bench.bmp",
+      "sha256": "ad73e2a91e4aad543d764cdca61ab1fd03b3d53d8d261c18dcfc77ccfc51f169"
+    },
+    {
+      "scene": "residents-talk",
+      "path": "captures/residents-talk.bmp",
+      "sha256": "22e0bc3a5120f0721acdacf4b15112c9b4926234ea8df001a172a55b6fda1fb6"
+    },
+    {
+      "scene": "residents-startle",
+      "path": "captures/residents-startle.bmp",
+      "sha256": "b63c7af7b798dc367e712e87f892d8145e0482d296be59755b234ff44fd13a13"
+    },
+    {
+      "scene": "residents-flee",
+      "path": "captures/residents-flee.bmp",
+      "sha256": "f324838ad3d1267298a3e5dcdb9048a84d08bf98fce7bc74bc906c8636fba7d5"
+    },
+    {
+      "scene": "residents-work",
+      "path": "captures/residents-work.bmp",
+      "sha256": "d92dd2be8c7f0fcb3afeb68752b216634b464268d0761c5372eea4a8bf2f0cc7"
+    }
+  ],
+  "captureProvenance": "Exact original native Release BMP bytes verified against artifact report SHA256; no edits or resampling",
+  "runtimeImports": [
+    "d3d12.dll",
+    "dxgi.dll",
+    "kernel32.dll",
+    "ole32.dll",
+    "shell32.dll",
+    "user32.dll",
+    "xinput9_1_0.dll"
+  ],
+  "runtimeDependencies": "Every smoke executable launched alone from a new temporary directory; no adjacent runtime/shader/asset files. Windows system import audit passed.",
+  "performanceLimits": "Software D3D12 WARP observations only; no hardware DXR or RTX4070 performance claim. Launch timings include startup/capture; GPU scopes omit separate world-upload/AS lists, backlog, Present and capture.",
+  "archiveContents": "Original reports/session/diagnostic logs, native build/test output, executable hashes/imports, six original resident captures and this manifest; no executables."
+}
