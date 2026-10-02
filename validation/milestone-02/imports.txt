@@ -1,0 +1,8 @@
+Windows x64 PE; inbox Windows imports only:
+d3d12.dll
+dxgi.dll
+kernel32.dll
+ole32.dll
+shell32.dll
+user32.dll
+xinput9_1_0.dll

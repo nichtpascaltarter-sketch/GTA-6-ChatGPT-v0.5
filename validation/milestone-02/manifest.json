@@ -1,0 +1,12 @@
+{
+  "sourceCommit": "a56e0584d9fbb56aeb2dfe50e4eb92183b69737e",
+  "workflowRun": 36946344981,
+  "releaseArtifact": 11202496284,
+  "debugArtifact": 11202960101,
+  "releaseBytes": 701952,
+  "releaseSha256": "25eebd77ede8a3e256d229dc4307a1258bf032dd345477ff893ba93fc7390a80",
+  "nativeGameSuites": 19,
+  "releaseAdditionalScenes": 13,
+  "nativeRendering": "D3D12 WARP only; hardware DXR and RTX 4070 frame rates unverified",
+  "audio": "Synthesis tested; native WASAPI listening not verified"
+}

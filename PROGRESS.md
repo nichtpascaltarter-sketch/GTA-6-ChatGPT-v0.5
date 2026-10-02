@@ -17,16 +17,17 @@ part of the game distribution.
 
 ## Working state — 2026-10-02
 
-- Source repository: `nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5`.
-- Working branch: `development/meridian-coast`, based on initial commit `76bbb11`.
-- Execution environment: Linux, `g++` available, no local Windows SDK, DXC,
-  Windows runtime, or GPU validation. The connected Windows desktop is offline.
-- Native Windows Release/Debug build and WARP screenshot validation passed in
-  GitHub Actions at `1bbac2e` and `fd058a8`. Release also passed at `b1a34b7`;
-  its Debug lifecycle run is pending. A WARP result is software-rendering evidence and
-  cannot establish RTX 4070 performance or DXR correctness.
-- There is no claim of a complete game, AAA visual quality, crash freedom,
-  benchmark parity, or measured 1440p/60 performance.
+- Repository: `nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5`.
+- Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
+- Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
+  GitHub Actions. No local Windows GPU or connected desktop is available.
+- Latest verified executable: `a56e0584d9fbb56aeb2dfe50e4eb92183b69737e`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 02 below.
+- Native Release/Debug, system-import audits, 19 gameplay suites, 13 additional
+  scene captures, and strict window lifecycle validation pass. WARP does not
+  establish hardware DXR correctness or RTX 4070 performance.
+- This remains a very early game, far below the full target. No claim of AAA
+  quality, completeness, crash freedom, or 1440p/60 performance is made.
 
 ## Implemented source
 
@@ -49,95 +50,52 @@ part of the game distribution.
 
 ## Current validation
 
-- World tests passed optimized C++20 with warnings treated as errors. At
-  `b1a34b7`, the origin contains 335,720 triangles, 700,724 vertices, 49 chunks.
-  Tests include seams, deterministic generation, chunk reuse,
-  biomes, mesh validity, high-speed collision, sliding, and overlap recovery.
-- Audio synthesis tests passed optimized warnings-as-errors and ASan/UBSan.
-- Windows Release/Debug executable builds, launch, screenshot inspection, and
-  debug-layer validation passed at `1bbac2e`. Native audio playback, hardware
-  DXR, and hardware frame-time measurements remain unverified.
+- At the verified checkpoint the central 49 chunks contain 726,020 vertices and
+  342,248 triangles. Countryside: 221,134 triangles; wetland: 294,430; island:
+  130,916; coast: 140,226. Tests cover deterministic regeneration, collision,
+  seams, 8,199 regional road samples, 14,014 road sweeps, lights, dock and runway.
+- Native 19/19 gameplay suites pass, including actual runway takeoff, banking,
+  stall descent, landing, boat handling/swimming, old-save migration, passive
+  aircraft motion, and altitude-aware police visibility. Core craft tests passed
+  ASan/UBSan. New aircraft exit preference tests bring the working tree to 21
+  passing strict portable suites; those later changes await the next native run.
+- Audio synthesis passes strict tests and ASan/UBSan, including four engine
+  sounds, biome ambience, finite output, transition continuity and chunking.
+- Archived `fd058a8` passed a 648-simulated-second sanitizer soak, 38,880 updates,
+  152 mesh validations, 52 exact save/load round trips and 16 boundary cases.
+  A new craft-focused 570-second soak of `a56e058` is running; result pending.
+- Native audio listening, real controller hardware, clean Windows 10 coverage,
+  hardware DXR, and 2560x1440 RTX 4070 frame-time measurements remain unverified.
 
 ## Active tasks
 
-Latest combined content checkpoint: `c2080088c3e681aab6b784075d21a4793be9f1ac`,
-[native run](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36946139617).
-Release passed all native tests, 120 frames, and 13 scene captures. Debug passed
-the base launch and stricter lifecycle checks. Native images confirm boats,
-aircraft, new vegetation, map UI, removal of facade banding, and preserved night
-light pools. The city WARP launch step returned to 15 seconds after negligible
-dusk-light pruning (previously 70 seconds, baseline 14 seconds).
+1. HDR/MSAA rendering is now in progress: linear floating-point scene color,
+   queried 4x/2x MSAA with 1x fallback, resolve, tone mapping, restrained bloom,
+   then crisp UI. Renderer agent owns renderer/shaders; coordinate build-time DXC
+   additions with build validation. Validate resize resources and all captures.
+2. Include the already committed aircraft exit preference improvement (`b8c4821`,
+   tests `0f1770e`) and smoke process-duration reporting (`798a0f8`) in the next
+   native checkpoint. The original deep-water exit was already safe; the actual
+   improvement prefers clear dry land/deck and reports swimming correctly.
+3. Complete the craft sanitizer soak and preserve results. Root owns main/UI/map
+   and milestone documentation; gameplay owns game/visuals/tests; world owns
+   deterministic generation; build validation owns build scripts and CI.
+4. Remove full-world GPU replacement and synchronous generation stalls. Preserve
+   per-chunk GPU geometry and BLAS, retire allocations by fence, add per-instance
+   reflection index metadata, then use bounded application-owned workers. Keep
+   load/reset epochs separate from stable per-key job tickets.
+5. Add coarse world coverage to 1.5–2 km using shared building descriptors,
+   8 m boundary samples with 16/32 m interiors, and bounded mesh capacities.
+   Keep one representation per tile and coordinate fog/far-plane changes. See
+   agent architecture reports in the current conversation for full design.
+6. Expand story, side activities, pedestrian routines, police tactics, interiors,
+   destruction, animation, true dynamic GI and volumetric atmosphere. Measure
+   actual hardware frame times and compatibility as access becomes available.
 
-Final repairs awaiting another native pass: `f61abc7` keeps abandoned planes
-under physics and uses full 3D police sight distance; `6513081` tests those cases
-(19 gameplay suites pass, and archived pre-fix code fails the three regressions).
-`39214d4` draws the actual winding coastal road on the map, reports horizontal
-waypoint distance, and keeps bitmap glyph cells at least one physical pixel.
-The latter fixes disappearing glyph rows in the 960x541 map/craft HUD captures.
-Coastal route samples and the existing world suite pass strict C++20 checks.
-
-Playable craft now include buoyancy, rudder response, swimming/reboarding,
-aircraft throttle/banking/lift/stall/landing, a 512 m airstrip, and a walkable
-coastal pier. Save version 2 preserves craft attitude and throttle and migrates
-version 1. Audio adds four distinct engines and continuous biome ambience;
-signal tests and ASan/UBSan pass, but native listening remains unverified.
-The new world map supports pan, zoom, waypoints, and craft markers. Root owns
-map/UI/main, gameplay owns game/visuals/tests, renderer owns renderer/shaders,
-world owns generation, and build validation owns scripts/CI.
-
-After the final repair checkpoint: append Milestone 02 with native evidence and
-scorecard, then begin linear-HDR offscreen rendering, MSAA edge antialiasing and
-a dedicated post-process pass. Keep UI crisp. Follow with incremental chunk
-GPU residency/BLAS and asynchronous generation; a detailed architecture review
-is available in the current conversation. Keep the full original target.
-
-Current lighting candidate: `b1a34b7037069fb04fd58062d76e6ed86f602347`, undergoing
-[native validation](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36945666811).
-Release passed all four native test executables, an isolated-EXE 120-frame WARP
-launch, and ten additional camera/weather captures. Debug passed compilation,
-tests, and the base launch; lifecycle validation remains pending. The previous
-candidate `fd058a8` passed both native configurations and an eight-scene sweep.
-
-Implemented since Milestone 01: directional raster shadows, six building
-families, a market/clock pavilion, rounded actor/vehicle meshes, four original
-subtitled cinematic conversations, street/shop point lights, vehicle spotlights,
-police flashers, and muzzle illumination. Conversations are not voiced; local
-lights are unshadowed. Review fixed close-wall cinematic cameras, menu/skip
-input overlap, and continuity of shader animation time.
-
-Inspected `b1a34b7` captures: night streets and headlights now read clearly;
-portraits remain very primitive, and vertical facade bands still need repair.
-Release's WARP base smoke step increased from 14 seconds at `fd058a8` to 70
-seconds at `b1a34b7`; investigate the lighting/shadow cost before accepting the
-milestone. This is CI software-rendering time, not hardware frame-rate evidence.
-
-An independent ASan/UBSan soak on archived `fd058a8` passed 38,880 updates / 648
-simulated seconds, 152 mesh validations, 52 byte-exact save/load round trips,
-and 16 boundary/biome placements without sanitizer failures or leaks. Harness
-and log: `/tmp/meridian-soak-tYMekg/`.
-
-Current unvalidated content work: biome-specific vegetation, coastal dock and
-inland airstrip, playable boats/aircraft with save migration, and world-map
-navigation. Root's map projection/finite-geometry checks passed against an
-isolated `b1a34b7` source snapshot; native map capture is pending. Lifecycle
-checks now also verify actual Win32 rectangles/styles and client dimensions.
-
-Captures: `/workspace/scratch/lighting-b1a34b7/` and
-`/workspace/scratch/visual-milestone-fd058a8/`. The executable currently copied to
-`/workspace/outputs/MeridianCoast.exe` is the verified `fd058a8` Release binary.
-
-1. Repair facade banding and investigate WARP regression, finish Debug lifecycle
-   and visual verification, then append the second evidence-backed scorecard.
-2. Finish boats, aircraft, swimming, launch sites, vegetation, world map and
-   contextual controls; run native craft/map/biome captures and physics tests.
-3. Remove synchronous streaming stalls, add distant world representation, and
-   include moving vehicles/characters in acceleration structures.
-4. Expand authored story, cutscenes, side activities, civilian routines, crime
-   witnesses, police tactics, driving dynamics, motorcycles, boats, and aircraft.
-5. Add true dynamic GI, volumetric atmosphere, detailed authored procedural
-   materials, richer animation, interiors, crowds, and robust destruction.
-6. Measure real Windows hardware performance and reliability; optimize against
-   frame-time distributions at 2560x1440 on RTX 4070-class hardware.
+Captures for the verified checkpoint are in
+`/workspace/scratch/repair-a56e058/`; Debug evidence is in
+`/workspace/scratch/debug-a56e058/`. Machine-readable committed evidence is under
+`validation/milestone-02/`. The full original target remains unchanged.
 
 ## Initial scorecard — before native validation
 
@@ -224,3 +182,55 @@ Windows or GPU performance claim.
 Next milestone: directional raster shadows, better curved character/vehicle
 silhouettes, and multi-biome/weather image inspection. The full target remains
 unchanged and this scorecard is not a completion claim.
+
+## Milestone 02 — expanded world, craft and lighting, 2026-10-02
+
+Validated source: `a56e0584d9fbb56aeb2dfe50e4eb92183b69737e`.
+[Native build, execution and captures](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36946344981).
+Evidence is in `validation/milestone-02/`. The self-contained Release executable
+is 701,952 bytes; SHA256:
+`25eebd77ede8a3e256d229dc4307a1258bf032dd345477ff893ba93fc7390a80`.
+Only seven inbox Windows libraries are imported; shaders and runtime remain
+embedded/static. Every smoke run copies only the EXE into an empty directory.
+
+This checkpoint adds directional raster shadows; actual street/shop, headlight,
+police and muzzle illumination; six building families and market architecture;
+rounded character/vehicle geometry; authored palms, broadleaf trees, cypress,
+mangroves, reeds and ground cover; a coastal pier and 512 m airstrip; boats,
+swimming and fixed-wing flight; version 2 saves with version 1 migration; four
+original subtitled cinematic conversations; map navigation/waypoints; craft HUD
+and four synthesized engines with district ambience. The conversations are not
+voiced. Local lights do not yet cast shadows; DXR still includes static geometry
+only. Far views remain short and synchronous world uploads remain a bottleneck.
+
+Release and Debug each passed four native test executables including 19 gameplay
+suites, plus 120-frame WARP launches. Release passed 13 further scene captures.
+Debug checked actual client sizes `976x657 -> 1024x768 -> 976x657` through resize,
+fullscreen and restoration, exited after 120 frames, and reported no debug-layer
+corruption/errors. Captures verify the new craft/vegetation, readable night
+headlight pools, removal of facade banding, and readable minimum-window text.
+
+Validation found and repaired sheared facade noise, a fivefold WARP slowdown
+from barely emitting dusk lights, missing coastal-road map segments, seabed-based
+waypoint distances, disappearing subpixel glyph rows, suspended unoccupied
+planes, and police sight ranges that ignored altitude. The 120-frame Release
+WARP launch step fell from 70 seconds to 15 seconds after light pruning; the final
+repair run took 23 seconds on another hosted runner. These timings include
+startup and are not a controlled GPU benchmark or a hardware performance claim.
+
+### Milestone 02 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | A twelve-kilometre geography now has distinct vegetation, a pier and airstrip, but block layouts and sparse scenery still repeat heavily. |
+| Visual fidelity | 0.5/10 | Native captures show functioning shadows and local lighting, but low-polygon people, simple materials, aliasing and short sightlines remain far below the benchmark. |
+| World density and life | 0.5/10 | 48 road vehicles and 84 pedestrians plus two parked craft populate basic routes without rich routines, crowds or ambient events. |
+| Vehicles and driving | 1/10 | Cars, motorcycles, boats and aircraft are playable, with tested buoyancy, swimming, takeoff and landing, but handling, animation, damage and interaction remain basic. |
+| On-foot and combat | 0.5/10 | Aimed combat, collision, health and swimming work, with primitive animation and very limited combat depth. |
+| NPC and police AI | 0.5/10 | Pursuit and occluded three-dimensional sight work with regressions, but there is no tactical coordination, investigation or nuanced civilian behavior. |
+| Missions and story | 0.5/10 | Four original jobs and four brief subtitled scenes work, but campaign length, staging, acting and mission variety remain minimal. |
+| Audio | 0.5/10 | Original stations, four engine types and biome ambience pass synthesis checks, but native listening, voices and spatial acoustics remain unverified or absent. |
+| Performance and stability | 0.5/10 | Native software-rendering, debug lifecycle and extensive portable tests pass, while synchronous streaming, real GPU frame times, hardware DXR and long native sessions remain unresolved. |
+
+Continue immediately with the active rendering milestone; none of these scores
+is a completion condition.
