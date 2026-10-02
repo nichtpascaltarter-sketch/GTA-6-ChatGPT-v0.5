@@ -1,0 +1,25 @@
+population=enabled; vehicle=acceptance-serviced loan
+vehicles=50 pedestrians=84
+accepted=4 occupied=48
+input_seconds=0.017 stage=1 remaining_distance=508.869 speed=0.040 craft_health=100.000 pilot_health=100.000
+input_seconds=10.017 stage=1 remaining_distance=440.613 speed=13.910 craft_health=100.000 pilot_health=100.000
+input_seconds=20.017 stage=1 remaining_distance=300.795 speed=14.000 craft_health=100.000 pilot_health=100.000
+input_seconds=30.017 stage=1 remaining_distance=160.788 speed=14.000 craft_health=100.000 pilot_health=100.000
+input_seconds=40.017 stage=1 remaining_distance=28.977 speed=6.921 craft_health=100.000 pilot_health=100.000
+input_seconds=49.100 stage=2 remaining_distance=2.526 speed=0.000 craft_health=100.000 pilot_health=100.000
+input_seconds=50.017 stage=2 remaining_distance=503.549 speed=1.566 craft_health=100.000 pilot_health=100.000
+input_seconds=60.017 stage=2 remaining_distance=513.845 speed=0.264 craft_health=100.000 pilot_health=100.000
+input_seconds=70.017 stage=2 remaining_distance=513.850 speed=0.763 craft_health=100.000 pilot_health=100.000
+input_seconds=80.017 stage=2 remaining_distance=513.850 speed=1.171 craft_health=100.000 pilot_health=100.000
+input_seconds=90.017 stage=2 remaining_distance=513.392 speed=1.018 craft_health=100.000 pilot_health=100.000
+input_seconds=100.017 stage=2 remaining_distance=513.392 speed=0.035 craft_health=100.000 pilot_health=100.000
+input_seconds=110.017 stage=2 remaining_distance=513.390 speed=0.575 craft_health=100.000 pilot_health=100.000
+input_seconds=120.017 stage=2 remaining_distance=513.388 speed=1.018 craft_health=100.000 pilot_health=100.000
+input_seconds=130.017 stage=2 remaining_distance=513.388 speed=0.035 craft_health=100.000 pilot_health=100.000
+input_seconds=140.017 stage=2 remaining_distance=513.386 speed=-0.029 craft_health=100.000 pilot_health=100.000
+input_seconds=150.017 stage=2 remaining_distance=429.370 speed=13.971 craft_health=100.000 pilot_health=100.000
+input_seconds=160.017 stage=2 remaining_distance=289.414 speed=14.000 craft_health=100.000 pilot_health=100.000
+input_seconds=170.017 stage=2 remaining_distance=149.387 speed=14.000 craft_health=100.000 pilot_health=100.000
+input_seconds=180.017 stage=2 remaining_distance=23.151 speed=5.621 craft_health=100.000 pilot_health=100.000
+input_seconds=183.867 stage=0 remaining_distance=7.314 speed=1.993 craft_health=100.000 pilot_health=100.000
+result=PASS input_seconds=183.867 completed=5 reward=1800 message=JOB COMPLETE  /  A LIGHT IN THE SOUND  +$1800

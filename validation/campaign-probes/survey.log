@@ -1,0 +1,37 @@
+population=enabled; vehicle=acceptance-serviced loan
+vehicles=50 pedestrians=84
+accepted=5 occupied=49
+input_seconds=0.017 stage=0 circuit_leg=0 position=-3200.000,4.000,-1190.000 speed=0.000 pre_step_agl=0.000 craft_health=100.000 pilot_health=100.000
+input_seconds=10.017 stage=0 circuit_leg=0 position=-3200.000,30.852,-942.139 speed=44.188 pre_step_agl=26.744 craft_health=100.000 pilot_health=100.000
+input_seconds=18.283 stage=1 circuit_leg=0 position=-3200.000,81.428,-574.458 speed=44.527 pre_step_agl=65.736 craft_health=100.000 pilot_health=100.000
+input_seconds=20.017 stage=1 circuit_leg=0 position=-3197.663,92.186,-497.464 speed=44.357 pre_step_agl=76.143 craft_health=100.000 pilot_health=100.000
+input_seconds=30.017 stage=1 circuit_leg=0 position=-2905.679,140.838,-187.930 speed=44.704 pre_step_agl=133.024 craft_health=100.000 pilot_health=100.000
+input_seconds=36.367 stage=2 circuit_leg=0 position=-2663.823,143.024,-39.082 speed=44.727 pre_step_agl=139.214 craft_health=100.000 pilot_health=100.000
+input_seconds=40.017 stage=2 circuit_leg=0 position=-2540.088,128.132,64.728 speed=44.435 pre_step_agl=125.736 craft_health=100.000 pilot_health=100.000
+input_seconds=50.017 stage=2 circuit_leg=0 position=-2577.587,115.439,487.168 speed=44.628 pre_step_agl=112.744 craft_health=100.000 pilot_health=100.000
+input_seconds=55.883 stage=3 circuit_leg=0 position=-2672.756,115.116,730.901 speed=44.626 pre_step_agl=111.573 craft_health=100.000 pilot_health=100.000
+input_seconds=60.017 stage=3 circuit_leg=0 position=-2769.172,113.525,884.561 speed=44.374 pre_step_agl=109.144 craft_health=100.000 pilot_health=100.000
+input_seconds=70.017 stage=3 circuit_leg=0 position=-3147.115,114.748,806.194 speed=44.509 pre_step_agl=106.871 craft_health=100.000 pilot_health=100.000
+input_seconds=80.017 stage=3 circuit_leg=0 position=-3293.510,117.946,384.722 speed=44.698 pre_step_agl=106.470 craft_health=100.000 pilot_health=100.000
+input_seconds=90.017 stage=3 circuit_leg=0 position=-3430.897,123.262,-40.115 speed=44.701 pre_step_agl=105.370 craft_health=100.000 pilot_health=100.000
+input_seconds=100.017 stage=3 circuit_leg=0 position=-3568.376,130.618,-465.207 speed=44.628 pre_step_agl=105.070 craft_health=100.000 pilot_health=100.000
+input_seconds=110.017 stage=3 circuit_leg=0 position=-3705.778,137.077,-890.128 speed=44.607 pre_step_agl=105.998 craft_health=100.000 pilot_health=100.000
+input_seconds=120.017 stage=3 circuit_leg=0 position=-3843.058,140.673,-1314.662 speed=44.712 pre_step_agl=107.141 craft_health=100.000 pilot_health=100.000
+input_seconds=130.017 stage=3 circuit_leg=1 position=-3977.221,134.496,-1740.616 speed=44.772 pre_step_agl=99.028 craft_health=100.000 pilot_health=100.000
+input_seconds=140.017 stage=3 circuit_leg=1 position=-3739.103,97.999,-2067.349 speed=44.677 pre_step_agl=75.815 craft_health=100.000 pilot_health=100.000
+input_seconds=150.017 stage=3 circuit_leg=2 position=-3329.221,80.789,-2244.569 speed=44.591 pre_step_agl=71.789 craft_health=100.000 pilot_health=100.000
+input_seconds=160.017 stage=3 circuit_leg=2 position=-3026.105,46.433,-2127.576 speed=37.122 pre_step_agl=40.121 craft_health=100.000 pilot_health=100.000
+input_seconds=170.017 stage=3 circuit_leg=2 position=-3134.277,43.879,-1772.824 speed=37.486 pre_step_agl=33.544 craft_health=100.000 pilot_health=100.000
+input_seconds=172.017 stage=3 circuit_leg=3 position=-3160.600,42.468,-1702.584 speed=37.526 pre_step_agl=31.075 craft_health=100.000 pilot_health=100.000
+input_seconds=174.017 stage=3 circuit_leg=3 position=-3176.483,39.604,-1629.659 speed=37.465 pre_step_agl=27.220 craft_health=100.000 pilot_health=100.000
+input_seconds=176.017 stage=3 circuit_leg=3 position=-3180.571,36.677,-1554.862 speed=37.532 pre_step_agl=23.524 craft_health=100.000 pilot_health=100.000
+input_seconds=178.017 stage=3 circuit_leg=3 position=-3182.069,33.415,-1479.825 speed=37.509 pre_step_agl=19.576 craft_health=100.000 pilot_health=100.000
+input_seconds=180.017 stage=3 circuit_leg=3 position=-3183.506,29.693,-1404.802 speed=37.599 pre_step_agl=18.128 craft_health=100.000 pilot_health=100.000
+input_seconds=182.017 stage=3 circuit_leg=3 position=-3185.027,22.772,-1329.585 speed=37.588 pre_step_agl=18.835 craft_health=100.000 pilot_health=100.000
+input_seconds=184.017 stage=3 circuit_leg=3 position=-3186.580,16.288,-1254.480 speed=37.482 pre_step_agl=12.331 craft_health=100.000 pilot_health=100.000
+input_seconds=186.017 stage=3 circuit_leg=3 position=-3188.115,12.347,-1179.555 speed=37.436 pre_step_agl=8.372 craft_health=100.000 pilot_health=100.000
+input_seconds=188.017 stage=3 circuit_leg=3 position=-3189.639,9.327,-1104.659 speed=37.478 pre_step_agl=5.352 craft_health=100.000 pilot_health=100.000
+input_seconds=190.017 stage=3 circuit_leg=3 position=-3191.130,6.313,-1031.768 speed=32.476 pre_step_agl=2.338 craft_health=100.000 pilot_health=100.000
+input_seconds=192.017 stage=3 circuit_leg=3 position=-3192.365,4.000,-971.599 speed=21.388 pre_step_agl=0.000 craft_health=100.000 pilot_health=100.000
+input_seconds=193.683 stage=0 circuit_leg=3 position=-3192.850,4.000,-948.031 speed=4.345 pre_step_agl=0.000 craft_health=100.000 pilot_health=100.000
+result=PASS input_seconds=193.683 completed=6 reward=2600 message=JOB COMPLETE  /  LINES ABOVE THE COAST  +$2600
