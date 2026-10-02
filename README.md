@@ -90,6 +90,8 @@ and worker-lifecycle tests, and launches isolated D3D12 WARP checks with capture
 BMPs. It verifies resize/fullscreen paths at 1x, 2x and 4x MSAA, an eight-phase
 streaming route with measured chunk reuse, and geography/gameplay scenes. WARP is software
 rendering, not hardware DXR or performance validation.
+The separate five-phase distant-world check validates complete visual coverage,
+per-level geometry residency, culling, adjacent movement and a world-epoch reset.
 
 ```powershell
 ./tools/smoke.ps1 -Executable ./build/Release/MeridianCoast.exe
@@ -97,8 +99,16 @@ rendering, not hardware DXR or performance validation.
 
 Streaming keeps unchanged chunks in GPU arenas and builds incoming CPU geometry
 on two bounded worker threads. Loading or outrunning collision coverage uses a
-synchronous fallback. Geometry arenas start at 64 MiB vertex / 16 MiB index and
-can grow to 256 / 64 MiB; rare repacking waits for the queue. Hardware ray tracing
-keeps one BLAS per chunk and rebuilds the small visible-set TLAS when needed.
+synchronous fallback. The nearest 49 tiles retain detailed collision geometry;
+separate medium and far representations extend complete visibility toward 2 km.
+Fog follows actual readiness, and the initial interactive load gives background
+generation a 100 ms budget before showing the city. The coarse CPU cache and
+temporary detailed fallback cache are each bounded at 64 MiB.
+Geometry arenas start at 128 MiB vertex / 32 MiB index with distant coverage
+(64 / 16 MiB for the legacy diagnostic) and can grow to 256 / 64 MiB; rare
+repacking waits for the queue. Hardware ray tracing keeps one BLAS per eligible
+near/medium tile and rebuilds the TLAS only when that ray scene changes.
+Far-only visual arrivals retain the ray scene. Reverse scene depth preserves
+precision over the longer view distance; shadow depth remains conventional.
 The worker and allocation budgets, fallback paths and unverified hardware limits
 are tracked in `PROGRESS.md`.

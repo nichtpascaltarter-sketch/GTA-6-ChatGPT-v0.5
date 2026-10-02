@@ -23,6 +23,7 @@
 #include "map_ui.h"
 #include "world_streamer.h"
 #include "streaming_probe.h"
+#include "lod_probe.h"
 
 namespace {
 using namespace mc;
@@ -60,6 +61,23 @@ struct App {
     RECT windowed{};DWORD oldStyle=0;bool borderless=false;WORD padButtons=0;
     ~App(){if(focusedMouse){ClipCursor(nullptr);ReleaseCapture();ShowCursor(TRUE);}if(window&&IsWindow(window))DestroyWindow(window);}
 };
+bool pumpDistant(WorldStreamer& streamer,Game& game,App& app,uint64_t epoch,
+                 double budgetMilliseconds,bool requireComplete,std::string& error) {
+    const auto began=std::chrono::steady_clock::now();
+    do {
+        MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){
+            if(msg.message==WM_QUIT)app.running=false;
+            TranslateMessage(&msg);DispatchMessageW(&msg);
+        }
+        if(!app.running)return true;
+        if(!streamer.update(game.world,game.player,epoch,error))return false;
+        const auto stats=streamer.stats();
+        if(!stats.pendingChunks&&!stats.distantPending&&!stats.queued&&!stats.inFlight&&!stats.completed)return true;
+        SwitchToThread();
+    }while(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()<budgetMilliseconds);
+    if(requireComplete){error="Distant world generation did not settle within its startup budget.";return false;}
+    return true;
+}
 void captureMouse(App& app,bool capture) {
     capture=capture&&app.active;
     if(capture==app.focusedMouse)return;app.focusedMouse=capture;
@@ -173,7 +191,21 @@ int execute(HINSTANCE instance,const Options& options) {
             log<<"Smoke scene: "<<options.scene<<'\n';
         }
         uint64_t uploaded=UINT64_MAX,uploadedEpoch=0,worldEpoch=1;
-        WorldStreamer worldStreamer;StreamingProbe streamingProbe;
+        WorldStreamer worldStreamer;StreamingProbe streamingProbe;LodProbe lodProbe;
+        const bool distant=!(options.smoke&&options.scene=="streaming");
+        worldStreamer.setDistantEnabled(distant);
+        if(distant&&!(options.smoke&&options.scene=="lod")){
+            const auto began=std::chrono::steady_clock::now();
+            if(!pumpDistant(worldStreamer,game,app,worldEpoch,options.smoke?15000.0:100.0,options.smoke,error)){
+                log<<"ERROR 9: "<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());
+                if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - world generation",MB_OK|MB_ICONERROR);
+                return 9;
+            }
+            log<<"Distant startup: ms="<<std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-began).count()
+               <<"; ready="<<game.world.renderReadyRadius(game.cameraEye())<<"; cacheTiles="<<game.world.distantTileCount()
+               <<"; cacheBytes="<<game.world.distantBytes()<<"; selected="<<game.world.renderTiles().size()<<'\n';log.flush();
+        }
+        if(!app.running)return 0;
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
@@ -235,6 +267,10 @@ int execute(HINSTANCE instance,const Options& options) {
             }
             if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
+            if(options.smoke&&options.scene=="lod"){
+                lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
+                if(!pumpDistant(worldStreamer,game,app,worldEpoch,10.0,false,error)){result=9;break;}
+            }
             if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
             const Vec3 movementStart=game.player;const int movementVehicle=game.occupied;
             if(!app.menu){
@@ -255,10 +291,11 @@ int execute(HINSTANCE instance,const Options& options) {
                 }
             }
             if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
-            if(uploaded!=game.world.revision||uploadedEpoch!=worldEpoch){
+            if(uploaded!=game.world.renderRevision||uploadedEpoch!=worldEpoch){
                 size_t vertices=0,indices=0;for(const auto& chunk:game.world.chunks){vertices+=chunk.mesh.vertices.size();indices+=chunk.mesh.indices.size();}
-                log<<"World revision "<<game.world.revision<<": "<<vertices<<" vertices, "<<indices/3<<" triangles\n";log.flush();
-                if(!renderer.setWorld(game.world,worldEpoch,error)){result=5;break;}uploaded=game.world.revision;uploadedEpoch=worldEpoch;
+                log<<"World revision "<<game.world.revision<<" / render "<<game.world.renderRevision<<": "<<vertices
+                   <<" detailed vertices, "<<indices/3<<" detailed triangles; selected tiles="<<game.world.renderTiles().size()<<'\n';log.flush();
+                if(!renderer.setWorld(game.world,worldEpoch,error)){result=5;break;}uploaded=game.world.renderRevision;uploadedEpoch=worldEpoch;
             }
             Mesh dynamic=game.dynamicMesh();std::vector<Light> lights=game.lightSources();ui.begin(float(app.width),float(app.height));
             if(app.menu)drawMenu(ui,app,settings,renderer);
@@ -277,8 +314,12 @@ int execute(HINSTANCE instance,const Options& options) {
                 frame.eye=carrier.position+right(carrier.yaw)*view.x+forward(carrier.yaw)*view.z+Vec3{0,view.y,0};
                 frame.target=carrier.position+right(carrier.yaw)*target.x+forward(carrier.yaw)*target.z+Vec3{0,target.y,0};
             }
+            if(options.smoke&&options.scene=="lod")lodProbe.camera(game,frame.eye,frame.target);
+            frame.coverageRadius=game.world.distantEnabled()?game.world.renderReadyRadius(frame.eye):-1.0f;
+            frame.groundHeight=game.world.height(frame.eye.x,frame.eye.z);
             if(!renderer.render(frame,error)){result=6;break;}
             if(options.smoke&&options.scene=="streaming"&&!streamingProbe.observe(game.world,worldStreamer.stats(),renderer.streamStats(),worldEpoch,renderer.frameCount(),log,error)){result=10;break;}
+            if(options.smoke&&options.scene=="lod"&&!lodProbe.observe(game.world,worldStreamer.stats(),renderer.streamStats(),frame.eye,worldEpoch,renderer.frameCount(),log,error)){result=10;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);
             audioState.shore=listenerBiome==Biome::Ocean||listenerBiome==Biome::Beach?1.f:listenerBiome==Biome::Island?.55f:0;
@@ -288,7 +329,11 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(vehicle.kind==VehicleKind::Aircraft){float groundGain=clamp(1-(game.player.y-game.world.height(game.player.x,game.player.z))/120,0,1);audioState.shore*=groundGain;audioState.nature*=groundGain;audioState.urban*=groundGain;}}
             movementAudio(audioState,game,movementStart,movementVehicle,input,dt);
             audio.update(audioState);
-            if(options.smoke&&renderer.frameCount()>=options.frames){if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
+            if(options.smoke&&renderer.frameCount()>=options.frames){
+                if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}
+                if(options.scene=="lod"&&!lodProbe.complete()){error="Distant-world diagnostic reached its frame limit before all phases settled.";result=10;break;}
+                if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;
+            }
             app.pressed.fill(false);app.wheel=0;app.mapClick=false;
         }
         captureMouse(app,false);

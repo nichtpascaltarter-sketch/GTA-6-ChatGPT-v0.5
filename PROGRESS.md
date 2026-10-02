@@ -94,19 +94,19 @@ part of the game distribution.
 5. Five original footstep responses, swim splashes and tire scrub are integrated
    and natively tested in Milestone 05. Shared sky/fog radiance repairs the distant
    color mismatch, and closer native car/boat captures verify the passenger.
-6. Active distant coverage implementation: retain detailed49 collision tiles;
-   medium radius7 and far radius16 with radius17 prefetch, shared deterministic
+6. Active distant coverage implementation: retain detailed 49 collision tiles;
+   medium radius 7 and far radius 16 with radius 17 prefetch, shared deterministic
    descriptors and 8 m perimeter samples. Two bounded workers prioritize detail,
    missing coverage and refinement. A separate render revision and selected
    RenderTileView list keep exactly one representation per cell. Retain detail
    until coarse replacement exists; protect post-publication coverage during
    cache eviction. A saturated-cache regression reproduces the old hole and
-   verifies its repair. Coarse cache cap is64 MiB; detail fallback cap64 MiB.
+   verifies its repair. Coarse cache cap is 64 MiB; detail fallback cap 64 MiB.
    Causeway height and geometry now follow island terrain consistently, and
    coarse road patches follow their actual rendered ground. Geometry and build
    source commits are landing; full integrated native validation is pending.
 7. Renderer LOD work next: bounds-based main/shadow culling, eligibility-aware
-   TLAS retention, coverage-driven horizontal fog to2 km, reversed scene depth
+   TLAS retention, coverage-driven horizontal fog to 2 km, reversed scene depth
    with forward shadow depth, and ground-anchored shadows for high aircraft.
    Interactive first display must remain prompt; smoke coverage can prewarm with
    message pumping and bounded timeout. Preserve existing streaming regression
@@ -368,7 +368,7 @@ shared sky/fog evaluation and a separate distant LOD layer are next.
 
 Validated source: `9628aab94861bcba7d78e91c5717ca0cfaf3b351`.
 [Windows build and launch evidence](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36948177017).
-Release is824,832 bytes; SHA256:
+Release is 824,832 bytes; SHA256:
 `6526232eed390ee5cf33341656ba09f40b99b81a4981a96714e577b2bbf8da4d`.
 The verified single EXE and checksum are in `/workspace/outputs/`. Evidence,
 original captures, import audits and reports are under `validation/milestone-05/`.
@@ -381,14 +381,14 @@ Five authored footstep materials, swimming strokes and lateral tire friction
 respond to real contact and movement. Pause, teleport, entering/exiting vehicles
 and airborne motion are gated, with deterministic synthesis and state tests.
 
-Both native configurations pass world/worker,29 gameplay, audio and cinematic
-suites with no compiler warnings or errors.26 isolated executable launches
-rendered992 frames, including19 Release scenes, both streaming routes and actual
-Debug4x/1x/2x resize/fullscreen checks, without D3D12 corruption/error messages.
-Release WARP city/streaming processes took30.331/29.359 seconds; Debug lifecycle
-runs took35.894/31.262/33.736 seconds. These are uncontrolled process timings,
+Both native configurations pass world/worker, 29 gameplay, audio and cinematic
+suites with no compiler warnings or errors. 26 isolated executable launches
+rendered 992 frames, including 19 Release scenes, both streaming routes and actual
+Debug 4x/1x/2x resize/fullscreen checks, without D3D12 corruption/error messages.
+Release WARP city/streaming processes took 30.331/29.359 seconds; Debug lifecycle
+runs took 35.894/31.262/33.736 seconds. These are uncontrolled process timings,
 not hardware frame-time evidence. Same-runner comparison is underway. Native
-listening, hardware DXR, clean Windows10, physical controller and1440p/60 remain
+listening, hardware DXR, clean Windows 10, physical controller and 1440p/60 remain
 unverified.
 
 ### Milestone 05 scorecard

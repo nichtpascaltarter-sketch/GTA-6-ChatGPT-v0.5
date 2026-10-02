@@ -146,7 +146,17 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     if(g.messageTime>0&&!g.message.empty()){float w=std::min(ui.width-80*s,720*s);ui.rect((ui.width-w)*.5f,110*s,w,92*s,{.025f,.045f,.06f},.92f);ui.rect((ui.width-w)*.5f,110*s,4*s,92*s,gold);ui.wrapped((ui.width-w)*.5f+20*s,127*s,g.message.c_str(),1.8f*s,w-40*s);}
     if(g.occupied<0){float x=ui.width*.5f,y=ui.height*.5f;ui.line(x-8*s,y,x-3*s,y,s,{1,1,1},.75f);ui.line(x+3*s,y,x+8*s,y,s,{1,1,1},.75f);ui.line(x,y-8*s,x,y-3*s,s,{1,1,1},.75f);ui.line(x,y+3*s,x,y+8*s,s,{1,1,1},.75f);}
     const char* radio[]={"RADIO OFF","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};ui.shadowText(ui.width-margin-260*s,88*s,radio[std::clamp(g.radioStation,0,3)],1.4f*s,muted);
-    if(diagnostics){std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s",fps,static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER");ui.rect(0,ui.height-16*s,ui.width,16*s,{0,0,0},.8f);ui.text(5*s,ui.height-13*s,b,1.25f*s,teal);}
+    if(diagnostics){
+        const auto stats=renderer.streamStats();
+        ui.rect(0,ui.height-34*s,ui.width,34*s,{0,0,0},.8f);
+        std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s  /  VIEW %.0f M",fps,
+            static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER",stats.fogEnd);
+        ui.text(5*s,ui.height-30*s,b,1.25f*s,teal);
+        std::snprintf(b,sizeof(b),"TILES %u / %u / %u  DRAW %u  CULLED %u  GEOMETRY %.1f MB  UPLOADS %u",
+            stats.residentTilesByLod[0],stats.residentTilesByLod[1],stats.residentTilesByLod[2],stats.mainDrawn,
+            stats.mainCulled,double(stats.residentBytes)/(1024*1024),stats.pendingBatches);
+        ui.text(5*s,ui.height-14*s,b,1.25f*s,teal);
+    }
 }
 inline void drawCinematic(Ui& ui,const Cinematic& scene,const char* missionTitle) {
     float s=ui.scale;
