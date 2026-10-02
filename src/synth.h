@@ -34,6 +34,11 @@ public:
         state_.wanted=finiteClamp(value.wanted,0,5);
         state_.volume=finiteClamp(value.volume,0,1);
         state_.station=std::max(0,std::min(3,value.station));
+        state_.engineKind=std::max(0,std::min(3,value.engineKind));
+        state_.throttle=finiteClamp(value.throttle,0,1);
+        state_.shore=finiteClamp(value.shore,0,1);
+        state_.nature=finiteClamp(value.nature,0,1);
+        state_.urban=finiteClamp(value.urban,0,1);
         if(state_.station!=station_) {
             station_=state_.station;
             step_=0;
@@ -70,16 +75,36 @@ public:
             speed_+=(std::abs(state_.speed)-speed_)*smooth_;
             rain_+=(state_.rain-rain_)*smooth_;
             wanted_+=(state_.wanted-wanted_)*smooth_;
+            throttle_+=(state_.throttle-throttle_)*smooth_;
+            shore_+=(state_.shore-shore_)*smooth_;
+            nature_+=(state_.nature-nature_)*smooth_;
+            urban_+=(state_.urban-urban_)*smooth_;
+            for(int kind=0;kind<4;++kind)engineMix_[kind]+=((state_.engineKind==kind?1.f:0.f)-engineMix_[kind])*smooth_;
             const float whiteL=noise(),whiteR=noise();
             lowNoiseL_+=(whiteL-lowNoiseL_)*lowpass_;
             lowNoiseR_+=(whiteR-lowNoiseR_)*lowpass_;
-            const double revs=25.0+std::fmod(speed_,13.0f)*5.3+speed_*1.9;
+            const double carRevs=25.0+std::fmod(speed_,13.0f)*5.3+speed_*1.9;
+            const double revs=engineMix_[0]*carRevs+engineMix_[1]*(42+speed_*4.2)+engineMix_[2]*(18+speed_*2.3)+engineMix_[3]*(35+throttle_*45+speed_*.25);
             advance(enginePhase_,revs);
-            const float motor=engine_*(0.065f*wave(enginePhase_)+0.031f*wave(enginePhase_*2.0)+
-                0.017f*wave(enginePhase_*3.0)+0.014f*lowNoiseL_);
+            const float fundamental=.065f*engineMix_[0]+.046f*engineMix_[1]+.077f*engineMix_[2]+.088f*engineMix_[3];
+            const float second=.031f*engineMix_[0]+.04f*engineMix_[1]+.018f*engineMix_[2]+.035f*engineMix_[3];
+            const float third=.017f*engineMix_[0]+.031f*engineMix_[1]+.007f*engineMix_[2]+.024f*engineMix_[3];
+            const float motor=engine_*(fundamental*wave(enginePhase_)+second*wave(enginePhase_*2.0)+third*wave(enginePhase_*3.0)+.014f*lowNoiseL_);
             const float wind=std::min(speed_/70.0f,1.0f)*0.05f;
             left+=motor+wind*lowNoiseL_+rain_*(0.044f*whiteL+0.035f*lowNoiseL_);
             right+=motor+wind*lowNoiseR_+rain_*(0.044f*whiteR+0.035f*lowNoiseR_);
+            // Slow noise envelopes suggest breaking surf and distant traffic;
+            // continuously running phases keep biome transitions click-free.
+            advance(surfPhase_,.135);advance(birdCycle_,.19);advance(birdPhase_,2150+650*wave(birdCycle_*7));
+            advance(urbanPhase_,.037);advance(hornPhase_,180);
+            const float surf=.019f+.029f*std::pow(.5f+.5f*wave(surfPhase_),2.f);
+            const float birdEnvelope=std::pow(std::max(0.f,wave(birdCycle_)),18.f)*std::pow(.5f+.5f*wave(birdCycle_*11),2.f);
+            const float birds=.018f*birdEnvelope*wave(birdPhase_);
+            const float hornEnvelope=std::pow(std::max(0.f,wave(urbanPhase_)),64.f);
+            const float distantHorn=.008f*hornEnvelope*(wave(hornPhase_)+.3f*wave(hornPhase_*1.5));
+            const float wake=engine_*engineMix_[2]*std::min(speed_/20.f,1.f)*.038f;
+            left+=(shore_*surf+wake)*lowNoiseL_+nature_*(birds*.7f+.006f*lowNoiseL_)+urban_*(.012f*lowNoiseL_+distantHorn);
+            right+=(shore_*surf+wake)*lowNoiseR_+nature_*(birds+.006f*lowNoiseR_)+urban_*(.012f*lowNoiseR_+distantHorn*.65f);
             advance(sirenSweep_,0.43);
             advance(sirenPhase_,620.0+350.0*(0.5+0.5*wave(sirenSweep_)));
             const float siren=std::min(wanted_,1.0f)*0.044f*(wave(sirenPhase_)+0.22f*wave(sirenPhase_*3));
@@ -110,7 +135,10 @@ private:
     std::size_t delayIndex_=0;
     double sampleRate_=48000,delta_=1.0/48000.0,samplesToStep_=0;
     double enginePhase_=0,sirenPhase_=0,sirenSweep_=0,shotAge_=1;
+    double surfPhase_=0,birdCycle_=0,birdPhase_=0,urbanPhase_=0,hornPhase_=0;
     float smooth_=0,lowpass_=0,master_=0,engine_=0,speed_=0,rain_=0,wanted_=0;
+    float throttle_=0,shore_=0,nature_=0,urban_=0;
+    std::array<float,4> engineMix_{{1,0,0,0}};
     float lowNoiseL_=0,lowNoiseR_=0,previousShot_=0,shotStrength_=0;
     std::uint32_t random_=0xb7e15162u,step_=0;
     int station_=0;

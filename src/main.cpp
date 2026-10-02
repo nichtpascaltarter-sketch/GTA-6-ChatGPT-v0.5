@@ -148,7 +148,15 @@ int execute(HINSTANCE instance,const Options& options) {
             else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
             else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
             else if(options.scene=="drive"){game.occupied=0;game.player=game.vehicles[0].position;game.vehicles[0].parked=false;}
-            game.player.y=game.world.height(game.player.x,game.player.z);game.world.stream(game.player);game.messageTime=0;
+            else if(options.scene=="boat"||options.scene=="aircraft"){
+                const VehicleKind kind=options.scene=="boat"?VehicleKind::Boat:VehicleKind::Aircraft;
+                for(size_t index=0;index<game.vehicles.size();++index)if(game.vehicles[index].kind==kind){
+                    game.occupied=int(index);auto& craft=game.vehicles[index];craft.parked=false;
+                    if(kind==VehicleKind::Aircraft){craft.position.y+=80;craft.speed=42;craft.throttle=.75f;craft.velocity={0,0,42};}
+                    game.player=craft.position;game.yaw=craft.yaw;game.pitch=.15f;break;
+                }
+            }
+            if(game.occupied<0)game.player.y=game.world.height(game.player.x,game.player.z);game.world.stream(game.player);game.messageTime=0;
             log<<"Smoke scene: "<<options.scene<<'\n';
         }
         uint64_t uploaded=UINT64_MAX;
@@ -166,7 +174,11 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="lifecycle"){
                 const uint64_t frameNumber=renderer.frameCount();
                 if(frameNumber==30){
-                    if(!SetWindowPos(app.window,nullptr,0,0,1280,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE)||!GetWindowRect(app.window,&lifecycleWindow)||lifecycleWindow.right-lifecycleWindow.left!=1280||lifecycleWindow.bottom-lifecycleWindow.top!=760){error="Lifecycle resize did not reach its requested window dimensions.";result=8;break;}
+                    MONITORINFO monitor{sizeof(monitor)};
+                    if(!GetMonitorInfoW(MonitorFromWindow(app.window,MONITOR_DEFAULTTONEAREST),&monitor)){error="Lifecycle monitor work area is unavailable.";result=8;break;}
+                    const int targetWidth=std::clamp(int(monitor.rcWork.right-monitor.rcWork.left)-32,960,1280);
+                    const int targetHeight=std::clamp(int(monitor.rcWork.bottom-monitor.rcWork.top)-32,580,760);
+                    if(!SetWindowPos(app.window,nullptr,0,0,targetWidth,targetHeight,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE)||!GetWindowRect(app.window,&lifecycleWindow)||lifecycleWindow.right-lifecycleWindow.left!=targetWidth||lifecycleWindow.bottom-lifecycleWindow.top!=targetHeight){error="Lifecycle resize did not reach its requested window dimensions.";result=8;break;}
                     log<<"Lifecycle: resize at frame 30\n";
                 }
                 if(frameNumber==60){
@@ -203,6 +215,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke){dt=1.f/60;input={};
                 if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
                 if(options.scene=="drive")input.moveY=.7f;
+                if(options.scene=="boat")input.moveY=.55f;
                 if(options.scene=="night")game.dayTime=23;
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
@@ -236,7 +249,13 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(!renderer.render(frame,error)){result=6;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
-            if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){audioState.engine=1;audioState.speed=game.vehicles[size_t(game.occupied)].speed;}audio.update(audioState);
+            const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);
+            audioState.shore=listenerBiome==Biome::Ocean||listenerBiome==Biome::Beach?1.f:listenerBiome==Biome::Island?.55f:0;
+            audioState.nature=listenerBiome==Biome::Wetland?1.f:listenerBiome==Biome::Countryside?.65f:listenerBiome==Biome::Residential?.25f:0;
+            audioState.urban=listenerBiome==Biome::Downtown?1.f:listenerBiome==Biome::Residential?.4f:0;
+            if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){const auto& vehicle=game.vehicles[size_t(game.occupied)];audioState.engine=vehicle.health>0?1.f:0;audioState.speed=vehicle.speed;audioState.engineKind=int(vehicle.kind);audioState.throttle=std::fabs(vehicle.throttle);
+                if(vehicle.kind==VehicleKind::Aircraft){float groundGain=clamp(1-(game.player.y-game.world.height(game.player.x,game.player.z))/120,0,1);audioState.shore*=groundGain;audioState.nature*=groundGain;audioState.urban*=groundGain;}}
+            audio.update(audioState);
             if(options.smoke&&renderer.frameCount()>=options.frames){if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
             app.pressed.fill(false);app.wheel=0;app.mapClick=false;
         }

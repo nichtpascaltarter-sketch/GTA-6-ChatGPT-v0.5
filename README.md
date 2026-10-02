@@ -43,6 +43,7 @@ frame rates remain under validation.
 | Accept nearby contract | M | D-pad up |
 | Radio station | Q | D-pad right |
 | Pause | Escape | Start |
+| World map | Tab | Back / View |
 | Skip cinematic conversation | Space | A |
 | Save / load | F5 / F9 | Pause menu save |
 | Fullscreen | F11 | Settings |
@@ -50,6 +51,20 @@ frame rates remain under validation.
 
 Settings, saves, and a session log live under `%LOCALAPPDATA%\MeridianCoast`.
 Progress autosaves when exiting normally. No additional input files are needed.
+
+The world map shows the active contract, coastal boat, inland aircraft, and
+landmarks. Pan with WASD / left stick, zoom with the mouse wheel or +/- / bumpers,
+and click or press Enter / A to place a navigation waypoint. Delete / X clears
+it; F / Y centers on the player. Tab, Escape, or controller B closes the map.
+
+Find the runabout at Glasswater Landing on the east coast. W/S (left stick
+forward/back) controls thrust and reverse; A/D steers the rudder. Space / B
+slows the boat. Exit near the pier or swim with movement controls and Shift / A.
+The light aircraft starts at Breaker Airfield inland. W/S sets its throttle,
+A/D banks, Shift / A pitches up, and Space / B pitches down or brakes on the
+runway. Build speed along the runway before climbing; reduce throttle and
+approach gently to land. Exit only after landing and slowing down. The flight
+HUD shows throttle, height above terrain, and a low-speed warning.
 
 ## Validation
 

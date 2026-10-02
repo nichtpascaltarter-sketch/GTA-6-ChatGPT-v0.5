@@ -111,7 +111,27 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     const Mission* mission=g.missionInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;
     ui.text(tx,ty,g.activeMission>=0?"ACTIVE CONTRACT":"AVAILABLE CONTRACT",1.4f*s,gold);
     if(mission){ui.text(tx,ty+19*s,mission->title,2.1f*s);float dist=length(objective-g.player);std::snprintf(b,sizeof(b),"%.0f M  /  %s",dist,g.activeMission>=0?"FOLLOW THE GOLD MARKER":"M TO ACCEPT AT THE MARKER");ui.text(tx,ty+43*s,b,1.3f*s,muted);}
-    if(g.occupied>=0&&g.occupied<int(g.vehicles.size())){std::snprintf(b,sizeof(b),"%03d",int(std::fabs(g.vehicles[size_t(g.occupied)].speed)*3.6f));ui.text(ui.width-margin-102*s,ui.height-margin-60*s,b,5*s);ui.text(ui.width-margin-71*s,ui.height-margin-17*s,"KM/H",1.6f*s,muted);}
+    if(g.occupied>=0&&g.occupied<int(g.vehicles.size())){
+        const auto& vehicle=g.vehicles[size_t(g.occupied)];
+        std::snprintf(b,sizeof(b),"%03d",int(std::fabs(vehicle.speed)*3.6f));ui.text(ui.width-margin-102*s,ui.height-margin-60*s,b,5*s);ui.text(ui.width-margin-71*s,ui.height-margin-17*s,"KM/H",1.6f*s,muted);
+        if(vehicle.kind==VehicleKind::Aircraft){
+            const float altitude=std::max(0.f,vehicle.position.y-g.world.height(vehicle.position.x,vehicle.position.z));
+            float x=ui.width-margin-218*s,y=ui.height-margin-260*s;
+            ui.rect(x-12*s,y-12*s,230*s,162*s,{.02f,.04f,.055f},.88f);
+            ui.text(x,y,"SKYLARK",1.6f*s,teal);
+            std::snprintf(b,sizeof(b),"ALT GROUND  %.0f M",altitude);ui.text(x,y+30*s,b,1.45f*s);
+            std::snprintf(b,sizeof(b),"THROTTLE    %d%%",int(vehicle.throttle*100));ui.text(x,y+55*s,b,1.45f*s);
+            const bool stall=altitude>2&&vehicle.speed<22;
+            ui.text(x,y+83*s,stall?"LOW AIRSPEED":"W/S THROTTLE  A/D BANK",1.2f*s,stall?gold:muted);
+            ui.text(x,y+106*s,"SHIFT CLIMB / SPACE DESCEND",1.1f*s,muted);
+            ui.text(x,y+129*s,"PAD A CLIMB / B DESCEND",1.1f*s,muted);
+        }else if(vehicle.kind==VehicleKind::Boat){
+            float x=ui.width-margin-218*s,y=ui.height-margin-208*s;
+            ui.rect(x-12*s,y-12*s,230*s,112*s,{.02f,.04f,.055f},.88f);ui.text(x,y,"GLASSWATER RUNABOUT",1.4f*s,teal);
+            std::snprintf(b,sizeof(b),"DEPTH  %.1f M",g.world.waterDepth(vehicle.position.x,vehicle.position.z));ui.text(x,y+27*s,b,1.45f*s);
+            ui.text(x,y+54*s,"W/S THRUST  A/D RUDDER",1.2f*s,muted);ui.text(x,y+77*s,"SPACE / PAD B  SLOW",1.2f*s,muted);
+        }
+    }
     else {std::snprintf(b,sizeof(b),"%02d / %03d",g.ammo,g.reserveAmmo);ui.text(ui.width-margin-ui.textWidth(b,2.2f*s),ui.height-margin-20*s,b,2.2f*s);}
     if(g.messageTime>0&&!g.message.empty()){float w=std::min(ui.width-80*s,720*s);ui.rect((ui.width-w)*.5f,110*s,w,92*s,{.025f,.045f,.06f},.92f);ui.rect((ui.width-w)*.5f,110*s,4*s,92*s,gold);ui.wrapped((ui.width-w)*.5f+20*s,127*s,g.message.c_str(),1.8f*s,w-40*s);}
     if(g.occupied<0){float x=ui.width*.5f,y=ui.height*.5f;ui.line(x-8*s,y,x-3*s,y,s,{1,1,1},.75f);ui.line(x+3*s,y,x+8*s,y,s,{1,1,1},.75f);ui.line(x,y-8*s,x,y-3*s,s,{1,1,1},.75f);ui.line(x,y+3*s,x,y+8*s,s,{1,1,1},.75f);}
