@@ -1,0 +1,42 @@
+{
+  "sourceCommit": "a2aa8ba2cbbe01a27f5c781195c642381c1db15d",
+  "workflowRun": 36948934996,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36948934996",
+  "workflowConclusion": "failure",
+  "releaseArtifact": 11202419127,
+  "debugArtifact": 11203421430,
+  "executables": {
+    "release": {
+      "bytes": 909824,
+      "sha256": "dbe7ab32afccc3c4b36a5157084ac12a6f063378916b2aef7705ed3a29e1a331"
+    },
+    "debug": {
+      "bytes": 2503168,
+      "sha256": "3a4df900bf1ba48c85c0436069521292e4781e9bf4d5058789ea9478192af0e4"
+    }
+  },
+  "nativeBuild": "Both configurations compiled all 10 shader variants and passed all eight test targets, including 29 gameplay suites",
+  "passedSmokeScenes": [
+    "city (120 frames per build)",
+    "streaming (120 frames per build)"
+  ],
+  "failedScene": "lod",
+  "failedExitCode": 10,
+  "framesAtFailure": {
+    "release": 48,
+    "debug": 75
+  },
+  "lastPassedPhase": 0,
+  "failure": "Distant-world diagnostic settled without full coverage or useful draw culling.",
+  "diagnosis": "The probe incorrectly expected 176 medium and 864 far tiles after a one-cell move. The production cache intentionally retains 15 extra medium tiles in its hysteresis band, yielding 49 detail / 191 medium / 849 far and 240 shadow candidates. A separate CPU reproduction confirmed these exact five-phase selections; no production renderer or world defect was identified.",
+  "phase0": "Both builds reached 49/176/864 selected tiles, ready radius 2051.77, fogEnd 2000, main draws 324+765 culled, shadow draws 36+189 culled, zero pending/retired allocations and zero streaming waits",
+  "debugLayer": "D3D12 debug layer and corruption/error validation enabled; no GPU error messages reported before the probe failure",
+  "compilerWarnings": "Two C4456 shadowed-local warnings in render_visibility_tests.cpp (depth at line 61, projection at line 64), fixed in 98e93f9",
+  "validationRepair": "Probe/parser expectations updated for the intentional hysteresis selection. LOD route frame budget raised from 160 to 320 because Debug phase zero alone needed 70 frames. Timeout remains 300 seconds.",
+  "unexecutedChecks": [
+    "HDR resize/fullscreen variants",
+    "19-scene visual sweep"
+  ],
+  "performance": "City launch-to-exit: Release 34.440 seconds, Debug 37.205 seconds on WARP; not a controlled GPU performance result",
+  "archiveContents": "Original successful smoke reports, failing LOD session/diagnostic logs, import/hash metadata and this manifest; no executable or screenshots"
+}
