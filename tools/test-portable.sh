@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Simulation and synthesis checks only. The shipped game is built by build.bat.
+set -euo pipefail
+
+repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+compiler="${CXX:-c++}"
+configuration=portable
+flags=(-std=c++20 -O2 -g -Wall -Wextra -Wpedantic -I "$repo/src")
+if [[ "${1:-}" == --sanitize ]]; then
+    configuration=portable-sanitized
+    flags=(-std=c++20 -O1 -g -Wall -Wextra -Wpedantic -fno-omit-frame-pointer
+        -fsanitize=address,undefined -I "$repo/src")
+    shift
+fi
+if (( $# != 0 )); then
+    printf 'Usage: %s [--sanitize]\n' "$0" >&2
+    exit 2
+fi
+output="$repo/build/$configuration"
+mkdir -p -- "$output"
+
+printf 'Compiling portable simulation and synthesis tests with %s\n' "$compiler"
+"$compiler" "${flags[@]}" "$repo/tests/world_tests.cpp" "$repo/src/world.cpp" -o "$output/world_tests"
+"$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" -o "$output/game_tests"
+"$compiler" "${flags[@]}" "$repo/tests/audio_tests.cpp" -o "$output/audio_tests"
+
+for suite in world game audio; do
+    printf 'Running %s tests\n' "$suite"
+    "$output/${suite}_tests"
+done
+printf 'All portable tests passed. Windows renderer and device checks require the native build.\n'
