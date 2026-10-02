@@ -84,9 +84,19 @@ and remaining time visible, and saves preserve each active contract.
 
 Runs portable C++ simulation tests on Linux; it does not test D3D12 or Windows.
 The Windows CI builds Release and Debug, audits PE imports, runs simulation
-tests, and launches a D3D12 WARP smoke test with a captured BMP. WARP is software
+and worker-lifecycle tests, and launches isolated D3D12 WARP checks with captured
+BMPs. It verifies resize/fullscreen paths at 1x, 2x and 4x MSAA, an eight-phase
+streaming route with measured chunk reuse, and geography/gameplay scenes. WARP is software
 rendering, not hardware DXR or performance validation.
 
 ```powershell
 ./tools/smoke.ps1 -Executable ./build/Release/MeridianCoast.exe
 ```
+
+Streaming keeps unchanged chunks in GPU arenas and builds incoming CPU geometry
+on two bounded worker threads. Loading or outrunning collision coverage uses a
+synchronous fallback. Geometry arenas start at 64 MiB vertex / 16 MiB index and
+can grow to 256 / 64 MiB; rare repacking waits for the queue. Hardware ray tracing
+keeps one BLAS per chunk and rebuilds the small visible-set TLAS when needed.
+The worker and allocation budgets, fallback paths and unverified hardware limits
+are tracked in `PROGRESS.md`.

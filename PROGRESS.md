@@ -78,15 +78,36 @@ part of the game distribution.
 2. Validate the six-contract campaign natively: Leena's offshore clinic rescue
    and the three-pass aircraft survey with runway landing, six cinematics,
    persistent objectives/countdowns and rescue/survey scene captures. Both new
-   contracts completed control-driven portable probes without state edits after
-   acceptance; the full survey completed in 193.67 seconds with full health.
+   contracts completed control-driven portable probes with the full initialized
+   population and no state edits after acceptance. Rescue: 183.867 seconds;
+   full survey: 193.683 seconds, both with full craft/player health. Assertive
+   probe sources and logs are committed in `validation/campaign-probes/`.
 3. Root owns main/UI/map and milestone documentation; gameplay owns game/visuals/
    tests; world owns deterministic generation; build validation owns build/CI;
    renderer owns D3D12 resources/shaders. Complete snapshot commits precede sync.
-4. Remove full-world GPU replacement and synchronous generation stalls. Preserve
-   per-chunk GPU geometry and BLAS, retire allocations by fence, add per-instance
-   reflection index metadata, then use bounded application-owned workers. Keep
-   load/reset epochs separate from stable per-key job tickets.
+4. In progress: persistent per-chunk GPU geometry/BLAS, fence-retired allocations,
+   t6 per-instance reflection offsets, and a two-worker bounded world-generation
+   service. Root main integration calls service before/after simulation and
+   increments epoch on F9 load; default simulation tests keep synchronous stream.
+   Native streaming diagnostics exercise eight settled neighborhoods including
+   axial/diagonal movement, reverse, teleports and same-world epoch reset. Expected
+   uploads: 49,7,7,13,25,49,49,49; adjacent phases must use background workers and
+   retain unchanged GPU chunks with no ordinary/pressure/repack waits. Source is
+   not yet natively validated. The known complete campaign-only snapshot is
+   `88a2cf6`; native run `36947303166` passed Release, its 15 captures, Debug and
+   all three MSAA lifecycle paths. Evidence is under
+   `validation/milestone-04/initial-campaign/`. The passenger-visibility repair is
+   committed as `f101a6e` with tests `f3ecf2f`; four dedicated passenger captures
+   will verify each carrier before the next milestone is marked complete.
+   Renderer residency is `425e18b`; workers are `9a621a7`. The complete portable
+   suite passed after integration (world, six worker groups, 28 gameplay suites,
+   audio, six cinematics). Worker final source passed ASan/UBSan/leaks and TSan;
+   passenger/cabin tests passed ASan/UBSan; allocator tests passed 200,000 random
+   checks and all eight actual-world route capacities. Native validation remains
+   necessary before performance or stability conclusions. Geometry arenas start
+   at 64/16 MiB, grow to hard 256/64 MiB; staging is bounded at 384 MiB/four batches.
+   Rare repack can transiently hold two arena generations. Resident geometry,
+   retired geometry/AS/metadata, staging and wait counts are reported separately.
 5. Add coarse world coverage to 1.5–2 km using shared building descriptors,
    8 m boundary samples with 16/32 m interiors, and bounded mesh capacities.
    Keep one representation per tile and coordinate fog/far-plane changes. See

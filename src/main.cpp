@@ -20,6 +20,8 @@
 #include "audio.h"
 #include "ui.h"
 #include "map_ui.h"
+#include "world_streamer.h"
+#include "streaming_probe.h"
 
 namespace {
 using namespace mc;
@@ -148,6 +150,13 @@ int execute(HINSTANCE instance,const Options& options) {
             else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
             else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
             else if(options.scene=="drive"){game.occupied=0;game.player=game.vehicles[0].position;game.vehicles[0].parked=false;}
+            else if(options.scene=="passenger-car"||options.scene=="passenger-bike"||options.scene=="passenger-boat"||options.scene=="passenger-plane"){
+                const VehicleKind kind=options.scene=="passenger-car"?VehicleKind::Car:options.scene=="passenger-bike"?VehicleKind::Motorcycle:options.scene=="passenger-boat"?VehicleKind::Boat:VehicleKind::Aircraft;
+                for(size_t index=0;index<game.vehicles.size();++index)if(game.vehicles[index].kind==kind){
+                    game.occupied=int(index);game.player=game.vehicles[index].position;game.yaw=game.vehicles[index].yaw;
+                    game.activeMission=game.completedMissions=4;game.missionStage=2;game.missionTimer=200;break;
+                }
+            }
             else if(options.scene=="boat"||options.scene=="aircraft"||options.scene=="rescue"||options.scene=="survey"){
                 const bool rescue=options.scene=="rescue",survey=options.scene=="survey";
                 const VehicleKind kind=options.scene=="boat"||rescue?VehicleKind::Boat:VehicleKind::Aircraft;
@@ -162,7 +171,8 @@ int execute(HINSTANCE instance,const Options& options) {
             if(game.occupied<0)game.player.y=game.world.height(game.player.x,game.player.z);game.world.stream(game.player);game.messageTime=0;
             log<<"Smoke scene: "<<options.scene<<'\n';
         }
-        uint64_t uploaded=UINT64_MAX;
+        uint64_t uploaded=UINT64_MAX,uploadedEpoch=0,worldEpoch=1;
+        WorldStreamer worldStreamer;StreamingProbe streamingProbe;
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
@@ -213,7 +223,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(app.showSettings&&(confirm||direction)){switch(app.selected){case 0:settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);break;case 1:settings.vsync=!settings.vsync;break;case 2:settings.rayTracing=!settings.rayTracing;break;case 3:settings.volume=clamp(settings.volume+(direction?float(direction):1)*.05f,0,1);break;case 4:settings.exposure=clamp(settings.exposure+(direction?float(direction):1)*.1f,.5f,1.8f);break;case 5:app.showSettings=false;app.selected=0;break;}}
                 else if(!app.showSettings&&confirm){switch(app.selected){case 0:app.menu=app.title=false;break;case 1:app.showSettings=true;app.selected=0;break;case 2:game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=5;app.menu=app.title=false;break;case 3:app.running=false;break;}}
             }else {captureMouse(app,!options.smoke&&!app.mapOpen);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
-                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded){uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
+                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded){++worldEpoch;worldStreamer.reset(worldEpoch);uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
             if(!app.running)break;game.paused=app.menu||app.mapOpen||cinematic.active();
             if(options.smoke){dt=1.f/60;input={};
                 if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
@@ -222,6 +232,9 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(options.scene=="night")game.dayTime=23;
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
+            if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
+            if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
+            if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
             if(!app.menu){
                 presentationTime+=dt;
                 if(app.mapOpen){
@@ -235,12 +248,16 @@ int execute(HINSTANCE instance,const Options& options) {
                 }
                 else if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
                 else {
-                    int previousMission=game.activeMission;game.update(input,dt);
+                    int previousMission=game.activeMission;game.update(input,dt,false);
                     if(!options.smoke&&previousMission<0&&game.activeMission>=0){cinematic.start(game.activeMission,game.player,game.yaw);game.messageTime=0;}
                 }
             }
-            game.world.stream(game.player);
-            if(uploaded!=game.world.revision){Mesh world=game.world.combinedMesh();log<<"World revision "<<game.world.revision<<": "<<world.vertices.size()<<" vertices, "<<world.indices.size()/3<<" triangles\n";log.flush();if(!renderer.setWorld(world,error)){result=5;break;}uploaded=game.world.revision;}
+            if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
+            if(uploaded!=game.world.revision||uploadedEpoch!=worldEpoch){
+                size_t vertices=0,indices=0;for(const auto& chunk:game.world.chunks){vertices+=chunk.mesh.vertices.size();indices+=chunk.mesh.indices.size();}
+                log<<"World revision "<<game.world.revision<<": "<<vertices<<" vertices, "<<indices/3<<" triangles\n";log.flush();
+                if(!renderer.setWorld(game.world,worldEpoch,error)){result=5;break;}uploaded=game.world.revision;uploadedEpoch=worldEpoch;
+            }
             Mesh dynamic=game.dynamicMesh();std::vector<Light> lights=game.lightSources();ui.begin(float(app.width),float(app.height));
             if(app.menu)drawMenu(ui,app,settings,renderer);
             else if(app.mapOpen)drawWorldMap(ui,game,worldMap);
@@ -251,7 +268,15 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
+            if(options.smoke&&options.scene.rfind("passenger-",0)==0&&game.occupied>=0){
+                const auto& carrier=game.vehicles[size_t(game.occupied)];
+                const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{4.4f,2.8f,-5.2f}:Vec3{4,2.4f,4};
+                const Vec3 target=carrier.kind==VehicleKind::Aircraft?Vec3{0,1.5f,.6f}:Vec3{0,.85f,0};
+                frame.eye=carrier.position+right(carrier.yaw)*view.x+forward(carrier.yaw)*view.z+Vec3{0,view.y,0};
+                frame.target=carrier.position+right(carrier.yaw)*target.x+forward(carrier.yaw)*target.z+Vec3{0,target.y,0};
+            }
             if(!renderer.render(frame,error)){result=6;break;}
+            if(options.smoke&&options.scene=="streaming"&&!streamingProbe.observe(game.world,worldStreamer.stats(),renderer.streamStats(),worldEpoch,renderer.frameCount(),log,error)){result=10;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);
             audioState.shore=listenerBiome==Biome::Ocean||listenerBiome==Biome::Beach?1.f:listenerBiome==Biome::Island?.55f:0;
@@ -260,7 +285,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){const auto& vehicle=game.vehicles[size_t(game.occupied)];audioState.engine=vehicle.health>0?1.f:0;audioState.speed=vehicle.speed;audioState.engineKind=int(vehicle.kind);audioState.throttle=std::fabs(vehicle.throttle);
                 if(vehicle.kind==VehicleKind::Aircraft){float groundGain=clamp(1-(game.player.y-game.world.height(game.player.x,game.player.z))/120,0,1);audioState.shore*=groundGain;audioState.nature*=groundGain;audioState.urban*=groundGain;}}
             audio.update(audioState);
-            if(options.smoke&&renderer.frameCount()>=options.frames){if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
+            if(options.smoke&&renderer.frameCount()>=options.frames){if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
             app.pressed.fill(false);app.wheel=0;app.mapClick=false;
         }
         captureMouse(app,false);
