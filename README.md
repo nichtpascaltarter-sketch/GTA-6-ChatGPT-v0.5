@@ -51,6 +51,8 @@ frame rates remain under validation.
 
 Settings, saves, and a session log live under `%LOCALAPPDATA%\MeridianCoast`.
 Progress autosaves when exiting normally. No additional input files are needed.
+Footsteps respond to paving, soil, grass, sand and wooden decks; swimming and
+road-tire slip produce their own movement sounds.
 
 The world map shows the active contract, coastal boat, inland aircraft, and
 landmarks. Pan with WASD / left stick, zoom with the mouse wheel or +/- / bumpers,

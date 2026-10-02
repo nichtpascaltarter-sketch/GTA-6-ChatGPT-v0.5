@@ -104,15 +104,23 @@ part of the game distribution.
    audio, six cinematics). Worker final source passed ASan/UBSan/leaks and TSan;
    passenger/cabin tests passed ASan/UBSan; allocator tests passed 200,000 random
    checks and all eight actual-world route capacities. Native validation remains
-   necessary before performance or stability conclusions. Geometry arenas start
+   necessary before performance or stability conclusions. Integrated snapshot
+   `2acd647` is running as Windows workflow `36947811515`; both native builds
+   compiled and reached execution checks. Geometry arenas start
    at 64/16 MiB, grow to hard 256/64 MiB; staging is bounded at 384 MiB/four batches.
    Rare repack can transiently hold two arena generations. Resident geometry,
    retired geometry/AS/metadata, staging and wait counts are reported separately.
-5. Add coarse world coverage to 1.5–2 km using shared building descriptors,
+5. Next audio candidate: `4964d5a` adds five original footstep responses, swim
+   splashes and tire scrub with strict/sanitizer signal checks and unchanged
+   baseline audio when new controls are zero. `1708a4d` supplies authored ground
+   material queries. Root integration maps actual displacement/contact and
+   lateral tire slip, suppresses pause/teleport/vehicle-exit false events, and
+   passes 29 strict gameplay suites. Native listening remains unavailable.
+6. Add coarse world coverage to 1.5–2 km using shared building descriptors,
    8 m boundary samples with 16/32 m interiors, and bounded mesh capacities.
    Keep one representation per tile and coordinate fog/far-plane changes. See
    agent architecture reports in the current conversation for full design.
-6. Expand story, side activities, pedestrian routines, police tactics, interiors,
+7. Expand story, side activities, pedestrian routines, police tactics, interiors,
    destruction, animation, true dynamic GI and volumetric atmosphere. Measure
    actual hardware frame times and compatibility as access becomes available.
 

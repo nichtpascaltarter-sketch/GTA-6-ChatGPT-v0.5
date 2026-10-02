@@ -1,4 +1,5 @@
 #include "../src/game.h"
+#include "../src/audio_scene.h"
 
 #include <algorithm>
 #include <chrono>
@@ -66,6 +67,46 @@ size_t verifyDynamicMesh(const mc::Mesh& mesh, const char* pose) {
         }
     }
     return triangles;
+}
+
+void movementSoundMapping() {
+    mc::Game game;game.initialize();mc::AudioState sound;mc::Input input;
+    constexpr float dt=1.f/60;
+    auto before=game.player;input.moveY=1;game.update(input,dt);
+    mc::movementAudio(sound,game,before,-1,input,dt);
+    require(sound.footContact&&sound.footSpeed>3&&sound.footSpeed<5,"walking did not produce grounded movement sound");
+    mc::movementAudio(sound,game,game.player,-1,input,dt);
+    require(sound.footSpeed==0,"walking input without displacement produced footsteps");
+    before=game.player;game.player.y+=2;game.player.z+=.05f;
+    mc::movementAudio(sound,game,before,-1,input,dt);
+    require(!sound.footContact,"airborne movement produced grounded contact");
+    game.player={2674,game.world.height(2674,768),768};before=game.player;before.x-=.04f;
+    mc::movementAudio(sound,game,before,-1,input,dt);
+    require(sound.footContact&&sound.footSurface==mc::FootSurface::Wood,"pier footsteps ignored its wood surface");
+    game.player={3000,mc::World::WaterLevel-1.1f,900};before=game.player;before.x-=.04f;
+    mc::movementAudio(sound,game,before,-1,input,dt);
+    require(!sound.footContact&&sound.footSpeed==0&&sound.waterMotion>.5f,"swimming did not replace dry contact with water motion");
+    game.player={8,game.world.height(8,8),8};before=game.player;before.x-=100;
+    mc::movementAudio(sound,game,before,-1,input,dt);
+    require(sound.footSpeed==0&&sound.waterMotion==0,"teleport generated movement sound");
+    before=game.player;before.x-=.04f;
+    mc::movementAudio(sound,game,before,0,input,dt);
+    require(!sound.footContact&&sound.footSpeed==0,"vehicle exit generated a false stride");
+    game.occupied=0;auto& vehicle=game.vehicles[0];vehicle.kind=mc::VehicleKind::Car;vehicle.yaw=0;vehicle.speed=20;vehicle.velocity={5,0,20};
+    mc::movementAudio(sound,game,before,0,input,dt);
+    require(sound.tireScrub>.5f&&!sound.footContact,"lateral tire slip did not produce scrub");
+    vehicle.velocity={0,0,20};input.brake=true;
+    mc::movementAudio(sound,game,before,0,input,dt);
+    require(sound.tireScrub>0,"braking a moving car did not produce scrub");
+    vehicle.kind=mc::VehicleKind::Aircraft;
+    mc::movementAudio(sound,game,before,0,input,dt);
+    require(sound.tireScrub==0,"aircraft controls produced road tire scrub");
+    vehicle.kind=mc::VehicleKind::Car;game.paused=true;
+    mc::movementAudio(sound,game,before,0,input,dt);
+    require(sound.tireScrub==0&&sound.waterMotion==0&&sound.footSpeed==0,"paused simulation retained movement sounds");
+    game.paused=false;
+    mc::movementAudio(sound,game,before,0,input,0);
+    require(sound.tireScrub==0&&sound.footSpeed==0,"zero timestep retained movement sounds");
 }
 
 void initializationAndGeometry() {
@@ -1590,6 +1631,7 @@ int main() {
         {"lighting activation and vehicle transforms", lightingActivationAndTransforms},
         {"lighting capacity, range, and order", lightingCapacityRangeAndOrder},
         {"movement, pause, and timestep bounds", movementAndPause},
+        {"movement sound follows displacement and contact", movementSoundMapping},
         {"vehicle interaction", vehicleInteraction},
         {"boat handling and swimming", boatHandlingAndSwimming},
         {"aircraft flight, stall, and landing", aircraftFlightAndLanding},

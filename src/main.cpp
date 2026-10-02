@@ -18,6 +18,7 @@
 #include "game.h"
 #include "renderer.h"
 #include "audio.h"
+#include "audio_scene.h"
 #include "ui.h"
 #include "map_ui.h"
 #include "world_streamer.h"
@@ -235,6 +236,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(!worldStreamer.update(game.world,game.player,worldEpoch,error)){result=9;break;}
+            const Vec3 movementStart=game.player;const int movementVehicle=game.occupied;
             if(!app.menu){
                 presentationTime+=dt;
                 if(app.mapOpen){
@@ -284,6 +286,7 @@ int execute(HINSTANCE instance,const Options& options) {
             audioState.urban=listenerBiome==Biome::Downtown?1.f:listenerBiome==Biome::Residential?.4f:0;
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){const auto& vehicle=game.vehicles[size_t(game.occupied)];audioState.engine=vehicle.health>0?1.f:0;audioState.speed=vehicle.speed;audioState.engineKind=int(vehicle.kind);audioState.throttle=std::fabs(vehicle.throttle);
                 if(vehicle.kind==VehicleKind::Aircraft){float groundGain=clamp(1-(game.player.y-game.world.height(game.player.x,game.player.z))/120,0,1);audioState.shore*=groundGain;audioState.nature*=groundGain;audioState.urban*=groundGain;}}
+            movementAudio(audioState,game,movementStart,movementVehicle,input,dt);
             audio.update(audioState);
             if(options.smoke&&renderer.frameCount()>=options.frames){if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
             app.pressed.fill(false);app.wheel=0;app.mapClick=false;
