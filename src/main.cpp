@@ -156,7 +156,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(app.showSettings&&(confirm||direction)){switch(app.selected){case 0:settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);break;case 1:settings.vsync=!settings.vsync;break;case 2:settings.rayTracing=!settings.rayTracing;break;case 3:settings.volume=clamp(settings.volume+(direction?float(direction):1)*.05f,0,1);break;case 4:settings.exposure=clamp(settings.exposure+(direction?float(direction):1)*.1f,.5f,1.8f);break;case 5:app.showSettings=false;app.selected=0;break;}}
                 else if(!app.showSettings&&confirm){switch(app.selected){case 0:app.menu=app.title=false;break;case 1:app.showSettings=true;app.selected=0;break;case 2:game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=5;app.menu=app.title=false;break;case 3:app.running=false;break;}}
             }else {captureMouse(app,!options.smoke);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
-                if(app.pressed[VK_F9]){game.message=game.load(saveFile)?"Progress restored.":"No valid saved game was found.";game.messageTime=4;}}
+                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded)uploaded=UINT64_MAX;}}
             if(!app.running)break;game.paused=app.menu;
             if(options.smoke){dt=1.f/60;input={};input.moveY=.45f;input.lookX=.0015f;}
             if(!app.menu)game.update(input,dt);
