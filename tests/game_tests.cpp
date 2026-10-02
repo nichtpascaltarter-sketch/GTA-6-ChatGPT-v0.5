@@ -438,6 +438,40 @@ void aircraftFlightAndLanding() {
     require(game.occupied == -1, "landed and stopped aircraft could not be exited");
 }
 
+void hardAircraftLandingsAcrossFrameOffsets() {
+    mc::Game game;
+    const float ground = game.world.height(-3200, -1000);
+    std::string missedImpacts;
+    for (float drop : {18.0f, 18.1f, 18.2f, 20.0f}) {
+        mc::Vehicle aircraft;
+        aircraft.kind = mc::VehicleKind::Aircraft;
+        aircraft.position = {-3200, ground + drop, -1000};
+        game.vehicles.assign(1, aircraft);
+        game.player = {-3200, ground, -1000};
+        game.occupied = -1;
+        tick(game, {}, 240);
+        const mc::Vehicle& landed = game.vehicles[0];
+        require(finite(landed.position) && finite(landed.velocity),
+                "hard aircraft landing produced nonfinite state");
+        require(close(landed.position.y, ground, 0.02f) && close(landed.velocity.y, 0),
+                "hard aircraft landing did not settle on the runway");
+        if (!close(landed.health, 0)) missedImpacts += std::to_string(drop) + "m ";
+    }
+
+    mc::Vehicle occupiedAircraft;
+    occupiedAircraft.kind = mc::VehicleKind::Aircraft;
+    occupiedAircraft.position = {-3200, ground + 18, -1000};
+    game.vehicles.assign(1, occupiedAircraft);
+    game.player = occupiedAircraft.position;
+    game.occupied = 0;
+    tick(game, {}, 240);
+    if (!close(game.vehicles[0].position.y, ground, 0.02f))
+        missedImpacts += "occupied 18m stopped above runway; ";
+    if (!close(game.vehicles[0].health, 0)) missedImpacts += "occupied 18m";
+    if (!missedImpacts.empty())
+        throw std::runtime_error("hard landing skipped aircraft impact damage at: " + missedImpacts);
+}
+
 void aircraftAltitudeSeparatesContacts() {
     mc::Game game;
     const float ground = game.world.height(-3200, -1000);
@@ -1131,6 +1165,7 @@ int main() {
         {"vehicle interaction", vehicleInteraction},
         {"boat handling and swimming", boatHandlingAndSwimming},
         {"aircraft flight, stall, and landing", aircraftFlightAndLanding},
+        {"hard aircraft landings across frame offsets", hardAircraftLandingsAcrossFrameOffsets},
         {"aircraft altitude separates road contacts", aircraftAltitudeSeparatesContacts},
         {"ditched aircraft exit and swimming", ditchedAircraftExitAndSwimming},
         {"aircraft exit prefers a clear dock", aircraftExitPrefersDock},
