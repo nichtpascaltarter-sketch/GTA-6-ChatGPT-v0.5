@@ -106,7 +106,7 @@ if ($Scene -eq 'lifecycle') {
 }
 $streamingPhases = @()
 if ($Scene -eq 'streaming') {
-    $phasePattern = '(?m)^Streaming phase (?<phase>\d+): center=(?<x>-?\d+),(?<z>-?\d+); epoch=(?<epoch>\d+); chunks=(?<chunks>\d+); uploaded=(?<uploaded>\d+); expected=(?<expected>\d+); retained=(?<retained>\d+); cpuPending=(?<pending>\d+); batches=(?<batches>\d+); fallbacks=(?<fallbacks>\d+); ordinaryWaits=(?<ordinary>\d+); pressureWaits=(?<pressure>\d+); repacks=(?<repacks>\d+); residentBytes=(?<residentBytes>\d+); retiredBytes=(?<retiredBytes>\d+)\r?$'
+    $phasePattern = '(?m)^Streaming phase (?<phase>\d+): center=(?<x>-?\d+),(?<z>-?\d+); epoch=(?<epoch>\d+); chunks=(?<chunks>\d+); uploaded=(?<uploaded>\d+); expected=(?<expected>\d+); retained=(?<retained>\d+); cpuPending=(?<pending>\d+); batches=(?<batches>\d+); fallbacks=(?<fallbacks>\d+); ordinaryWaits=(?<ordinary>\d+); pressureWaits=(?<pressure>\d+); repacks=(?<repacks>\d+); residentBytes=(?<residentBytes>\d+); retiredBytes=(?<retiredBytes>\d+); scheduled=(?<scheduled>\d+); built=(?<built>\d+); installed=(?<installed>\d+)\r?$'
     $phases = [regex]::Matches($sessionText, $phasePattern)
     if ($phases.Count -ne 8 -or [regex]::Matches($sessionText, '(?m)^Streaming phase ').Count -ne 8 -or
         -not $sessionText.Contains('Streaming verified: 8 settled phases; incremental uploads and epoch reset passed')) {
@@ -135,6 +135,9 @@ if ($Scene -eq 'streaming') {
             repackWaits = [UInt64] $match.Groups['repacks'].Value
             residentBytes = [UInt64] $match.Groups['residentBytes'].Value
             retiredBytes = [UInt64] $match.Groups['retiredBytes'].Value
+            scheduledChunks = [UInt64] $match.Groups['scheduled'].Value
+            builtChunks = [UInt64] $match.Groups['built'].Value
+            installedChunks = [UInt64] $match.Groups['installed'].Value
         }
         $expectedEpoch = if ($index -eq 7) { $initialEpoch + 1 } else { $initialEpoch }
         if ($phase.phase -ne $index -or $phase.centerX -ne $expectedX[$index] -or
@@ -145,6 +148,14 @@ if ($Scene -eq 'streaming') {
             $phase.pendingChunks -ne 0 -or $phase.pendingBatches -ne 0 -or
             $phase.ordinaryWaits -ne 0 -or $phase.pressureWaits -ne 0 -or $phase.repackWaits -ne 0) {
             throw "Streaming phase $index did not verify its expected neighborhood, upload delta, or settled resources."
+        }
+        if ($index -ge 1 -and $index -le 3) {
+            if ($phase.synchronousFallbacks -ne $streamingPhases[-1].synchronousFallbacks -or
+                $phase.scheduledChunks -ne $expectedUploads[$index] -or
+                $phase.builtChunks -ne $expectedUploads[$index] -or
+                $phase.installedChunks -ne $expectedUploads[$index]) {
+                throw "Streaming phase $index did not generate its new chunks through the background workers."
+            }
         }
         $streamingPhases += $phase
     }
