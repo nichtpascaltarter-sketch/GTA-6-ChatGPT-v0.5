@@ -15,6 +15,8 @@ void validateMesh(const Mesh& m) {
     for(const auto& v:m.vertices) {
         assert(std::isfinite(v.position.x)&&std::isfinite(v.position.y)&&std::isfinite(v.position.z));
         assert(std::isfinite(v.normal.x)&&std::isfinite(v.normal.y)&&std::isfinite(v.normal.z));
+        assert(std::isfinite(v.color.x)&&std::isfinite(v.color.y)&&std::isfinite(v.color.z));
+        assert(std::isfinite(v.material));
         assert(close(length(v.normal),1,.001f));assert(v.material>=0&&v.material<=4);
     }
 }
@@ -26,6 +28,84 @@ void geometry() {
     size_t old=m.vertices.size();appendMesh(m,c);assert(m.vertices.size()==old+c.vertices.size());validateMesh(m);
 }
 bool sameVector(Vec3 a,Vec3 b) {return a.x==b.x&&a.y==b.y&&a.z==b.z;}
+void compareChunks(const Chunk& original,const Chunk& restored) {
+    assert(original.x==restored.x&&original.z==restored.z);
+    assert(original.mesh.vertices.size()==restored.mesh.vertices.size());
+    assert(original.mesh.indices==restored.mesh.indices);
+    for(size_t i=0;i<original.mesh.vertices.size();++i) {
+        const auto& a=original.mesh.vertices[i];const auto& b=restored.mesh.vertices[i];
+        assert(sameVector(a.position,b.position)&&sameVector(a.normal,b.normal));
+        assert(sameVector(a.color,b.color)&&a.material==b.material);
+    }
+    assert(original.solids.size()==restored.solids.size());
+    for(size_t i=0;i<original.solids.size();++i) {
+        assert(sameVector(original.solids[i].min,restored.solids[i].min));
+        assert(sameVector(original.solids[i].max,restored.solids[i].max));
+    }
+    assert(original.lights.size()==restored.lights.size());
+    for(size_t i=0;i<original.lights.size();++i) {
+        const auto& a=original.lights[i];const auto& b=restored.lights[i];
+        assert(sameVector(a.position,b.position)&&sameVector(a.direction,b.direction));
+        assert(sameVector(a.color,b.color)&&a.radius==b.radius&&a.intensity==b.intensity&&a.cone==b.cone);
+    }
+}
+bool insideRoadCorridor(const World& w,float x,float z) {
+    // A vehicle with a one-metre radius must fit comfortably inside the road.
+    for(float dx:{-2.0f,0.0f,2.0f})for(float dz:{-2.0f,0.0f,2.0f})
+        if(!w.road(x+dx,z+dz))return false;
+    return true;
+}
+void naturalRegions() {
+    struct Region {const char* name;Vec3 position;Biome biome;};
+    const Region regions[]={
+        {"Countryside",{-4096,0,2048},Biome::Countryside},
+        {"Wetlands",{1100,0,-2800},Biome::Wetland},
+        {"Island",{4140,0,-250},Biome::Island},
+        {"Coast",{2520,0,768},Biome::Beach}
+    };
+    for(const auto& region:regions) {
+        World w;assert(w.stream(region.position));assert(w.chunks.size()==49);
+        Mesh combined=w.combinedMesh();validateMesh(combined);
+        assert(combined.indices.size()/3<350000);
+        size_t roads=0,paths=0,solids=0;bool foundBiome=false;
+        for(const auto& chunk:w.chunks) {
+            validateMesh(chunk.mesh);
+            assert(chunk.mesh.indices.size()/3<350000);
+            solids+=chunk.solids.size();
+            for(const auto& box:chunk.solids) {
+                assert(std::isfinite(box.min.x)&&std::isfinite(box.min.y)&&std::isfinite(box.min.z));
+                assert(std::isfinite(box.max.x)&&std::isfinite(box.max.y)&&std::isfinite(box.max.z));
+                assert(box.min.x<box.max.x&&box.min.y<box.max.y&&box.min.z<box.max.z);
+            }
+            for(int iz=0;iz<32;++iz)for(int ix=0;ix<32;++ix) {
+                const float x=chunk.x*World::ChunkSize+ix*4.0f,z=chunk.z*World::ChunkSize+iz*4.0f;
+                foundBiome=foundBiome||w.biome(x,z)==region.biome;
+                if(!insideRoadCorridor(w,x,z))continue;
+                Vec3 from{x,w.height(x,z),z};assert(!w.blocked(from,1.0f));++roads;
+                for(Vec3 delta:{Vec3{4,0,0},Vec3{0,0,4}}) {
+                    bool roadPath=true;
+                    for(int step=1;step<=4;++step)
+                        if(!insideRoadCorridor(w,x+delta.x*step*.25f,z+delta.z*step*.25f))roadPath=false;
+                    if(!roadPath)continue;
+                    const Vec3 target{x+delta.x,w.height(x+delta.x,z+delta.z),z+delta.z};
+                    const Vec3 reached=w.move(from,target-from,1.0f);
+                    assert(close(reached.x,target.x)&&close(reached.y,target.y)&&close(reached.z,target.z));
+                    ++paths;
+                }
+            }
+        }
+        assert(foundBiome&&roads>0&&paths>0&&solids>0);
+        // Leave every resident chunk behind, then require exact regeneration of all data.
+        const auto snapshot=w.chunks;
+        assert(w.stream({0,0,4608}));
+        for(const auto& chunk:snapshot)for(const auto& away:w.chunks)
+            assert(chunk.x!=away.x||chunk.z!=away.z);
+        assert(w.stream(region.position));
+        for(const auto& chunk:snapshot)compareChunks(chunk,find(w,chunk.x,chunk.z));
+        std::printf("%s: %zu triangles, %zu collision solids, %zu clear road samples, %zu clear paths\n",
+            region.name,combined.indices.size()/3,solids,roads,paths);
+    }
+}
 bool sourceOnEmissiveFace(const Mesh& m,Vec3 p) {
     for(size_t i=0;i<m.indices.size();i+=3) {
         const Vertex& a=m.vertices[m.indices[i]];const Vertex& b=m.vertices[m.indices[i+1]];const Vertex& c=m.vertices[m.indices[i+2]];
@@ -88,19 +168,7 @@ void streamingAndSeams() {
     }
     assert(w.stream({4096,0,2048}));assert(w.stream({8,0,8}));
     const auto& restored=find(w,0,0);
-    assert(restored.mesh.vertices.size()==snapshot.mesh.vertices.size());assert(restored.mesh.indices==snapshot.mesh.indices);
-    assert(restored.lights.size()==snapshot.lights.size());
-    for(size_t i=0;i<snapshot.lights.size();++i) {
-        const Light& originalLight=snapshot.lights[i];const Light& restoredLight=restored.lights[i];
-        assert(sameVector(originalLight.position,restoredLight.position)&&sameVector(originalLight.direction,restoredLight.direction));
-        assert(sameVector(originalLight.color,restoredLight.color)&&originalLight.radius==restoredLight.radius);
-        assert(originalLight.intensity==restoredLight.intensity&&originalLight.cone==restoredLight.cone);
-    }
-    for(size_t i=0;i<snapshot.mesh.vertices.size();++i) {
-        const auto& originalVertex=snapshot.mesh.vertices[i];const auto& restoredVertex=restored.mesh.vertices[i];
-        assert(originalVertex.position.x==restoredVertex.position.x&&originalVertex.position.y==restoredVertex.position.y&&originalVertex.position.z==restoredVertex.position.z);
-        assert(originalVertex.color.x==restoredVertex.color.x&&originalVertex.color.y==restoredVertex.color.y&&originalVertex.color.z==restoredVertex.color.z&&originalVertex.material==restoredVertex.material);
-    }
+    compareChunks(snapshot,restored);
 }
 void geography() {
     World w;assert(w.height(8,8)==0);assert(w.road(8,8));assert(!w.road(64,64));
@@ -133,4 +201,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();lighting();streamingAndSeams();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();streamingAndSeams();naturalRegions();collision();std::puts("World tests passed.");}
