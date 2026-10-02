@@ -1,0 +1,41 @@
+START boat occupied/coast/reverse 180 seconds
+TICK boat seconds=30 position=(3162.51978,-1.75367618,829.375488) health=100 speed=20.6474
+TICK boat seconds=60 position=(3192.64429,-1.80910194,671.567871) health=100 speed=-3.21712
+TICK boat seconds=90 position=(3163.82349,-1.75582469,739.990479) health=100 speed=20.6471
+TICK boat seconds=120 position=(3324.1189,-1.80388653,729.128601) health=100 speed=-3.21712
+TICK boat seconds=150 position=(3250.62866,-1.7470206,718.593506) health=100 speed=20.6471
+TICK boat seconds=180 position=(3301.77002,-1.80581951,870.893921) health=100 speed=-3.21712
+PASS boat
+START aircraft runway/takeoff/cruise/bank 180 seconds
+TICK aircraft seconds=30 position=(-3108.29297,188.243149,356.695404) health=100 speed=67.3124
+TICK aircraft seconds=60 position=(-1664.87366,185.737915,1646.90735) health=100 speed=67.6974
+TICK aircraft seconds=90 position=(171.51561,183.21106,1028.17126) health=100 speed=67.6974
+TICK aircraft seconds=120 position=(540.052246,180.684204,-874.310669) health=100 speed=67.6974
+TICK aircraft seconds=150 position=(-932.430237,178.157349,-2134.08643) health=100 speed=67.6974
+TICK aircraft seconds=180 position=(-2754.82227,175.630493,-1475.302) health=100 speed=67.6974
+PASS aircraft
+START passive-0 30 seconds position=(-3200,22,-1000) health=100
+PASS passive-0 final=(-3200,4,-1000) altitude=0 health=100 parked=1
+START passive-1 30 seconds position=(-3020,72.1590576,-1100) health=0
+PASS passive-1 final=(-2951.85938,10.7070131,-913.330261) altitude=0 health=0 parked=1
+START passive-2 30 seconds position=(-2840,148.160477,-1200) health=100
+PASS passive-2 final=(-2666.19824,5.17912102,-993.656494) altitude=0 health=0 parked=1
+START passive-3 30 seconds position=(-2660,225.10022,-1300) health=0
+PASS passive-3 final=(-2369.19531,1.7613852,-1133.1886) altitude=0 health=0 parked=1
+START passive-4 30 seconds position=(-2480,352.906555,-1400) health=100
+PASS passive-4 final=(-2091.32861,8.44881344,-1332.96326) altitude=8.15464 health=0 parked=0
+START passive-5 30 seconds position=(-2300,501.407532,-1500) health=0
+PASS passive-5 final=(-1861.78479,0,-1579.38208) altitude=0 health=0 parked=1
+START boat-east 5 seconds position=(6140,-1.79999995,0)
+PASS boat-east final=(6142,-1.7299639,-4.43384488e-06)
+START boat-south 5 seconds position=(0,-1.79999995,-6140)
+PASS boat-south final=(-8.86768976e-06,-1.68076122,-6142)
+START boat-island 5 seconds position=(3480,-1.79999995,-250)
+PASS boat-island final=(3557.41309,-1.7873199,-250)
+START aircraft-west-passive 5 seconds position=(-6140,200,0)
+PASS aircraft-west-passive final=(-6142,108.421516,-1.20181042e-07)
+START aircraft-north 5 seconds position=(0,200,6140)
+PASS aircraft-north final=(0,108.425797,6142)
+START aircraft-ceiling 5 seconds position=(-3200,1149,-1000)
+PASS aircraft-ceiling final=(-3200,1149.922,-636.296143)
+SUMMARY ticks=34200 simulated_seconds=570 meshes=150 round_trips=42 light_checks=114 boat_moving_seconds=181.217 occupied_airborne_seconds=183.933 passive_airborne_seconds=94.45 maximum_altitude=1146.07 failures=0 wall_seconds=117.763

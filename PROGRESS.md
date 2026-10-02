@@ -66,7 +66,7 @@ part of the game distribution.
   A craft-focused 570-second soak of `a56e058` also passed 34,200 updates,
   150 mesh checks, 114 light checks and 42 exact save/load round trips without
   sanitizer errors (peak RSS 331 MiB). Its additional landing probe exposed
-  inconsistent hard-landing damage, now being repaired: a fast descending plane
+  inconsistent hard-landing damage, repaired in `eb28a37` (22 strict gameplay suites pass): a fast descending plane
   within 10 cm of terrain was incorrectly treated as already grounded.
 - Native audio listening, real controller hardware, clean Windows 10 coverage,
   hardware DXR, and 2560x1440 RTX 4070 frame-time measurements remain unverified.

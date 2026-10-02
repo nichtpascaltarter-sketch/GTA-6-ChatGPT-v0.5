@@ -8,5 +8,18 @@
   "nativeGameSuites": 19,
   "releaseAdditionalScenes": 13,
   "nativeRendering": "D3D12 WARP only; hardware DXR and RTX 4070 frame rates unverified",
-  "audio": "Synthesis tested; native WASAPI listening not verified"
+  "audio": "Synthesis tested; native WASAPI listening not verified",
+  "craftSoak": {
+    "revision": "a56e058",
+    "simulatedSeconds": 570,
+    "updates": 34200,
+    "meshChecks": 150,
+    "lightChecks": 114,
+    "exactSaveRoundTrips": 42,
+    "sanitizerFailures": 0,
+    "peakRssKiB": 338880,
+    "hardLandingProbe": "Found pre-contact downward velocity loss; repaired by eb28a37, next native validation pending",
+    "buildCommand": "g++ -std=c++20 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -Isrc validation/milestone-02/craft_soak.cpp src/game.cpp src/world.cpp src/visuals.cpp -o craft_soak",
+    "runCommand": "./craft_soak <empty-temporary-directory>"
+  }
 }
