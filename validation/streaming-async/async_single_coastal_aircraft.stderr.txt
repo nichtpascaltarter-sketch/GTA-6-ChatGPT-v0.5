@@ -1,0 +1,1 @@
+route=coastal_aircraft samples=510 checksum=385507446 cold_load_ms=21.7085 idle_pairs=100000 idle_total_ms=155.037 scheduled=3570 built=3570 installed=3570 publications=510 fallbacks=0

@@ -1,0 +1,416 @@
+{
+  "sync_city_axial": {
+    "exit": 0,
+    "wall_seconds": 0.8685749010001018,
+    "samples": 96,
+    "new_tiles": {
+      "7": 96
+    },
+    "peak_rss_kib": 104604,
+    "stream_ms": {
+      "median": 3.7471415,
+      "p95": 4.337004,
+      "max": 5.610694
+    },
+    "combined_ms": {
+      "median": 3.7106925,
+      "p95": 10.139908,
+      "max": 12.258278
+    },
+    "total_ms": {
+      "median": 7.456949,
+      "p95": 14.369819,
+      "max": 17.00655
+    },
+    "cold": {
+      "route": "city_axial",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "-960.000000",
+      "y": "20.000000",
+      "z": "64.000000",
+      "cx": "-8",
+      "cz": "0",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "35.974873",
+      "combined_ms": "12.679481",
+      "total_ms": "48.654354",
+      "vertices": "650052",
+      "indices": "908556",
+      "chunk_used_bytes": "29688600",
+      "chunk_capacity_bytes": "42440320",
+      "combined_bytes": "29636304",
+      "rss_kib": "62132",
+      "hwm_kib": "62132"
+    },
+    "max_capacity_bytes": 78696472
+  },
+  "sync_city_diagonal": {
+    "exit": 0,
+    "wall_seconds": 1.1692480779997823,
+    "samples": 96,
+    "new_tiles": {
+      "13": 96
+    },
+    "peak_rss_kib": 108372,
+    "stream_ms": {
+      "median": 6.9825015,
+      "p95": 7.836876,
+      "max": 9.676925
+    },
+    "combined_ms": {
+      "median": 3.725276,
+      "p95": 5.332364,
+      "max": 11.701767
+    },
+    "total_ms": {
+      "median": 10.734583,
+      "p95": 12.880047,
+      "max": 20.072877
+    },
+    "cold": {
+      "route": "city_diagonal",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "-960.000000",
+      "y": "20.000000",
+      "z": "-960.000000",
+      "cx": "-8",
+      "cz": "-8",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "33.285448",
+      "combined_ms": "9.606511",
+      "total_ms": "42.891959",
+      "vertices": "647030",
+      "indices": "904452",
+      "chunk_used_bytes": "29552000",
+      "chunk_capacity_bytes": "39386392",
+      "combined_bytes": "29499008",
+      "rss_kib": "61540",
+      "hwm_kib": "61540"
+    },
+    "max_capacity_bytes": 78696472
+  },
+  "sync_coastal_aircraft": {
+    "exit": 0,
+    "wall_seconds": 3.1251239900002474,
+    "samples": 510,
+    "new_tiles": {
+      "7": 510
+    },
+    "peak_rss_kib": 58852,
+    "stream_ms": {
+      "median": 4.2611435,
+      "p95": 4.840686,
+      "max": 6.42687
+    },
+    "combined_ms": {
+      "median": 1.765755,
+      "p95": 2.073767,
+      "max": 5.161286
+    },
+    "total_ms": {
+      "median": 6.018882,
+      "p95": 6.823383,
+      "max": 9.231604
+    },
+    "cold": {
+      "route": "coastal_aircraft",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "2388.166016",
+      "y": "160.000000",
+      "z": "-4210.000000",
+      "cx": "18",
+      "cz": "-33",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "21.338596",
+      "combined_ms": "3.333587",
+      "total_ms": "24.672183",
+      "vertices": "240349",
+      "indices": "319557",
+      "chunk_used_bytes": "10900780",
+      "chunk_capacity_bytes": "27469280",
+      "combined_bytes": "10892188",
+      "rss_kib": "24216",
+      "hwm_kib": "24216"
+    },
+    "max_capacity_bytes": 50415976
+  },
+  "async_single_city_axial": {
+    "exit": 0,
+    "wall_seconds": 1.920417714999985,
+    "samples": 96,
+    "new_tiles": {
+      "7": 96
+    },
+    "peak_rss_kib": 62716,
+    "service_wall_ms": {
+      "median": 3.9678245,
+      "p95": 4.8263,
+      "max": 5.535001
+    },
+    "max_pair_ms": {
+      "median": 3.377196,
+      "p95": 4.04887,
+      "max": 4.785005
+    },
+    "max_call_ms": {
+      "median": 3.3703845,
+      "p95": 4.041649,
+      "max": 4.778355
+    },
+    "publish_latency_ms": {
+      "median": 17.383675500000003,
+      "p95": 17.667027,
+      "max": 33.471962
+    },
+    "poll_pairs": {
+      "median": 2.0,
+      "p95": 2.0,
+      "max": 3.0
+    },
+    "resident_capacity_bytes": 45548696,
+    "new_capacity_bytes": 6507704,
+    "peak_completed_bytes": 3718808,
+    "peak_staged_bytes": 3718808,
+    "peak_queued": 7,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 96,
+    "scheduled": 672,
+    "rejected": 0
+  },
+  "async_single_city_diagonal": {
+    "exit": 0,
+    "wall_seconds": 3.424436582999988,
+    "samples": 96,
+    "new_tiles": {
+      "13": 96
+    },
+    "peak_rss_kib": 70496,
+    "service_wall_ms": {
+      "median": 5.321811,
+      "p95": 7.442447,
+      "max": 9.117967
+    },
+    "max_pair_ms": {
+      "median": 3.452668,
+      "p95": 4.467137,
+      "max": 4.784477
+    },
+    "max_call_ms": {
+      "median": 3.4326049999999997,
+      "p95": 4.436853,
+      "max": 4.778207
+    },
+    "publish_latency_ms": {
+      "median": 33.4672875,
+      "p95": 33.644975,
+      "max": 33.754794
+    },
+    "poll_pairs": {
+      "median": 3.0,
+      "p95": 3.0,
+      "max": 3.0
+    },
+    "resident_capacity_bytes": 45548696,
+    "new_capacity_bytes": 12084800,
+    "peak_completed_bytes": 3719576,
+    "peak_staged_bytes": 11155656,
+    "peak_queued": 5,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 96,
+    "scheduled": 1248,
+    "rejected": 0
+  },
+  "async_single_coastal_aircraft": {
+    "exit": 0,
+    "wall_seconds": 8.994675660000212,
+    "samples": 510,
+    "new_tiles": {
+      "7": 510
+    },
+    "peak_rss_kib": 47760,
+    "service_wall_ms": {
+      "median": 3.1169845,
+      "p95": 3.701299,
+      "max": 5.112047
+    },
+    "max_pair_ms": {
+      "median": 2.7618185,
+      "p95": 3.264199,
+      "max": 4.694184
+    },
+    "max_call_ms": {
+      "median": 2.7555605,
+      "p95": 3.257652,
+      "max": 4.68789
+    },
+    "publish_latency_ms": {
+      "median": 17.113805,
+      "p95": 17.3197,
+      "max": 33.470789
+    },
+    "poll_pairs": {
+      "median": 2.0,
+      "p95": 2.0,
+      "max": 3.0
+    },
+    "resident_capacity_bytes": 33253248,
+    "new_capacity_bytes": 6053376,
+    "peak_completed_bytes": 3651048,
+    "peak_staged_bytes": 4387456,
+    "peak_queued": 2,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 510,
+    "scheduled": 3570,
+    "rejected": 0
+  },
+  "async_three_city_axial": {
+    "exit": 0,
+    "wall_seconds": 3.376412656999946,
+    "samples": 96,
+    "new_tiles": {
+      "7": 96
+    },
+    "peak_rss_kib": 65344,
+    "service_wall_ms": {
+      "median": 0.0822765,
+      "p95": 2.574762,
+      "max": 5.654888
+    },
+    "max_pair_ms": {
+      "median": 0.039913000000000004,
+      "p95": 2.53171,
+      "max": 4.953901
+    },
+    "max_call_ms": {
+      "median": 0.037446,
+      "p95": 2.514734,
+      "max": 4.94161
+    },
+    "publish_latency_ms": {
+      "median": 33.47030049999999,
+      "p95": 33.794027,
+      "max": 34.438022
+    },
+    "poll_pairs": {
+      "median": 3.0,
+      "p95": 3.0,
+      "max": 3.0
+    },
+    "resident_capacity_bytes": 45548696,
+    "new_capacity_bytes": 6507704,
+    "peak_completed_bytes": 3718808,
+    "peak_staged_bytes": 4647568,
+    "peak_queued": 7,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 96,
+    "scheduled": 672,
+    "rejected": 0
+  },
+  "async_three_city_diagonal": {
+    "exit": 0,
+    "wall_seconds": 6.63495723799997,
+    "samples": 96,
+    "new_tiles": {
+      "13": 96
+    },
+    "peak_rss_kib": 66928,
+    "service_wall_ms": {
+      "median": 1.6224775,
+      "p95": 2.639553,
+      "max": 4.258228
+    },
+    "max_pair_ms": {
+      "median": 1.529448,
+      "p95": 2.512107,
+      "max": 2.581209
+    },
+    "max_call_ms": {
+      "median": 1.520492,
+      "p95": 2.507007,
+      "max": 2.574423
+    },
+    "publish_latency_ms": {
+      "median": 66.808571,
+      "p95": 67.11491,
+      "max": 69.690961
+    },
+    "poll_pairs": {
+      "median": 5.0,
+      "p95": 5.0,
+      "max": 5.0
+    },
+    "resident_capacity_bytes": 45548696,
+    "new_capacity_bytes": 12084800,
+    "peak_completed_bytes": 3719576,
+    "peak_staged_bytes": 11155656,
+    "peak_queued": 8,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 96,
+    "scheduled": 1248,
+    "rejected": 0
+  },
+  "async_three_coastal_aircraft": {
+    "exit": 0,
+    "wall_seconds": 16.574020037000082,
+    "samples": 510,
+    "new_tiles": {
+      "7": 510
+    },
+    "peak_rss_kib": 50032,
+    "service_wall_ms": {
+      "median": 0.0780145,
+      "p95": 3.159596,
+      "max": 5.927986
+    },
+    "max_pair_ms": {
+      "median": 0.038556,
+      "p95": 2.789796,
+      "max": 5.914124
+    },
+    "max_call_ms": {
+      "median": 0.036503499999999994,
+      "p95": 2.78213,
+      "max": 5.89795
+    },
+    "publish_latency_ms": {
+      "median": 33.456815500000005,
+      "p95": 33.647111,
+      "max": 35.703312
+    },
+    "poll_pairs": {
+      "median": 3.0,
+      "p95": 3.0,
+      "max": 3.0
+    },
+    "resident_capacity_bytes": 33253248,
+    "new_capacity_bytes": 6053376,
+    "peak_completed_bytes": 3651048,
+    "peak_staged_bytes": 3987840,
+    "peak_queued": 7,
+    "peak_inflight": 2,
+    "peak_completed": 4,
+    "fallbacks": 0,
+    "publications": 510,
+    "scheduled": 3570,
+    "rejected": 0
+  }
+}

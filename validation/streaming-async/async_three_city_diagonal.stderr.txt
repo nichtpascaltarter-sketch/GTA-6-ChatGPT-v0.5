@@ -1,0 +1,1 @@
+route=city_diagonal samples=96 checksum=162175698 cold_load_ms=41.362 idle_pairs=100000 idle_total_ms=221.77 scheduled=1248 built=1248 installed=1248 publications=96 fallbacks=0
