@@ -164,7 +164,7 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
         ui.text(5*s,ui.height-30*s,b,1.25f*s,teal);
         if(timing.windowGpuSamples)std::snprintf(b,sizeof(b),"GPU RENDER %.2f MS MEAN / %.2f MAX  CPU RENDER %.2f MS  WAIT %.2f MS",
             timing.mean.gpuRenderMs,timing.maximum.gpuRenderMs,timing.mean.cpuRenderMs,timing.mean.cpuFenceWaitMs);
-        else std::snprintf(b,sizeof(b),"GPU TIMING UNAVAILABLE  CPU RENDER %.2f MS  WAIT %.2f MS",timing.mean.cpuRenderMs,timing.mean.cpuFenceWaitMs);
+        else std::snprintf(b,sizeof(b),"%s  CPU RENDER %.2f MS  WAIT %.2f MS",timing.gpuAvailable?"GPU TIMING WARMING":"GPU TIMING UNAVAILABLE",timing.mean.cpuRenderMs,timing.mean.cpuFenceWaitMs);
         ui.text(5*s,ui.height-14*s,b,1.25f*s,teal);
     }
 }

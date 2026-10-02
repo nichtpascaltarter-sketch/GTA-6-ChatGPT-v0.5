@@ -145,7 +145,7 @@ void drawMenu(Ui& ui,const App& app,const Settings& settings,const Renderer& ren
     const char** items=app.showSettings?options:normal;int count=app.showSettings?6:4;
     for(int i=0;i<count;++i){float y=(344+i*48)*s;if(i==app.selected){ui.rect(46*s,y-12*s,panel-98*s,42*s,teal,.13f);ui.rect(46*s,y-12*s,3*s,42*s,teal);}ui.text(66*s,y,items[i],2*s,i==app.selected?Vec3{.94f,.98f,.95f}:muted);}
     if(app.showSettings&&!renderer.rayTracingAvailable())ui.text(56*s,658*s,"DXR UNAVAILABLE ON THIS ADAPTER",1.3f*s,{.98f,.68f,.38f});
-    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE    M ACCEPT CONTRACT",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    TAB WORLD MAP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
+    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE    M JOB / TRIAL",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    TAB WORLD MAP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
     ui.text(56*s,ui.height-63*s,"ARROWS / DPAD SELECT   ENTER / A CONFIRM",1.25f*s,muted);
     ui.text(56*s,ui.height-37*s,"ORIGINAL WORLD. ORIGINAL SOUND.",1.25f*s,teal);
     if(ui.width>1100*s){float x=panel+45*s;ui.text(x,ui.height-142*s,"PORT SOLACE",2.2f*s);ui.text(x,ui.height-112*s,"THE COAST IS CALLING.",1.5f*s,teal);ui.wrapped(x,ui.height-83*s,"A stolen tide chart. A missing courier. One last job before the storm.",1.35f*s,ui.width-x-50*s,muted);}
