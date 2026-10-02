@@ -106,6 +106,66 @@ void naturalRegions() {
             region.name,combined.indices.size()/3,solids,roads,paths);
     }
 }
+bool hasSurfaceAt(const Mesh& mesh,Vec3 point,float tolerance=.08f,float material=-1) {
+    for(size_t i=0;i<mesh.indices.size();i+=3) {
+        const auto& a=mesh.vertices[mesh.indices[i]];
+        const auto& b=mesh.vertices[mesh.indices[i+1]];
+        const auto& c=mesh.vertices[mesh.indices[i+2]];
+        if(a.normal.y<.7f)continue;
+        if(material>=0&&(a.material!=material||b.material!=material||c.material!=material))continue;
+        const float det=(b.position.z-c.position.z)*(a.position.x-c.position.x)
+            +(c.position.x-b.position.x)*(a.position.z-c.position.z);
+        if(std::abs(det)<.000001f)continue;
+        const float u=((b.position.z-c.position.z)*(point.x-c.position.x)
+            +(c.position.x-b.position.x)*(point.z-c.position.z))/det;
+        const float v=((c.position.z-a.position.z)*(point.x-c.position.x)
+            +(a.position.x-c.position.x)*(point.z-c.position.z))/det;
+        const float w=1-u-v;
+        if(u<-.00001f||v<-.00001f||w<-.00001f)continue;
+        if(close(point.y,u*a.position.y+v*b.position.y+w*c.position.y,tolerance))return true;
+    }
+    return false;
+}
+void vehicleSites() {
+    World world;
+    assert(world.waterDepth(8,8)==0);
+    assert(world.waterDepth(3200,0)>1); // The elevated causeway does not replace the seabed.
+    world.stream({2674,0,768});
+    const Mesh dockMesh=world.combinedMesh();validateMesh(dockMesh);
+    assert(dockMesh.indices.size()/3<350000);
+    assert(close(world.height(2674,768),.4f));
+    assert(world.waterDepth(2674,768)>.5f); // Depth remains available beneath the dock deck.
+    assert(world.waterDepth(2678,768)>.5f);
+    assert(hasSurfaceAt(dockMesh,{2678,World::WaterLevel,768},.08f,3));
+    for(float x=2600;x<=2674;x+=2) {
+        const Vec3 foot{x,world.height(x,768),768};
+        assert(!world.blocked(foot,.45f));assert(hasSurfaceAt(dockMesh,foot));
+        if(x<2674) {
+            const Vec3 next{x+2,world.height(x+2,768),768};
+            assert(length(world.move(foot,next-foot,.45f)-next)<.01f);
+        }
+    }
+    for(float z:{756.0f,768.0f,780.0f}) {
+        const Vec3 foot{2671,world.height(2671,z),z};
+        assert(close(foot.y,.4f));assert(!world.blocked(foot,.45f));assert(hasSurfaceAt(dockMesh,foot));
+    }
+    world.stream({-3200,4,-1000});
+    const Mesh runwayMesh=world.combinedMesh();validateMesh(runwayMesh);
+    assert(runwayMesh.indices.size()/3<350000);
+    assert(close(world.height(-3200,-1190),4));
+    assert(!world.blocked({-3200,4,-1190},4));
+    for(float z=-1256;z<=-744;z+=8)for(float dx:{-17.0f,0.0f,17.0f}) {
+        const Vec3 foot{-3200+dx,world.height(-3200+dx,z),z};
+        assert(close(foot.y,4));assert(!world.blocked(foot,1));
+    }
+    // Include exact chunk boundaries so missing runway segments cannot hide between samples.
+    for(float z:{-1256.0f,-1152.0f,-1024.0f,-896.0f,-768.0f,-744.0f})
+        for(float dx:{-17.0f,0.0f,17.0f})assert(hasSurfaceAt(runwayMesh,{-3200+dx,4,z},.08f,4));
+    const Vec3 start{-3200,4,-1256},end{-3200,4,-744};
+    assert(length(world.move(start,end-start,4)-end)<.01f);
+    assert(length(world.move(end,start-end,4)-start)<.01f);
+    std::puts("Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions");
+}
 bool sourceOnEmissiveFace(const Mesh& m,Vec3 p) {
     for(size_t i=0;i<m.indices.size();i+=3) {
         const Vertex& a=m.vertices[m.indices[i]];const Vertex& b=m.vertices[m.indices[i+1]];const Vertex& c=m.vertices[m.indices[i+2]];
@@ -201,4 +261,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();lighting();streamingAndSeams();naturalRegions();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();streamingAndSeams();naturalRegions();vehicleSites();collision();std::puts("World tests passed.");}
