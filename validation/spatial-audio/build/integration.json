@@ -1,0 +1,11 @@
+{
+  "sourceRevision": "4b114a8ae182081ed055993db1f9407f5cb5562e",
+  "priorGate": "source-after.sha256",
+  "changedCompilerInputs": [
+    "src/resident_scenes.h"
+  ],
+  "reason": "Integrate native Work-camera repair408490e; all other53-gate compiler inputs unchanged.",
+  "verification": "Exact combined six-scene natural-capture probe and noncolliding rendered scenery regression passed; prior sixteen-target gate remains applicable to unchanged test inputs.",
+  "captureCommand": "g++ -std=c++20 -O2 -pthread -Wall -Wextra -Wpedantic -Werror -Isrc validation/milestone-08/capture-repair/probe.cpp src/game.cpp src/pedestrians.cpp src/world.cpp src/world_geometry.cpp src/visuals.cpp -o /tmp/combined-capture-audio && /tmp/combined-capture-audio",
+  "hashCollection": "after compile and run; source tree stayed unchanged throughout"
+}
