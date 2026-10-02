@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "repository": "nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5",
+  "variants": [
+    {
+      "label": "A",
+      "revision": "88a2cf6e24f3c7037581142915f757d8a49fa5e0",
+      "artifactId": 11202656698,
+      "sha256": "93e6fc058d80793d39eb09e7f61c61d7317b3d2e745a7884c4bbd6fff8081897"
+    },
+    {
+      "label": "B",
+      "revision": "2acd647a877b2062e79580c90c36da90eb4d1cdf",
+      "artifactId": 11203285505,
+      "sha256": "911b0c5aa17930bdb92ee49c4a94bcbfb687eb03bc2cf52e7c016159efecf7d7"
+    }
+  ],
+  "environment": {
+    "os": "Microsoft Windows NT 10.0.20348.0",
+    "logicalProcessors": 4,
+    "runnerImage": "win22",
+    "runnerImageVersion": "20260927.320.1"
+  },
+  "settings": {
+    "scene": "city",
+    "adapter": "Microsoft Basic Render Driver",
+    "width": 960,
+    "height": 541,
+    "renderTargetFormat": "R16G16B16A16_FLOAT",
+    "sampleCount": 4,
+    "warmupFrames": 8,
+    "measuredOrder": "A/B/B/A",
+    "longPairOrder": "B/A"
+  },
+  "comparisonElapsedSeconds": 442.977,
+  "launchElapsedSecondsTotal": 442.554,
+  "longPairStatus": "completed",
+  "runs": [
+    {
+      "name": "00-warmup-A",
+      "kind": "warmup",
+      "variant": "A",
+      "frames": 8,
+      "elapsedSeconds": 2.856,
+      "report": "00-warmup-A/smoke-msaa4-report.json",
+      "screenshot": "00-warmup-A/smoke-msaa4.bmp",
+      "screenshotSha256": "9179ff6fe910b7cbe8f0a335f8c5a446799e7f481526972acdb9caaaf65bfd99"
+    },
+    {
+      "name": "01-warmup-B",
+      "kind": "warmup",
+      "variant": "B",
+      "frames": 8,
+      "elapsedSeconds": 2.829,
+      "report": "01-warmup-B/smoke-msaa4-report.json",
+      "screenshot": "01-warmup-B/smoke-msaa4.bmp",
+      "screenshotSha256": "9179ff6fe910b7cbe8f0a335f8c5a446799e7f481526972acdb9caaaf65bfd99"
+    },
+    {
+      "name": "02-A-120",
+      "kind": "measured",
+      "variant": "A",
+      "frames": 120,
+      "elapsedSeconds": 30.514,
+      "report": "02-A-120/smoke-msaa4-report.json",
+      "screenshot": "02-A-120/smoke-msaa4.bmp",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "03-B-120",
+      "kind": "measured",
+      "variant": "B",
+      "frames": 120,
+      "elapsedSeconds": 29.088,
+      "report": "03-B-120/smoke-msaa4-report.json",
+      "screenshot": "03-B-120/smoke-msaa4.bmp",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "04-B-120",
+      "kind": "measured",
+      "variant": "B",
+      "frames": 120,
+      "elapsedSeconds": 28.903,
+      "report": "04-B-120/smoke-msaa4-report.json",
+      "screenshot": "04-B-120/smoke-msaa4.bmp",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "05-A-120",
+      "kind": "measured",
+      "variant": "A",
+      "frames": 120,
+      "elapsedSeconds": 28.835,
+      "report": "05-A-120/smoke-msaa4-report.json",
+      "screenshot": "05-A-120/smoke-msaa4.bmp",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "06-B-360",
+      "kind": "slope",
+      "variant": "B",
+      "frames": 360,
+      "elapsedSeconds": 159.276,
+      "report": "06-B-360/smoke-msaa4-report.json",
+      "screenshot": "06-B-360/smoke-msaa4.bmp",
+      "screenshotSha256": "83e7d72f013dd47b2c93a3ba1ef90026c54e4513a4471bd869c468bafb2898f8"
+    },
+    {
+      "name": "07-A-360",
+      "kind": "slope",
+      "variant": "A",
+      "frames": 360,
+      "elapsedSeconds": 160.253,
+      "report": "07-A-360/smoke-msaa4-report.json",
+      "screenshot": "07-A-360/smoke-msaa4.bmp",
+      "screenshotSha256": "83e7d72f013dd47b2c93a3ba1ef90026c54e4513a4471bd869c468bafb2898f8"
+    }
+  ],
+  "summaries": [
+    {
+      "variant": "A",
+      "median120Seconds": 29.6745,
+      "minimum120Seconds": 28.835,
+      "maximum120Seconds": 30.514,
+      "spread120Percent": 5.658,
+      "elapsed360Seconds": 160.253,
+      "estimatedAdditionalFrameMilliseconds": 544.0771
+    },
+    {
+      "variant": "B",
+      "median120Seconds": 28.9955,
+      "minimum120Seconds": 28.903,
+      "maximum120Seconds": 29.088,
+      "spread120Percent": 0.638,
+      "elapsed360Seconds": 159.276,
+      "estimatedAdditionalFrameMilliseconds": 542.8354
+    }
+  ],
+  "median120ChangePercent": -2.288,
+  "limitations": [
+    "Launch-to-exit intervals include process startup, initial world upload and rendering; they are not GPU frame timestamps.",
+    "The additional-frame slope is (one 360-frame launch minus the median 120-frame launch) divided by 240. Startup and scene evolution may differ between launches.",
+    "Two measured 120-frame launches per version and one optional 360-frame launch provide limited evidence of variance, not a statistical performance guarantee.",
+    "Both pinned binaries run on one hosted Windows machine through software WARP. These measurements do not establish RTX 4070 performance or hardware DXR behavior."
+  ]
+}

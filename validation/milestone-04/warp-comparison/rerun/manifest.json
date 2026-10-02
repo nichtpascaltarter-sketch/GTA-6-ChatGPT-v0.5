@@ -1,0 +1,21 @@
+{
+  "workflowRun": 36949428138,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36949428138",
+  "workflowConclusion": "success",
+  "toolingCommit": "3c25f7def4417a6ad22d95ca3b695ab01f4a710d",
+  "artifact": 11203313985,
+  "repairValidated": "The final comparison JSON writer now sums ordered-dictionary elapsedSeconds entries explicitly; all eight game launches and the final summary stage completed.",
+  "launches": 8,
+  "renderedFramesTotal": 1216,
+  "sameFrameCapturesByteIdenticalAcrossVariants": true,
+  "selectedCaptureFiles": {
+    "120": "../captures/120-frames.bmp",
+    "360": "../captures/360-frames.bmp"
+  },
+  "captureProvenance": "Hashes of the rerun original native BMP bytes exactly match these previously archived original captures. Duplicate image bytes are not archived again.",
+  "firstRun120MedianChangePercent": 0.755,
+  "rerun120MedianChangePercent": -2.288,
+  "interpretation": "Both same-runner experiments show no material city-rendering regression from chunk residency. The small change in the rerun (-2.288%) is smaller than variant A's within-run spread (5.658%); this does not establish a speedup. Distinct runner timings differ substantially, confirming that uncontrolled cross-run comparisons are unreliable.",
+  "scope": "Pinned pre-LOD binaries 88a2cf6 and 2acd647; city scene only. No inference about traversal throughput, new LOD performance, hardware DXR or RTX 4070 frame rates. Process timings include startup; the optional 360-versus-120 slope also includes scene evolution.",
+  "archiveContents": "Original comparison JSON and eight raw per-launch reports/session/diagnostic logs; linked hash-identical representative captures; no executables."
+}
