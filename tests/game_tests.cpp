@@ -570,6 +570,46 @@ void policeObstruction() {
     require(game.health < 80, "visible patrol vehicle did not engage the wanted player");
 }
 
+void verifyPoliceDetectionAltitude(bool onFoot) {
+    for (float altitude : {120.0f, 20.0f}) {
+        mc::Game game;
+        const float ground = game.world.height(0, 0);
+        mc::Vehicle aircraft;
+        aircraft.kind = mc::VehicleKind::Aircraft;
+        aircraft.position = {0, ground + altitude, 0};
+        game.vehicles.push_back(aircraft);
+        game.player = aircraft.position;
+        game.occupied = 0;
+        game.health = 80;
+        game.wanted = 1;
+        if (onFoot) {
+            mc::Pedestrian officer;
+            officer.position = {0, ground, 0};
+            game.pedestrians.push_back(officer);
+        } else {
+            mc::Vehicle patrol;
+            patrol.position = {0, ground, 0};
+            patrol.police = true;
+            patrol.parked = true;
+            game.vehicles.push_back(patrol);
+        }
+        tick(game);
+        require(close(game.health, 80), "ground police damaged an aircraft out of weapon range");
+        if (altitude > 100) {
+            require(game.wanted == 0, onFoot
+                ? "ground officer maintained detection beyond vertical sight range"
+                : "ground patrol maintained detection beyond vertical sight range");
+        } else {
+            require(game.wanted == 1, onFoot
+                ? "nearby officer failed to retain a clearly visible suspect"
+                : "nearby patrol failed to retain a clearly visible suspect");
+        }
+    }
+}
+
+void patrolDetectionUsesAltitude() { verifyPoliceDetectionAltitude(false); }
+void officerDetectionUsesAltitude() { verifyPoliceDetectionAltitude(true); }
+
 void campaignProgression() {
     mc::Game game;
     game.initialize();
@@ -905,6 +945,66 @@ void legacySaveMigration() {
             "reloading a migrated save duplicated starter craft");
 }
 
+void unoccupiedAircraftMotionAndPersistence() {
+    mc::Game game;
+    const float ground = game.world.height(-3200, -1000);
+    game.player = {-3200, ground, -1000};
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {-3200, ground + 100, -1000};
+    aircraft.speed = 28;
+    aircraft.velocity = {0, 0, 28};
+    aircraft.throttle = 0.8f;
+    game.vehicles.push_back(aircraft);
+    tick(game, {}, 180);
+    require(game.occupied == -1 && close(game.vehicles[0].throttle, 0),
+            "unoccupied aircraft did not cut engine power");
+    require(game.vehicles[0].position.y < aircraft.position.y - 0.5f &&
+            mc::length(game.vehicles[0].position - aircraft.position) > 1,
+            "unoccupied aircraft froze instead of descending and gliding");
+    const mc::Vec3 savedPosition = game.vehicles[0].position;
+    const mc::Vec3 savedVelocity = game.vehicles[0].velocity;
+    TemporarySave save;
+    require(game.save(save.path.string()), "could not save an unoccupied airborne aircraft");
+    mc::Game restored;
+    require(restored.load(save.path.string()), "could not load an unoccupied airborne aircraft");
+    require(mc::length(restored.vehicles[0].position - savedPosition) < 0.001f &&
+            mc::length(restored.vehicles[0].velocity - savedVelocity) < 0.001f,
+            "save/load changed unoccupied aircraft motion");
+    tick(restored, {}, 60);
+    require(restored.vehicles[0].position.y < savedPosition.y,
+            "restored unoccupied aircraft stopped descending");
+
+    mc::Vehicle& atBoundary = restored.vehicles[0];
+    atBoundary.position = {mc::World::Extent - 2.1f, 120, mc::World::Extent - 2.1f};
+    atBoundary.yaw = mc::Pi * 0.25f;
+    atBoundary.speed = 50;
+    atBoundary.velocity = mc::forward(atBoundary.yaw) * 50;
+    atBoundary.pitch = atBoundary.roll = 0;
+    tick(restored, {}, 60);
+    require(finite(atBoundary.position) && finite(atBoundary.velocity),
+            "unoccupied boundary aircraft produced nonfinite motion");
+    require(std::fabs(atBoundary.position.x) <= mc::World::Extent - 2 &&
+            std::fabs(atBoundary.position.z) <= mc::World::Extent - 2 &&
+            atBoundary.position.y >= -100 && atBoundary.position.y <= 4096,
+            "unoccupied aircraft escaped the saveable world bounds");
+    require(restored.save(save.path.string()) && game.load(save.path.string()),
+            "boundary aircraft state could not be saved and restored");
+
+    game = mc::Game{};
+    game.player = {-3200, ground, -1000};
+    aircraft = mc::Vehicle{};
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = game.player;
+    aircraft.parked = true;
+    aircraft.throttle = 0.8f;
+    game.vehicles.push_back(aircraft);
+    tick(game, {}, 240);
+    require(mc::length(game.vehicles[0].position - aircraft.position) < 0.001f &&
+            close(game.vehicles[0].speed, 0) && close(game.vehicles[0].throttle, 0),
+            "unoccupied parked aircraft drifted or accelerated on the ground");
+}
+
 void simulationSmoke() {
     mc::Game game;
     game.initialize();
@@ -956,10 +1056,13 @@ int main() {
         {"weapons and radio", weaponsAndRadio},
         {"shoulder aim and nearest hit", shoulderAimAndNearestHit},
         {"police damage respects solid walls", policeObstruction},
+        {"patrol detection uses altitude", patrolDetectionUsesAltitude},
+        {"officer detection uses altitude", officerDetectionUsesAltitude},
         {"complete campaign progression", campaignProgression},
         {"delivery deadline and retry", missionDeadline},
         {"save round trip and corruption", saveRoundTripAndCorruption},
         {"version 1 save migration", legacySaveMigration},
+        {"unoccupied aircraft motion and persistence", unoccupiedAircraftMotionAndPersistence},
         {"thirty second simulation smoke", simulationSmoke},
     };
     int failures = 0;
