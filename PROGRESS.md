@@ -132,8 +132,9 @@ part of the game distribution.
    44-suite gameplay and world/LOD checks pass. A complete input-driven visit
    drives into the bay, repairs, exits and walks to the first-aid counter.
    Interior collision, 2,560 camera poses, lighting-cone coverage and save/load
-   are tested. Complete suite and sanitizers are running; review's 1.65 vs 1.70 m
-   boarding-headroom mismatch is being repaired before integration. Six native
+   are tested. The complete portable suite and 44 gameplay suites under
+   ASan/UBSan/leak detection pass. Review's 1.65 vs 1.70 m boarding-headroom
+   mismatch is repaired with a regression that fails the old source. Six native
    workshop captures are prepared. Validate the current trial/timing source first.
 10. Civilian routines are starting separately on `development/neighborhood-routines`
     in `/workspace/GTA-6-ChatGPT-v0.5-routines`, based on workshop `e7dc4f0`.
@@ -145,6 +146,34 @@ part of the game distribution.
 11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
+
+### Prepared workshop candidate (native verification pending)
+
+The workshop branch is rebased onto the current trial/timing source. All source
+and build changes are committed through `811f3d4`. Full portable output is
+`/workspace/scratch/workshop-full-portable.log`; the corrected gameplay sanitizer
+log is `/tmp/workshop-headroom-sanitized.log`. Native captures and final scorecard
+must follow the preceding milestone's validation.
+
+- Geometry adds 6,299 / 294 / 172 triangles at detail / medium / far, replacing
+  one parcel. The loaded origin totals 346,731 triangles. Eight powered fixtures
+  and two night lights are authored with the building; light memory is included
+  in chunk accounting. Highest tested coarse cache is 56,602,336 bytes.
+- Floor/apron continuity, visible and physical portals, 288 LOD seams, 1,408
+  traversal samples, worker regeneration and stream-out/return all pass. Existing
+  world, worker and LOD lifecycle checks pass; focused world checks also pass
+  sanitizers.
+- Services charge $75 for damaged road vehicles stopped inside the bay and $25
+  for injured on-foot customers at the counter. Healthy, moving, unsupported,
+  poor or pursued customers are not charged. An input-driven populated visit
+  drives for 8.733 seconds and walks for 11.25 seconds to complete both services.
+- Boarding and exiting sweep passenger clearance, including vertical legs;
+  2,560 camera poses test indoor openings and close walls. V4 interior saves and
+  existing trial records remain valid. All 44 gameplay suites pass sanitizers.
+- The authored attendant, powered-emission material and local-light selection
+  are integrated. Lighting tests cover bay floor, car roof and counter reach,
+  day/night energy, bounded selection and geometry validity. Six capture setups
+  have clear player/camera positions, and the service setup verifies its charge.
 
 ### Current candidate (not yet the verified executable)
 
