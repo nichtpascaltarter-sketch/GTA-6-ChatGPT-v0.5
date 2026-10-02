@@ -1,0 +1,46 @@
+{
+  "validatedCommit": "7db152e7773525dc425d0cf81cb85fb8303477e6",
+  "driverCommit": "9a8b9eb73b604df704a608bbcd4a091c1d1db756",
+  "nativeHarnessCommit": "7db152e7773525dc425d0cf81cb85fb8303477e6",
+  "command": "./tools/test-portable.sh",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-pthread"
+  ],
+  "testTargets": [
+    "world",
+    "world_streamer",
+    "world_lod_geometry",
+    "world_lod_streaming",
+    "render_visibility",
+    "render_timing",
+    "game (49/49)",
+    "pedestrian (9/9)",
+    "workshop_lighting",
+    "pedestrian_visuals",
+    "audio",
+    "world_audio",
+    "audio_output",
+    "world_audio_scene (6 groups)",
+    "world_audio_integration",
+    "cinematics"
+  ],
+  "allPassed": true,
+  "warningsObserved": 0,
+  "sourceHashesUnchangedDuringBuildAndRun": true,
+  "hashedSourceFiles": 53,
+  "hashScope": [
+    "src/**",
+    "tests/**",
+    "shaders/**"
+  ],
+  "toolingDuringRun": "Root added the optional required spatial-publication native log checks while this gate ran. These are committed separately as 7db152e; C++/shader inputs remained byte-identical.",
+  "liveIntegration": "84 people, 50 vehicles, 843200 audio frames, maximum 6 engine/2 foot sources, 52 played strikes; suspend/resume and save/load produce no replay.",
+  "limits": "Portable simulation/DSP/output-format/publication checks only. No native WASAPI device or speaker output was tested. Native D3D12 build/captures and spatial-publication log checks remain pending the later full candidate."
+}
