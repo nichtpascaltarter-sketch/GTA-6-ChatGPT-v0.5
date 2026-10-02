@@ -3,7 +3,7 @@ param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
-    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'lifecycle', 'streaming')]
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'lifecycle', 'streaming', 'lod')]
     [string] $Scene = 'city',
     [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0
 )
@@ -160,6 +160,65 @@ if ($Scene -eq 'streaming') {
         $streamingPhases += $phase
     }
 }
+$lodPhases = @()
+if ($Scene -eq 'lod') {
+    $lodMatches = [regex]::Matches($sessionText, '(?m)^LOD phase (?<phase>\d+): center=(?<x>-?\d+),(?<z>-?\d+); (?<metrics>[^\r\n]+)\r?$')
+    if ($lodMatches.Count -ne 5 -or [regex]::Matches($sessionText, '(?m)^LOD phase ').Count -ne 5 -or
+        -not $sessionText.Contains('LOD verified: 5 settled phases; coverage, residency, culling and epoch reset passed')) {
+        throw 'The distant-world session did not confirm all five settled phases.'
+    }
+    $expectedX = @(0, 1, -25, 19, 19)
+    $expectedZ = @(0, 0, -5, 2, 2)
+    $metricNames = @('epoch', 'detail', 'medium', 'far', 'ready', 'fogEnd', 'cacheBytes', 'fallbackBytes',
+        'residentBytes', 'uploaded', 'uploadedDetail', 'uploadedMedium', 'uploadedFar', 'tlasBuilds',
+        'rayInstances', 'mainDrawn', 'mainCulled', 'shadowDrawn', 'shadowCulled', 'batches',
+        'retiredBytes', 'ordinaryWaits', 'pressureWaits', 'repacks', 'frame')
+    for ($index = 0; $index -lt 5; ++$index) {
+        $match = $lodMatches[$index]
+        $phase = [ordered] @{
+            phase = [int] $match.Groups['phase'].Value
+            centerX = [int] $match.Groups['x'].Value
+            centerZ = [int] $match.Groups['z'].Value
+        }
+        foreach ($part in $match.Groups['metrics'].Value.Split(';')) {
+            $metric = [regex]::Match($part.Trim(), '^([A-Za-z]+)=([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)$')
+            if (-not $metric.Success) { throw "Malformed distant-world metric in phase $index." }
+            $name = $metric.Groups[1].Value
+            if ($name -notin $metricNames -or $phase.Contains($name)) { throw "Unexpected or duplicate distant-world metric: $name" }
+            $phase[$name] = if ($name -in @('ready', 'fogEnd')) {
+                [double]::Parse($metric.Groups[2].Value, [Globalization.CultureInfo]::InvariantCulture)
+            } else {
+                [UInt64]::Parse($metric.Groups[2].Value, [Globalization.CultureInfo]::InvariantCulture)
+            }
+        }
+        foreach ($name in $metricNames) { if (-not $phase.Contains($name)) { throw "Missing distant-world metric: $name" } }
+        $expectedEpoch = if ($index -eq 0) { $phase.epoch } elseif ($index -eq 4) { $lodPhases[0].epoch + 1 } else { $lodPhases[0].epoch }
+        if ($phase.phase -ne $index -or $phase.centerX -ne $expectedX[$index] -or
+            $phase.centerZ -ne $expectedZ[$index] -or $phase.epoch -ne $expectedEpoch -or
+            $phase.detail -ne 49 -or $phase.medium -ne 176 -or $phase.far -ne 864 -or
+            $phase.ready -lt 2000 -or $phase.fogEnd -lt 1980 -or $phase.fogEnd -gt 2000 -or
+            $phase.cacheBytes -gt 64MB -or $phase.fallbackBytes -gt 64MB -or
+            $phase.residentBytes -eq 0 -or $phase.residentBytes -gt 320MB -or
+            $phase.uploaded -ne ($phase.uploadedDetail + $phase.uploadedMedium + $phase.uploadedFar) -or
+            $phase.tlasBuilds -ne 0 -or $phase.rayInstances -ne 0 -or
+            $phase.mainDrawn -eq 0 -or $phase.mainCulled -eq 0 -or ($phase.mainDrawn + $phase.mainCulled) -ne 1089 -or
+            $phase.shadowDrawn -eq 0 -or $phase.shadowCulled -eq 0 -or ($phase.shadowDrawn + $phase.shadowCulled) -ne 225 -or
+            $phase.batches -ne 0 -or $phase.retiredBytes -ne 0 -or $phase.ordinaryWaits -ne 0 -or
+            $phase.pressureWaits -ne 0 -or $phase.repacks -ne 0 -or $phase.frame -gt $Frames) {
+            throw "LOD phase $index did not verify its expected coverage, residency, culling, or drained resources."
+        }
+        if ($index -gt 0) {
+            $previous = $lodPhases[-1]
+            if ($phase.frame -le $previous.frame -or $phase.uploaded -lt $previous.uploaded -or
+                $phase.uploadedDetail -lt $previous.uploadedDetail -or
+                ($index -eq 1 -and $phase.uploadedDetail - $previous.uploadedDetail -ne 7) -or
+                ($index -eq 4 -and $phase.uploadedDetail - $previous.uploadedDetail -ne 49)) {
+                throw "LOD phase $index did not preserve detailed tile reuse or epoch reset uploads."
+            }
+        }
+        $lodPhases += $phase
+    }
+}
 $adapterMatch = [regex]::Match($sessionText, 'Adapter: ([^\r\n]+)')
 if (-not (Test-Path $screenshot -PathType Leaf)) { throw 'Smoke test did not save a screenshot.' }
 $bytes = [IO.File]::ReadAllBytes($screenshot)
@@ -204,6 +263,8 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     verifiedWindowStates = $verifiedWindowStates
     streamingVerified = ($Scene -eq 'streaming')
     streamingPhases = $streamingPhases
+    lodVerified = ($Scene -eq 'lod')
+    lodPhases = $lodPhases
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value

@@ -54,6 +54,7 @@ try {
     $shaders = @(
         @{ Source = 'world'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
         @{ Source = 'world'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null },
+        @{ Source = 'world'; Stage = 'far_ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = 'FAR_GEOMETRY=1' },
         @{ Source = 'world'; Stage = 'rt_ps'; Profile = 'ps_6_5'; Entry = 'PSMain'; Define = 'ENABLE_RAYTRACING=1' },
         @{ Name = 'shadow_vs'; Source = 'world'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSShadow'; Define = $null },
         @{ Source = 'ui'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
@@ -105,6 +106,7 @@ try {
             @{ Name = 'world_streamer'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'world_lod_geometry'; Sources = @('world', 'world_geometry') },
             @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
+            @{ Name = 'render_visibility'; Sources = @() },
             @{ Name = 'game'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
