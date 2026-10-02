@@ -69,10 +69,20 @@ $frameMatch = [regex]::Match($sessionText, 'Exit 0 after ([0-9]+) frames')
 if (-not $frameMatch.Success -or [int] $frameMatch.Groups[1].Value -ne $Frames) {
     throw 'The session log does not confirm the requested number of rendered frames.'
 }
+$verifiedWindowStates = @()
 if ($Scene -eq 'lifecycle') {
     foreach ($transition in @('Lifecycle: resize at frame 30', 'Lifecycle: fullscreen at frame 60', 'Lifecycle: windowed at frame 90')) {
         if (-not $sessionText.Contains($transition)) {
             throw "The lifecycle session did not confirm: $transition"
+        }
+    }
+    foreach ($frame in @(30, 60, 90)) {
+        $client = [regex]::Match($sessionText, "Lifecycle verified client: ([0-9]+)x([0-9]+) at frame $frame\b")
+        if (-not $client.Success) { throw "The lifecycle session did not verify the window state at frame $frame." }
+        $verifiedWindowStates += [ordered] @{
+            frame = $frame
+            width = [int] $client.Groups[1].Value
+            height = [int] $client.Groups[2].Value
         }
     }
 }
@@ -88,6 +98,12 @@ $bits = [BitConverter]::ToUInt16($bytes, 28)
 $offset = [BitConverter]::ToUInt32($bytes, 10)
 if ($width -lt 320 -or $height -lt 180 -or $bits -notin @(24, 32)) {
     throw "Smoke screenshot has unexpected dimensions or format: $width x $height, $bits bpp."
+}
+if ($Scene -eq 'lifecycle') {
+    $restored = $verifiedWindowStates[-1]
+    if ($width -ne $restored.width -or $height -ne $restored.height) {
+        throw 'The captured swap-chain dimensions do not match the restored window client area.'
+    }
 }
 $stride = [int64] ([Math]::Floor(($width * $bits + 31) / 32) * 4)
 if ($offset + $stride * $height -gt $bytes.Length) { throw 'Smoke screenshot pixel data is truncated.' }
@@ -108,6 +124,7 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     originalFilename = $fileName
     singleExeDirectory = $true
     windowTransitionsVerified = ($Scene -eq 'lifecycle')
+    verifiedWindowStates = $verifiedWindowStates
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value
@@ -117,5 +134,5 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     sampledColors = $colors.Count
     executableSha256 = (Get-FileHash -Algorithm SHA256 $Executable).Hash.ToLowerInvariant()
     screenshotSha256 = (Get-FileHash -Algorithm SHA256 $screenshot).Hash.ToLowerInvariant()
-} | ConvertTo-Json | Set-Content -Encoding Ascii -Path (Join-Path $directory "$prefix-report.json")
+} | ConvertTo-Json -Depth 4 | Set-Content -Encoding Ascii -Path (Join-Path $directory "$prefix-report.json")
 Write-Host "WARP $Scene smoke passed: $Frames frames; $width x $height screenshot; $($colors.Count) sampled colors."
