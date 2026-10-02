@@ -118,13 +118,14 @@ part of the game distribution.
    medium-LOD hysteresis; actual selected counts after an axial move are
    49/191/849. The corrected regression and all five native phases pass.
    Initial and repaired evidence remain under `validation/milestone-06/`.
-8. Next candidate on `development/activities-and-timing`: original Harbor Split
+8. Integrated candidate: original Harbor Split
    motorcycle trial, medals, payouts, save migration, HUD/map integration, and
    nonblocking GPU timestamp / CPU submission telemetry. All 36 gameplay suites
-   and the complete portable suite pass. Rebased onto the verified milestone;
-   run native Release/Debug, inspect the three trial captures and timestamp
-   fallback/lifecycle path, then archive evidence and scorecard.
-9. Subsequent content on `development/harbor-workshop`: a complete enterable
+   and the complete portable suite pass. Initial native Release/Debug passes,
+   including timestamp fallback, but a misleading startup FPS readout needed
+   repair. Validate that repair together with the completed workshop source,
+   inspect all captures, then archive evidence and the combined scorecard.
+9. Also integrated from `development/harbor-workshop`: a complete enterable
    Harbor Motor Works, shared site metadata, continuous forecourt, segmented
    collision, always-lit interior fixtures, bay repair and office treatment,
    boarding/exit obstruction fixes, contextual guidance and native captures.
@@ -135,25 +136,26 @@ part of the game distribution.
    are tested. The complete portable suite and 44 gameplay suites under
    ASan/UBSan/leak detection pass. Review's 1.65 vs 1.70 m boarding-headroom
    mismatch is repaired with a regression that fails the old source. Six native
-   workshop captures are prepared. Validate the current trial/timing source first.
+   workshop captures are prepared and included in the next combined native run.
 10. Civilian routines are starting separately on `development/neighborhood-routines`
     in `/workspace/GTA-6-ChatGPT-v0.5-routines`, based on workshop `e7dc4f0`.
     World owns actual outdoor places and sidewalk/crossing metadata; gameplay owns
     bounded navigation, persistent residents, activities, groups and threat
     reactions; renderer owns activity poses. Apply later workshop repairs before
     integration, preserve all story/trial tests, and do not merge before the
-    workshop milestone is natively verified.
+    current combined milestone is natively verified.
 11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
 
-### Prepared workshop candidate (native verification pending)
+### Integrated workshop source (native verification pending)
 
-The workshop branch is rebased onto the current trial/timing source. All source
-and build changes are committed through `811f3d4`. Full portable output is
-`/workspace/scratch/workshop-full-portable.log`; the corrected gameplay sanitizer
-log is `/tmp/workshop-headroom-sanitized.log`. Native captures and final scorecard
-must follow the preceding milestone's validation.
+The workshop source is integrated with the trial/timing source and its FPS
+repair. Full portable output is `/workspace/scratch/workshop-full-portable.log`;
+the corrected gameplay sanitizer log is `/tmp/workshop-headroom-sanitized.log`.
+Native captures and a combined scorecard are pending. The FPS-only rerun
+`36950616732` was deliberately cancelled in favor of this complete candidate;
+no validation check was removed.
 
 - Geometry adds 6,299 / 294 / 172 triangles at detail / medium / far, replacing
   one parcel. The loaded origin totals 346,731 triangles. Eight powered fixtures
@@ -182,13 +184,15 @@ must follow the preceding milestone's validation.
   median changed by -2.288%, smaller than the old build's 5.658% spread; all
   equal-frame captures matched. Evidence is under the comparison `rerun/` directory.
 - Initial native workflow `36950056156` tests source `060dd8e1e6beb2559311416f3039aa9a73e63340`,
-  integrating Harbor Split and frame timing. Release passes all checks and 22
-  captures; Debug lifecycle checks are finishing. The city image is byte-identical
+  integrating Harbor Split and frame timing. Both builds pass all checks,
+  including Debug's forced-disabled GPU timestamp path and 22 Release captures.
+  The city image is byte-identical
   to the prior verified build. The active-trial capture exposed a misleading FPS
   readout: averaging reciprocal intervals let the tiny first interval dominate.
   This is repaired with completed-frame counts over measured half-second windows,
   explicit warm-up and inactivity resets. Focused strict and sanitizer rate tests
-  pass. A repaired native run is required before accepting this milestone. Root owns the added HUD/map, F9 message preservation,
+  pass. The complete workshop and repaired FPS source now form one candidate;
+  its full native run includes 28 scene captures before milestone acceptance. Root owns the added HUD/map, F9 message preservation,
   three trial scenes and `timing_probe.h`; build validation owns build/CI and
   parser changes. The executable in `/workspace/outputs/` remains the last
   verified LOD build until this candidate passes native validation.
