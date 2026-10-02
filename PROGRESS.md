@@ -177,6 +177,9 @@ no validation check was removed.
 
 ### Next candidate: neighborhood routines
 
+- Native workflow `36952070205` is validating exact source
+  `c90828a6794afa309f1783b9352df75a3f2c52c9` in Release and Debug. The source is
+  frozen while compilation, launches and all 34 additional captures run.
 - The combined workshop/trial/timing source passed native workflow `36950765589`
   and is the verified executable. Earlier runs and their FPS defect remain
   archived under `validation/milestone-07/initial`; final evidence is under
