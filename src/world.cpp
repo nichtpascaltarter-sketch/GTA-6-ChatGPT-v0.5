@@ -132,35 +132,130 @@ void windows(Mesh& mesh,Vec3 p,float hx,float hz,float height,uint32_t seed,bool
         }
     }
 }
+void facadeLine(Mesh& m,Vec3 origin,Vec3 along,float x0,float y0,float x1,float y1,float width,Vec3 color,float material=0) {
+    Vec3 a=origin+along*x0+Vec3{0,y0,0},b=origin+along*x1+Vec3{0,y1,0};
+    Vec3 side=normalized(along*-(y1-y0)+Vec3{0,x1-x0,0})*(width*.5f);
+    addQuad(m,a+side,b+side,b-side,a-side,color,material);
+}
+const char* letterStrokes(char c) {
+    switch(c) {
+    case 'A':return "abcefg";case 'B':return "abcdefg";case 'C':return "adef";case 'D':return "abcdef";
+    case 'E':return "adefg";case 'F':return "aefg";case 'G':return "acdefg";case 'H':return "bcefg";
+    case 'I':return "adlm";case 'J':return "bcde";case 'K':return "efik";case 'L':return "def";
+    case 'M':return "bcefhi";case 'N':return "bcefhk";case 'O':return "abcdef";case 'P':return "abefg";
+    case 'Q':return "abcdefk";case 'R':return "abefgk";case 'S':return "acdfg";case 'T':return "alm";
+    case 'U':return "bcdef";case 'V':return "bfjk";case 'W':return "bcefjk";case 'X':return "hijk";
+    case 'Y':return "him";case 'Z':return "adij";default:return "";
+    }
+}
+void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 color) {
+    // Thirteen original monoline strokes form a compact, geometry-only shop alphabet.
+    static constexpr float strokes[13][4]={{0,6,4,6},{4,6,4,3},{4,3,4,0},{4,0,0,0},{0,0,0,3},{0,3,0,6},{0,3,4,3},{0,6,2,3},{4,6,2,3},{0,0,2,3},{4,0,2,3},{2,6,2,3},{2,3,2,0}};
+    int count=0;for(const char* p=label;*p;++p)++count;
+    Vec3 origin=center-along*((count*5.3f-1.3f)*scale*.5f);
+    for(const char* p=label;*p;++p,origin+=along*(5.3f*scale))for(const char* s=letterStrokes(*p);*s;++s) {
+        const float* a=strokes[*s-'a'];facadeLine(m,origin,along,a[0]*scale,a[1]*scale,a[2]*scale,a[3]*scale,.31f*scale,color,2);
+    }
+}
+void shopfront(Mesh& m,Vec3 p,float width,float yaw,uint32_t seed) {
+    static const char* names[]={"LOW TIDE","CITRUS","GULL CAFE","ORBIT VINYL","SUN MART","RELAY","MESA DELI","TIDAL TEA"};
+    Vec3 along=rotated({1,0,0},yaw),out=rotated({0,0,-1},yaw);
+    Vec3 awning=seed%3==0?Vec3{.08f,.32f,.30f}:seed%3==1?Vec3{.60f,.23f,.12f}:Vec3{.23f,.30f,.44f};
+    addBox(m,p+Vec3{0,2.0f,0}+out*.08f,{width,1.8f,.10f},{.13f,.18f,.19f},yaw);
+    for(int k=-2;k<=2;++k) {
+        Vec3 q=p+along*(k*width*.37f)+Vec3{0,1.7f,0}+out*.20f;
+        Vec3 across=along*(width*.16f),up{0,1.4f,0};
+        addQuad(m,q-across-up,q-across+up,q+across+up,q+across-up,{.13f,.25f,.27f},2);
+        addBox(m,q+along*(width*.18f),{.045f,1.6f,.10f},{.60f,.63f,.56f},yaw,1);
+    }
+    addBox(m,p+Vec3{0,3.92f,0}+out*.22f,{width,.61f,.12f},awning,yaw);
+    signText(m,p+Vec3{0,3.46f,0}+out*.37f,along,names[seed%8],std::min(.15f,width*.033f),{.95f,.85f,.59f});
+    for(int k=0;k<12;++k) {
+        float a=-width+k*width/6,b=a+width/6;
+        Vec3 color=k%2?awning:Vec3{.81f,.76f,.59f};
+        addQuad(m,p+along*a+Vec3{0,3.2f,0}+out*.25f,p+along*b+Vec3{0,3.2f,0}+out*.25f,p+along*b+Vec3{0,2.85f,0}+out*1.8f,p+along*a+Vec3{0,2.85f,0}+out*1.8f,color);
+        addQuad(m,p+along*a+Vec3{0,2.85f,0}+out*1.8f,p+along*b+Vec3{0,2.85f,0}+out*1.8f,p+along*b+Vec3{0,2.63f,0}+out*1.8f,p+along*a+Vec3{0,2.63f,0}+out*1.8f,color);
+    }
+    addBox(m,p+along*(width*.65f)+Vec3{0,1.38f,0}+out*.3f,{.83f,1.38f,.06f},{.09f,.17f,.18f},yaw,2);
+    addBox(m,p+along*(width*.65f+.54f)+Vec3{0,1.15f,0}+out*.4f,{.035f,.26f,.045f},{.74f,.71f,.58f},yaw,1);
+}
+void roundWindows(Mesh& m,Vec3 p,float radius,float height,int floors) {
+    constexpr int sides=20;
+    for(int level=0;level<floors;++level)for(int face=0;face<sides;++face) {
+        float a=2*Pi*(face+.10f)/sides,b=2*Pi*(face+.90f)/sides;
+        float y=level*height/floors+.7f,top=std::min(height-.4f,y+height/floors*.65f);
+        Vec3 aa{std::cos(a)*radius,y,std::sin(a)*radius},bb{std::cos(b)*radius,y,std::sin(b)*radius};
+        addQuad(m,p+bb,p+aa,p+Vec3{aa.x,top,aa.z},p+Vec3{bb.x,top,bb.z},{.16f,.29f,.32f},2);
+    }
+}
 void building(Chunk& chunk,Vec3 p,float hx,float hz,float h,uint32_t seed,bool suburban) {
     static constexpr Vec3 palette[]={{.77f,.68f,.53f},{.83f,.79f,.67f},{.60f,.66f,.66f},{.69f,.45f,.34f},{.77f,.72f,.62f},{.48f,.58f,.63f},{.88f,.77f,.61f},{.57f,.62f,.53f}};
-    Vec3 c=palette[seed%8]; Mesh& m=chunk.mesh;
-    addBox(m,p+Vec3{0,h*.5f,0},{hx,h*.5f,hz},c);
-    chunk.solids.push_back({p+Vec3{-hx,0,-hz},p+Vec3{hx,h,hz}});
-    addBox(m,p+Vec3{0,.3f,0},{hx+.25f,.3f,hz+.25f},c*.7f);
-    windows(m,p,hx,hz,h,seed,!suburban);
+    Vec3 c=palette[seed%8];Mesh& m=chunk.mesh;int style=int(seed%6);
     if(suburban) {
+        addBox(m,p+Vec3{0,h*.5f,0},{hx,h*.5f,hz},c);windows(m,p,hx,hz,h,seed,false);
         roofGable(m,p+Vec3{0,h,0},hx+.7f,hz+.7f,2.6f,{.49f,.23f,.15f});
         addBox(m,p+Vec3{hx*.6f,h+1.5f,hz*.2f},{.8f,1.5f,.8f},c*.85f);
         addBox(m,p+Vec3{0,1.4f,-hz-.035f},{.8f,1.4f,.08f},{.20f,.29f,.28f});
         addBox(m,p+Vec3{0,2.9f,-hz-1.5f},{3,.16f,1.8f},{.84f,.77f,.61f});
         for(float dx:{-2.5f,2.5f})addBox(m,p+Vec3{dx,1.4f,-hz-2.7f},{.13f,1.4f,.13f},{.89f,.84f,.71f});
     } else {
-        addBox(m,p+Vec3{0,h-.2f,0},{hx+.4f,.35f,hz+.4f},c*.80f);
-        addBox(m,p+Vec3{0,h+.32f,0},{hx*.86f,.2f,hz*.86f},{.33f,.35f,.35f});
-        addBox(m,p+Vec3{-hx*.35f,h+1.35f,hz*.2f},{2.5f,1,1.5f},{.51f,.54f,.54f},0,1);
-        addBox(m,p+Vec3{hx*.4f,h+.8f,-hz*.35f},{1.3f,.6f,2.2f},{.40f,.45f,.45f},0,1);
-        if(h>35) {
-            addBox(m,p+Vec3{hx*.22f,h+3.0f,0},{hx*.35f,2.6f,hz*.4f},c*.83f);
-            addCylinder(m,p+Vec3{hx*.22f,h+5.6f,0},.12f,5,{.67f,.67f,.61f},5,1);
+        if(style==2)h=std::min(h,22.5f);
+        if(style==5)h=std::min(h,28.0f);
+        if(style==0)c={.77f,.53f,.38f};
+        if(style==1)c={.42f,.53f,.57f};
+        if(style==2)c={.49f,.28f,.20f};
+        if(style==3)c={.87f,.80f,.66f};
+        if(style==4)c={.64f,.70f,.66f};
+        if(style==5)c={.75f,.72f,.61f};
+        constexpr float podium=4.7f;
+        addBox(m,p+Vec3{0,podium*.5f,0},{hx,podium*.5f,hz},c*.82f);
+        addBox(m,p+Vec3{0,podium,0},{hx+.45f,.18f,hz+.45f},c*1.08f);
+        if(style==4 && h>20) {
+            float radius=std::min(hx,hz)*.96f;
+            addCylinder(m,p+Vec3{0,podium,0},radius,h-podium,c,20);
+            roundWindows(m,p+Vec3{0,podium,0},radius+.045f,h-podium,std::max(3,int((h-podium)/3.5f)));
+            addCylinder(m,p+Vec3{0,h,0},radius+1,.35f,c*.72f,20);
+            addCylinder(m,p+Vec3{0,h+.35f,0},radius*.66f,3.0f,{.28f,.40f,.39f},20,1);
+            cone(m,p+Vec3{0,h+3.35f,0},radius*.75f,4.5f,{.34f,.49f,.46f},20);
+        } else {
+            float bx=hx,bz=hz,base=podium;int tiers=(style==0||style==1)?3:1;
+            for(int tier=0;tier<tiers;++tier) {
+                float part=(h-podium)*(tiers==1?1.0f:tier==0?.62f:.19f);
+                addBox(m,p+Vec3{0,base+part*.5f,0},{bx,part*.5f,bz},c*(1.0f-tier*.04f));
+                windows(m,p+Vec3{0,base-.4f,0},bx,bz,part+.2f,seed+uint32_t(tier)*71,true);
+                addBox(m,p+Vec3{0,base+part-.08f,0},{bx+.3f,.17f,bz+.3f},c*.76f);
+                base+=part;bx*=.78f;bz*=.78f;
+            }
+            if(style==0) {
+                for(float dx:{-.70f,-.35f,.35f,.70f})addBox(m,p+Vec3{dx*hx,podium+(h-podium)*.30f,-hz-.10f},{.24f,(h-podium)*.30f,.16f},{.87f,.73f,.52f});
+                addBox(m,p+Vec3{0,h+2.8f,0},{hx*.29f,2.8f,hz*.29f},c*.88f);
+                cone(m,p+Vec3{0,h+5.6f,0},3,4,{.33f,.49f,.45f},4);
+            } else if(style==1) {
+                addBox(m,p+Vec3{0,h+2.2f,0},{hx*.48f,2.2f,hz*.4f},{.18f,.28f,.32f},0,2);
+                for(float dx:{-.8f,.8f})addCylinder(m,p+Vec3{dx*hx*.5f,h+4.4f,0},.17f,7,{.60f,.66f,.65f},5,1);
+            } else if(style==2) {
+                for(int roof=0;roof<3;++roof)roofGable(m,p+Vec3{-hx+(roof+.5f)*hx*2/3,h,0},hx/3+.18f,hz+.5f,3.2f,{.29f,.32f,.30f});
+                for(int row=1;row<int(h/3.5f);++row)addBox(m,p+Vec3{0,row*3.5f,-hz-.045f},{hx,.06f,.05f},{.63f,.43f,.30f});
+                addCylinder(m,p+Vec3{hx*.72f,h-1,hz*.55f},1.25f,7,{.47f,.28f,.20f},8);
+            } else if(style==3) {
+                for(float y=8;y<h-1;y+=5.5f) {
+                    addBox(m,p+Vec3{0,y,-hz-.65f},{hx+.5f,.12f,.85f},c*.92f);
+                    addBox(m,p+Vec3{0,y+.8f,-hz-1.4f},{hx+.4f,.10f,.045f},{.26f,.36f,.36f},0,1);
+                    for(int k=-3;k<=3;++k)addBox(m,p+Vec3{k*hx/3.2f,y+.42f,-hz-1.4f},{.04f,.42f,.045f},{.26f,.36f,.36f},0,1);
+                }
+                addBox(m,p+Vec3{0,h+1,0},{hx+.7f,.18f,hz+.7f},c);
+                for(float dx:{-.85f,.85f})for(float dz:{-.85f,.85f})addBox(m,p+Vec3{dx*hx,h+.5f,dz*hz},{.12f,.5f,.12f},c);
+            } else {
+                roofGable(m,p+Vec3{0,h,0},hx+.6f,hz+.6f,6.5f,{.24f,.33f,.32f});
+                for(float dx:{-.7f,0.0f,.7f})addBox(m,p+Vec3{dx*hx,podium+(h-podium)*.5f,-hz-.20f},{.42f,(h-podium)*.5f,.3f},c*1.1f);
+            }
         }
-        for(int k=-1;k<=1;++k) {
-            float x=float(k)*hx*.58f;
-            addBox(m,p+Vec3{x,1.5f,-hz-.04f},{hx*.23f,1.35f,.05f},{.17f,.30f,.34f},0,2);
-            addBox(m,p+Vec3{x,3.2f,-hz-.85f},{hx*.27f,.14f,1.1f},(seed%2)?Vec3{.20f,.45f,.39f}:Vec3{.69f,.28f,.17f});
-        }
-        for(float dx:{-hx+.2f,hx-.2f}) addBox(m,p+Vec3{dx,h*.5f,-hz-.06f},{.22f,h*.5f,.1f},c*.78f);
+        shopfront(m,p+Vec3{0,0,-hz-.04f},hx*.86f,0,seed);
+        shopfront(m,p+Vec3{-hx-.04f,0,0},hz*.86f,Pi*.5f,seed+3);
+        addBox(m,p+Vec3{-hx*.32f,h+1.0f,hz*.2f},{2.3f,.8f,1.45f},{.45f,.48f,.47f},0,1);
     }
+    chunk.solids.push_back({p+Vec3{-hx,0,-hz},p+Vec3{hx,h,hz}});
+    addBox(m,p+Vec3{0,.23f,0},{hx+.18f,.23f,hz+.18f},c*.67f);
 }
 void planter(Mesh& m,Vec3 p,float scale,uint32_t seed) {
     addBox(m,p+Vec3{0,.35f,0},{2.2f,.35f,2.2f},{.58f,.55f,.45f});
@@ -170,6 +265,79 @@ void bench(Mesh& m,Vec3 p,float yaw) {
     addBox(m,p+Vec3{0,.58f,0},{1.3f,.10f,.40f},{.49f,.29f,.13f},yaw);
     addBox(m,p+rotated({0,.98f,.34f},yaw),{1.3f,.32f,.07f},{.49f,.29f,.13f},yaw);
     for(float a:{-.92f,.92f})addBox(m,p+rotated({a,.25f,0},yaw),{.08f,.25f,.32f},{.18f,.22f,.23f},yaw,1);
+}
+void streetFurniture(Chunk& chunk,Vec3 p,float yaw,uint32_t seed) {
+    Mesh& m=chunk.mesh;Vec3 along=rotated({0,0,1},yaw),across=rotated({1,0,0},yaw);
+    Vec3 bin=p+along*14;
+    addCylinder(m,bin,.34f,.88f,{.18f,.27f,.24f},10,1);
+    addCylinder(m,bin+Vec3{0,.9f,0},.38f,.10f,{.31f,.39f,.33f},10,1);
+    for(int slat=0;slat<8;++slat) {
+        float a=slat*Pi*.25f;addBox(m,bin+Vec3{std::cos(a)*.34f,.42f,std::sin(a)*.34f},{.025f,.35f,.025f},{.08f,.13f,.12f});
+    }
+    chunk.solids.push_back({bin-Vec3{.33f,0,.33f},bin+Vec3{.33f,1,.33f}});
+    Vec3 hydrant=p-along*22;
+    addCylinder(m,hydrant,.17f,.68f,{.70f,.30f,.13f},8);
+    addCylinder(m,hydrant+Vec3{0,.62f,0},.24f,.12f,{.83f,.59f,.24f},8);
+    addBox(m,hydrant+Vec3{0,.42f,0},{.34f,.08f,.08f},{.75f,.40f,.19f},yaw,1);
+    if(seed%3==0) {
+        Vec3 shelter=p+across*4+along*21;
+        for(float a:{-2.8f,2.8f})for(float b:{-.85f,.85f})addBox(m,shelter+along*a+across*b+Vec3{0,1.5f,0},{.065f,1.5f,.065f},{.23f,.32f,.33f},yaw,1);
+        addBox(m,shelter+Vec3{0,3.0f,0},{1.2f,.14f,3.25f},{.18f,.29f,.30f},yaw);
+        addBox(m,shelter+across*.90f+Vec3{0,1.65f,0},{.04f,1.12f,2.75f},{.20f,.36f,.39f},yaw,2);
+        bench(m,shelter-across*.1f+Vec3{0,.02f,0},yaw+Pi*.5f);
+        Vec3 stop=p+along*16;
+        addCylinder(m,stop,.05f,3.45f,{.49f,.56f,.54f},5,1);
+        addBox(m,stop+Vec3{0,3.10f,0},{.34f,.34f,.05f},{.08f,.36f,.39f},yaw,1);
+        addBox(m,stop+Vec3{0,3.10f,0}+rotated({0,0,-.055f},yaw),{.22f,.16f,.012f},{.91f,.83f,.59f},yaw);
+    }
+    if(seed%4==0) {
+        Vec3 box=p-along*10;
+        addBox(m,box+Vec3{0,.58f,0},{.36f,.58f,.28f},{.63f,.24f,.11f},yaw);
+        addBox(m,box+Vec3{0,.88f,0}+rotated({0,0,-.29f},yaw),{.28f,.20f,.016f},{.81f,.77f,.61f},yaw);
+    }
+}
+void clockPavilion(Chunk& chunk,Vec3 p) {
+    Mesh& m=chunk.mesh;
+    addBox(m,p+Vec3{0,1.5f,0},{4.6f,1.5f,4.6f},{.56f,.51f,.38f});
+    addBox(m,p+Vec3{0,10.6f,0},{3.6f,7.6f,3.6f},{.76f,.69f,.51f});
+    for(float y:{3.2f,15.8f,18.2f})addBox(m,p+Vec3{0,y,0},{4.0f,.22f,4.0f},{.88f,.80f,.58f});
+    addCylinder(m,p+Vec3{0,18.4f,0},4.7f,1,{.30f,.43f,.39f},8,1);
+    cone(m,p+Vec3{0,19.4f,0},5.4f,5.8f,{.28f,.45f,.39f},8);
+    addCylinder(m,p+Vec3{0,25.2f,0},.14f,2.5f,{.68f,.66f,.48f},6,1);
+    for(int face=0;face<4;++face) {
+        float yaw=face*Pi*.5f;Vec3 out=rotated({0,0,-1},yaw),along=rotated({1,0,0},yaw);
+        Vec3 center=p+out*3.63f+Vec3{0,13.0f,0};
+        addBox(m,center,{2.55f,2.55f,.035f},{.17f,.26f,.24f},yaw);
+        for(int s=0;s<24;++s) {
+            float a=2*Pi*s/24,b=2*Pi*(s+1)/24;
+            facadeLine(m,center+out*.055f,along,2.18f*std::cos(a),2.18f*std::sin(a),2.18f*std::cos(b),2.18f*std::sin(b),.10f,{.85f,.77f,.49f},1);
+        }
+        for(int hour=0;hour<12;++hour) {
+            float a=2*Pi*hour/12;
+            facadeLine(m,center+out*.065f,along,1.76f*std::cos(a),1.76f*std::sin(a),2.03f*std::cos(a),2.03f*std::sin(a),.12f,{.91f,.85f,.66f},2);
+        }
+        facadeLine(m,center+out*.08f,along,0,0,.70f,1.15f,.14f,{.97f,.93f,.75f},2);
+        facadeLine(m,center+out*.09f,along,0,0,-1.42f,.68f,.10f,{.97f,.93f,.75f},2);
+        signText(m,p+out*3.72f+Vec3{0,5.6f,0},along,"TIDE HALL",.10f,{.95f,.83f,.56f});
+        for(float col:{-2.9f,2.9f})addBox(m,p+out*3.70f+along*col+Vec3{0,8.7f,0},{.17f,5.25f,.12f},{.84f,.76f,.56f},yaw);
+    }
+    chunk.solids.push_back({p-Vec3{4.6f,0,4.6f},p+Vec3{4.6f,26,4.6f}});
+}
+void marketArcade(Chunk& chunk,Vec3 p) {
+    Mesh& m=chunk.mesh;
+    for(int shop=0;shop<3;++shop) {
+        Vec3 q=p+Vec3{0,0,shop*19.0f};
+        addBox(m,q+Vec3{0,2.5f,0},{7,2.5f,7.7f},{.73f,.63f,.43f});
+        shopfront(m,q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2));
+        roofGable(m,q+Vec3{0,5,0},7.6f,8.3f,2.6f,{.48f,.24f,.13f});
+        addBox(m,q+Vec3{-8.1f,1.0f,8.2f},{1.7f,1,1.4f},{.22f,.34f,.20f});
+        for(int crate=0;crate<3;++crate) {
+            Vec3 r=q+Vec3{-9.2f,1.45f,float(crate)*.85f-1};
+            addBox(m,r,{.62f,.25f,.35f},{.53f,.35f,.17f});
+            for(int fruit=0;fruit<4;++fruit)addCylinder(m,r+Vec3{-.40f+fruit*.27f,.26f,0},.14f,.21f,shop==0?Vec3{.85f,.52f,.10f}:Vec3{.61f,.19f,.08f},6);
+        }
+        chunk.solids.push_back({q-Vec3{7,0,7.7f},q+Vec3{7,6,7.7f}});
+    }
 }
 void landmarkPlaza(Chunk& c,const World& w,float x,float z,int kind) {
     Mesh& m=c.mesh;float h=w.height(x+64,z+64);
@@ -187,6 +355,14 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,int kind) {
         addBox(m,{x+64,h+4.5f,z+64},{.7f,3.0f,.7f},{.54f,.68f,.63f},.7f,1);
         addBox(m,{x+64,h+6.9f,z+64},{3.5f,.55f,.55f},{.54f,.68f,.63f},-.45f,1);
         c.solids.push_back({{x+62,h,z+62},{x+66,h+8,z+66}});
+    }
+    if(c.x==0 && c.z==0) {
+        clockPavilion(c,{x+44,h,z+98});
+        marketArcade(c,{x+96,h,z+35});
+        for(float px:{20.0f,31.0f,42.0f,53.0f}) {
+            addCylinder(m,{x+px,h,z+18},.15f,.90f,{.21f,.28f,.26f},8,1);
+            addCylinder(m,{x+px,h+.64f,z+18},.17f,.09f,{.79f,.69f,.42f},8,1);
+        }
     }
     for(int k=0;k<4;++k) for(int j=0;j<2;++j) {
         float px=x+24+k*26,pz=z+(j?106:22);
@@ -331,6 +507,7 @@ Chunk World::generate(int cx,int cz) const {
             float side=edge%2?-1.0f:1.0f;
             Vec3 p=vertical?Vec3{line+side*12,0,z+64}:Vec3{x+64,0,line+side*12};p.y=height(p.x,p.z)+.14f;
             streetlight(m,p,vertical?(side>0?Pi:0):(side>0?Pi*.5f:-Pi*.5f));
+            if(edge%2==0)streetFurniture(c,p,vertical?0:-Pi*.5f,seed+static_cast<uint32_t>(edge)*13);
             for(float off:{29.0f,99.0f}) {
                 Vec3 t=vertical?Vec3{line+side*16,0,z+off}:Vec3{x+off,0,line+side*16}; t.y=height(t.x,t.z);
                 palm(m,t,.86f,seed+uint32_t(edge*53+off));

@@ -31,7 +31,7 @@ void streamingAndSeams() {
     const Chunk snapshot=find(w,0,0);const Vertex* data=find(w,0,0).mesh.vertices.data();
     Mesh combined=w.combinedMesh();validateMesh(combined);
     std::printf("Central 49 chunks: %zu vertices, %zu triangles, %zu collision solids in block 0,0\n",combined.vertices.size(),combined.indices.size()/3,snapshot.solids.size());
-    assert(combined.indices.size()/3<300000);
+    assert(combined.indices.size()/3<350000);
     assert(w.stream({128,0,0}));assert(w.revision==2);assert(w.chunks.size()==49);
     assert(find(w,0,0).mesh.vertices.data()==data); // Retained chunks keep their allocated geometry.
     assert(w.stream({-128,0,-128}));assert(w.chunks.size()==49);
@@ -46,9 +46,9 @@ void streamingAndSeams() {
     const auto& restored=find(w,0,0);
     assert(restored.mesh.vertices.size()==snapshot.mesh.vertices.size());assert(restored.mesh.indices==snapshot.mesh.indices);
     for(size_t i=0;i<snapshot.mesh.vertices.size();++i) {
-        const auto& a=snapshot.mesh.vertices[i];const auto& b=restored.mesh.vertices[i];
-        assert(a.position.x==b.position.x&&a.position.y==b.position.y&&a.position.z==b.position.z);
-        assert(a.color.x==b.color.x&&a.color.y==b.color.y&&a.color.z==b.color.z&&a.material==b.material);
+        const auto& originalVertex=snapshot.mesh.vertices[i];const auto& restoredVertex=restored.mesh.vertices[i];
+        assert(originalVertex.position.x==restoredVertex.position.x&&originalVertex.position.y==restoredVertex.position.y&&originalVertex.position.z==restoredVertex.position.z);
+        assert(originalVertex.color.x==restoredVertex.color.x&&originalVertex.color.y==restoredVertex.color.y&&originalVertex.color.z==restoredVertex.color.z&&originalVertex.material==restoredVertex.material);
     }
 }
 void geography() {
@@ -63,6 +63,9 @@ void geography() {
         if(!(x>2200&&std::abs(z)<12))assert(std::abs(h-w.height(x+.01f,z))<.25f);
     }
     w.stream({8,0,8});assert(!w.blocked({8,0,8},.45f));
+    // New street furniture and plaza landmarks preserve mission approach positions.
+    for(Vec3 p:{Vec3{12,0,24},Vec3{268,0,128},Vec3{12,0,128}})assert(!w.blocked(p,.45f));
+    assert(w.blocked({44,0,98},.45f));assert(w.blocked({96,0,35},.45f));
     for(Vec3 p: {Vec3{128,0,128},Vec3{-384,0,256},Vec3{768,0,-512},Vec3{-512,0,-768}})assert(w.road(p.x,p.z));
 }
 void collision() {
