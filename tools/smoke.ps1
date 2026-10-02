@@ -3,7 +3,7 @@ param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
-    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'lifecycle')]
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'lifecycle', 'streaming')]
     [string] $Scene = 'city',
     [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0
 )
@@ -104,6 +104,51 @@ if ($Scene -eq 'lifecycle') {
         }
     }
 }
+$streamingPhases = @()
+if ($Scene -eq 'streaming') {
+    $phasePattern = '(?m)^Streaming phase (?<phase>\d+): center=(?<x>-?\d+),(?<z>-?\d+); epoch=(?<epoch>\d+); chunks=(?<chunks>\d+); uploaded=(?<uploaded>\d+); expected=(?<expected>\d+); retained=(?<retained>\d+); cpuPending=(?<pending>\d+); batches=(?<batches>\d+); fallbacks=(?<fallbacks>\d+); ordinaryWaits=(?<ordinary>\d+); pressureWaits=(?<pressure>\d+); repacks=(?<repacks>\d+); residentBytes=(?<residentBytes>\d+); retiredBytes=(?<retiredBytes>\d+)\r?$'
+    $phases = [regex]::Matches($sessionText, $phasePattern)
+    if ($phases.Count -ne 8 -or [regex]::Matches($sessionText, '(?m)^Streaming phase ').Count -ne 8 -or
+        -not $sessionText.Contains('Streaming verified: 8 settled phases; incremental uploads and epoch reset passed')) {
+        throw 'The streaming session did not confirm all eight settled phases.'
+    }
+    $expectedUploads = @(49, 7, 7, 13, 25, 49, 49, 49)
+    $expectedX = @(0, 1, 2, 3, 0, 19, 0, 0)
+    $expectedZ = @(0, 0, 0, 1, 0, 2, 0, 0)
+    $initialEpoch = [UInt64] $phases[0].Groups['epoch'].Value
+    for ($index = 0; $index -lt 8; ++$index) {
+        $match = $phases[$index]
+        $phase = [ordered] @{
+            phase = [int] $match.Groups['phase'].Value
+            centerX = [int] $match.Groups['x'].Value
+            centerZ = [int] $match.Groups['z'].Value
+            epoch = [UInt64] $match.Groups['epoch'].Value
+            residentChunks = [int] $match.Groups['chunks'].Value
+            uploadedChunks = [UInt64] $match.Groups['uploaded'].Value
+            expectedUploads = [UInt64] $match.Groups['expected'].Value
+            retainedChunks = [UInt64] $match.Groups['retained'].Value
+            pendingChunks = [int] $match.Groups['pending'].Value
+            pendingBatches = [int] $match.Groups['batches'].Value
+            synchronousFallbacks = [UInt64] $match.Groups['fallbacks'].Value
+            ordinaryWaits = [UInt64] $match.Groups['ordinary'].Value
+            pressureWaits = [UInt64] $match.Groups['pressure'].Value
+            repackWaits = [UInt64] $match.Groups['repacks'].Value
+            residentBytes = [UInt64] $match.Groups['residentBytes'].Value
+            retiredBytes = [UInt64] $match.Groups['retiredBytes'].Value
+        }
+        $expectedEpoch = if ($index -eq 7) { $initialEpoch + 1 } else { $initialEpoch }
+        if ($phase.phase -ne $index -or $phase.centerX -ne $expectedX[$index] -or
+            $phase.centerZ -ne $expectedZ[$index] -or $phase.epoch -ne $expectedEpoch -or
+            $phase.residentChunks -ne 49 -or $phase.uploadedChunks -ne $expectedUploads[$index] -or
+            $phase.expectedUploads -ne $expectedUploads[$index] -or
+            $phase.retainedChunks -ne (49 - $expectedUploads[$index]) -or
+            $phase.pendingChunks -ne 0 -or $phase.pendingBatches -ne 0 -or
+            $phase.ordinaryWaits -ne 0 -or $phase.pressureWaits -ne 0 -or $phase.repackWaits -ne 0) {
+            throw "Streaming phase $index did not verify its expected neighborhood, upload delta, or settled resources."
+        }
+        $streamingPhases += $phase
+    }
+}
 $adapterMatch = [regex]::Match($sessionText, 'Adapter: ([^\r\n]+)')
 if (-not (Test-Path $screenshot -PathType Leaf)) { throw 'Smoke test did not save a screenshot.' }
 $bytes = [IO.File]::ReadAllBytes($screenshot)
@@ -146,6 +191,8 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     singleExeDirectory = $true
     windowTransitionsVerified = ($Scene -eq 'lifecycle')
     verifiedWindowStates = $verifiedWindowStates
+    streamingVerified = ($Scene -eq 'streaming')
+    streamingPhases = $streamingPhases
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value
