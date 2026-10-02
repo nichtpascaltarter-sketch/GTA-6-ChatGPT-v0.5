@@ -1,5 +1,6 @@
 #include "../src/game.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -321,6 +322,150 @@ void vehicleInteraction() {
             "exiting placed the player too far from the vehicle");
 }
 
+void boatHandlingAndSwimming() {
+    mc::Game game;
+    mc::Vehicle boat;
+    boat.kind = mc::VehicleKind::Boat;
+    boat.position = {2678, mc::World::WaterLevel, 768};
+    boat.parked = true;
+    game.vehicles.push_back(boat);
+    game.player = boat.position + mc::Vec3{2, 0, 0};
+    require(game.world.waterDepth(boat.position.x, boat.position.z) > 0.9f,
+            "starter boat is not in navigable water");
+    mc::Input interact;
+    interact.interact = true;
+    tick(game, interact);
+    require(game.occupied == 0, "nearby boat could not be boarded");
+    mc::Input thrust;
+    thrust.moveY = 1;
+    tick(game, thrust, 240);
+    require(game.vehicles[0].speed > 5, "boat thrust did not build speed");
+    require(mc::length(game.vehicles[0].position - boat.position) > 10,
+            "boat did not travel across the water");
+    require(std::fabs(game.vehicles[0].position.y - mc::World::WaterLevel) < 0.4f,
+            "boat did not float near the water surface");
+    const float straightYaw = game.vehicles[0].yaw;
+    thrust.moveX = 0.7f;
+    tick(game, thrust, 120);
+    require(std::fabs(mc::wrapAngle(game.vehicles[0].yaw - straightYaw)) > 0.2f,
+            "boat rudder did not turn the moving hull");
+    require(finite(game.vehicles[0].position) && finite(game.vehicles[0].velocity) &&
+            std::isfinite(game.vehicles[0].pitch) && std::isfinite(game.vehicles[0].roll),
+            "boat handling produced invalid state");
+    verifyDynamicMesh(game.dynamicMesh(), "occupied turning boat");
+    mc::Input brake;
+    brake.brake = true;
+    tick(game, brake, 300);
+    require(std::fabs(game.vehicles[0].speed) < 0.5f, "boat braking did not stop the hull");
+    tick(game, interact);
+    require(game.occupied == -1, "stopped boat could not be exited into the water");
+    const mc::Vec3 swimStart = game.player;
+    mc::Input swim;
+    swim.moveY = 1;
+    tick(game, swim, 30);
+    require(mc::length(game.player - swimStart) > 0.5f, "swimming did not move the player");
+    require(game.player.y > mc::World::WaterLevel - 1.5f &&
+            game.player.y < mc::World::WaterLevel, "swimming player sank below the surface");
+    tick(game, interact);
+    require(game.occupied == 0, "swimming player could not reboard the nearby boat");
+}
+
+void aircraftFlightAndLanding() {
+    mc::Game game;
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {-3200, game.world.height(-3200, -1190), -1190};
+    game.vehicles.push_back(aircraft);
+    game.player = aircraft.position;
+    game.occupied = 0;
+    mc::Input takeoff;
+    takeoff.moveY = 1;
+    takeoff.sprint = true;
+    tick(game, takeoff, 900);
+    const mc::Vehicle& flying = game.vehicles[0];
+    require(game.occupied == 0 && flying.health > 0, "aircraft failed its runway takeoff");
+    require(flying.position.y - game.world.height(flying.position.x, flying.position.z) > 15,
+            "aircraft did not climb clear of the runway");
+    require(flying.speed > 25 && flying.throttle > 0.99f,
+            "aircraft throttle did not produce flight speed");
+    const float throttle = flying.throttle;
+    tick(game, {}, 60);
+    require(close(game.vehicles[0].throttle, throttle), "aircraft throttle was not persistent");
+    const float beforeTurn = game.vehicles[0].yaw;
+    mc::Input bank;
+    bank.moveX = 1;
+    tick(game, bank, 120);
+    require(game.vehicles[0].roll > 0.2f &&
+            std::fabs(mc::wrapAngle(game.vehicles[0].yaw - beforeTurn)) > 0.05f,
+            "banking did not roll and turn the aircraft");
+    verifyDynamicMesh(game.dynamicMesh(), "occupied banked aircraft");
+    mc::Input interact;
+    interact.interact = true;
+    tick(game, interact);
+    require(game.occupied == 0, "aircraft permitted an exit while airborne");
+
+    mc::Vehicle& plane = game.vehicles[0];
+    plane.position = {-3200, game.world.height(-3200, -1000) + 140, -1000};
+    plane.yaw = plane.pitch = plane.roll = 0;
+    plane.speed = 12;
+    plane.velocity = {0, 0, 12};
+    plane.throttle = 0.2f;
+    game.player = plane.position;
+    const float stallAltitude = plane.position.y;
+    mc::Input cutThrottle;
+    cutThrottle.moveY = -1;
+    tick(game, cutThrottle, 120);
+    require(close(plane.throttle, 0), "throttle-down input did not cut aircraft power");
+    require(plane.position.y < stallAltitude - 2 && plane.velocity.y < -1,
+            "aircraft retained altitude without sufficient power and airspeed");
+    require(finite(plane.position) && finite(plane.velocity), "stall produced invalid motion");
+
+    plane.position = {-3200, game.world.height(-3200, -1190) + 0.2f, -1190};
+    plane.yaw = plane.pitch = plane.roll = plane.throttle = 0;
+    plane.speed = 5;
+    plane.velocity = {0, -1, 5};
+    game.player = plane.position;
+    const float healthBeforeLanding = plane.health;
+    tick(game, {}, 60);
+    require(std::fabs(plane.position.y - game.world.height(plane.position.x, plane.position.z)) < 0.11f,
+            "gentle landing did not settle onto the runway");
+    require(close(plane.health, healthBeforeLanding), "gentle landing damaged the aircraft");
+    mc::Input wheelBrake;
+    wheelBrake.brake = true;
+    tick(game, wheelBrake, 120);
+    require(plane.speed < 0.1f, "wheel braking did not stop the landed aircraft");
+    tick(game, interact);
+    require(game.occupied == -1, "landed and stopped aircraft could not be exited");
+}
+
+void aircraftAltitudeSeparatesContacts() {
+    mc::Game game;
+    const float ground = game.world.height(-3200, -1000);
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {-3200, ground + 50, -1000};
+    aircraft.speed = 40;
+    aircraft.velocity = {0, 0, 40};
+    aircraft.throttle = 0.6f;
+    game.vehicles.push_back(aircraft);
+    mc::Vehicle car;
+    car.position = {-3199, ground, -1000};
+    car.parked = true;
+    game.vehicles.push_back(car);
+    mc::Pedestrian pedestrian;
+    pedestrian.position = {-3200, ground, -999.3f};
+    game.pedestrians.push_back(pedestrian);
+    game.player = aircraft.position;
+    game.occupied = 0;
+    tick(game);
+    require(close(game.vehicles[0].health, 100) && close(game.vehicles[1].health, 100),
+            "aircraft collided with a road vehicle 50 metres below it");
+    require(close(game.vehicles[0].position.x, aircraft.position.x) && game.vehicles[0].speed > 39,
+            "ground traffic deflected or slowed an aircraft overhead");
+    require(close(game.pedestrians[0].health, 100) && game.wanted == 0,
+            "aircraft overhead struck a pedestrian on the ground");
+}
+
 void weaponsAndRadio() {
     mc::Game game;
     game.initialize();
@@ -565,8 +710,16 @@ void setLittleEndian(std::vector<char>& bytes, size_t offset, uint32_t value) {
         bytes[offset++] = static_cast<char>(value >> shift);
 }
 
+uint32_t littleEndian(const std::vector<char>& bytes, size_t offset) {
+    require(offset + 4 <= bytes.size(), "save fixture read exceeds file size");
+    uint32_t value = 0;
+    for (unsigned shift = 0; shift < 32; shift += 8)
+        value |= uint32_t(static_cast<unsigned char>(bytes[offset++])) << shift;
+    return value;
+}
+
 void refreshSaveChecksum(std::vector<char>& bytes) {
-    require(bytes.size() >= 20, "save fixture has no version-1 header");
+    require(bytes.size() >= 20, "save fixture has no complete header");
     uint32_t checksum = 0xffffffffu;
     for (size_t i = 20; i < bytes.size(); ++i) {
         checksum ^= static_cast<unsigned char>(bytes[i]);
@@ -595,6 +748,9 @@ void saveRoundTripAndCorruption() {
     game.rain = 0.6f;
     game.vehicles[0].health = 34.5f;
     game.vehicles[0].color = {0.11f, 0.22f, 0.33f};
+    game.vehicles[0].pitch = 0.12f;
+    game.vehicles[0].roll = -0.31f;
+    game.vehicles[0].throttle = 0.65f;
     game.pedestrians[0].health = 42;
     game.pedestrians[0].panic = 8;
     const size_t vehicleCount = game.vehicles.size();
@@ -638,6 +794,9 @@ void saveRoundTripAndCorruption() {
     require(close(game.vehicles[0].health, 34.5f) &&
             mc::length(game.vehicles[0].color - mc::Vec3{0.11f, 0.22f, 0.33f}) < 0.001f,
             "save did not restore vehicle condition and appearance");
+    require(close(game.vehicles[0].pitch, 0.12f) && close(game.vehicles[0].roll, -0.31f) &&
+            close(game.vehicles[0].throttle, 0.65f),
+            "save did not restore vehicle pitch, roll, and throttle");
     require(close(game.pedestrians[0].health, 42) && close(game.pedestrians[0].panic, 8),
             "save did not restore pedestrian condition");
 
@@ -666,11 +825,19 @@ void saveRoundTripAndCorruption() {
         reject(corrupted);
     }
     corrupted = original;
-    setLittleEndian(corrupted, 56, 6); // Version 1 wanted level, beyond its legal maximum.
+    setLittleEndian(corrupted, 56, 6); // Shared wanted-level field, beyond its legal maximum.
     refreshSaveChecksum(corrupted);
     reject(corrupted);
     corrupted = original;
-    setLittleEndian(corrupted, 112, 0xffffffffu); // Version 1 vehicle count.
+    setLittleEndian(corrupted, 112, 0xffffffffu); // Shared vehicle-count field.
+    refreshSaveChecksum(corrupted);
+    reject(corrupted);
+    corrupted = original;
+    setLittleEndian(corrupted, 180, 0x7fc00000u); // Version 2 first vehicle pitch: NaN.
+    refreshSaveChecksum(corrupted);
+    reject(corrupted);
+    corrupted = original;
+    setLittleEndian(corrupted, 188, 0x40000000u); // Version 2 first vehicle throttle: 2.0.
     refreshSaveChecksum(corrupted);
     reject(corrupted);
     corrupted = original;
@@ -679,6 +846,63 @@ void saveRoundTripAndCorruption() {
     require(!game.load(save.path.string() + ".absent"), "missing save file was accepted");
     require(!game.save(save.path.string() + "/file.sav"),
             "save reported success for an invalid directory");
+}
+
+void legacySaveMigration() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.erase(std::remove_if(game.vehicles.begin(), game.vehicles.end(),
+        [](const mc::Vehicle& vehicle) {
+            return vehicle.kind == mc::VehicleKind::Boat || vehicle.kind == mc::VehicleKind::Aircraft;
+        }), game.vehicles.end());
+    const size_t legacyVehicleCount = game.vehicles.size();
+    game.money = 9876;
+    game.occupied = 0;
+    game.player = game.vehicles[0].position;
+    game.vehicles[0].pitch = 0.12f;
+    game.vehicles[0].roll = -0.25f;
+    game.vehicles[0].throttle = 0.6f;
+    TemporarySave save;
+    require(game.save(save.path.string()), "could not write migration fixture");
+    std::ifstream input(save.path, std::ios::binary);
+    const std::vector<char> current((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    require(littleEndian(current, 8) == 2, "new saves do not use version 2");
+    require(littleEndian(current, 112) == legacyVehicleCount,
+            "migration fixture has an unexpected vehicle count");
+    constexpr size_t vehicleStart = 116, currentStride = 76, legacyStride = 64;
+    const size_t tail = vehicleStart + legacyVehicleCount * currentStride;
+    require(tail <= current.size(), "migration fixture has truncated vehicle records");
+    std::vector<char> legacy(current.begin(), current.begin() + vehicleStart);
+    for (size_t i = 0; i < legacyVehicleCount; ++i) {
+        const size_t start = vehicleStart + i * currentStride;
+        legacy.insert(legacy.end(), current.begin() + start, current.begin() + start + legacyStride);
+    }
+    legacy.insert(legacy.end(), current.begin() + tail, current.end());
+    setLittleEndian(legacy, 8, 1);
+    setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
+    refreshSaveChecksum(legacy);
+    writeBytes(save.path, legacy);
+    game.money = 0;
+    game.vehicles.clear();
+    require(game.load(save.path.string()), "valid version 1 save was rejected");
+    require(game.money == 9876 && game.occupied == 0,
+            "legacy migration lost progress or the occupied vehicle");
+    require(game.vehicles.size() == legacyVehicleCount + 2,
+            "legacy migration did not add missing starter craft");
+    for (size_t i = 0; i < legacyVehicleCount; ++i)
+        require(close(game.vehicles[i].pitch, 0) && close(game.vehicles[i].roll, 0) &&
+                close(game.vehicles[i].throttle, 0), "legacy vehicle fields were not initialized to zero");
+    const auto countKind = [&](mc::VehicleKind kind) {
+        return std::count_if(game.vehicles.begin(), game.vehicles.end(),
+            [kind](const mc::Vehicle& vehicle) { return vehicle.kind == kind; });
+    };
+    require(countKind(mc::VehicleKind::Boat) == 1 && countKind(mc::VehicleKind::Aircraft) == 1,
+            "legacy migration duplicated or omitted a starter craft");
+    require(game.save(save.path.string()) && game.load(save.path.string()),
+            "migrated save could not be saved and reloaded as version 2");
+    require(game.vehicles.size() == legacyVehicleCount + 2,
+            "reloading a migrated save duplicated starter craft");
 }
 
 void simulationSmoke() {
@@ -726,12 +950,16 @@ int main() {
         {"lighting capacity, range, and order", lightingCapacityRangeAndOrder},
         {"movement, pause, and timestep bounds", movementAndPause},
         {"vehicle interaction", vehicleInteraction},
+        {"boat handling and swimming", boatHandlingAndSwimming},
+        {"aircraft flight, stall, and landing", aircraftFlightAndLanding},
+        {"aircraft altitude separates road contacts", aircraftAltitudeSeparatesContacts},
         {"weapons and radio", weaponsAndRadio},
         {"shoulder aim and nearest hit", shoulderAimAndNearestHit},
         {"police damage respects solid walls", policeObstruction},
         {"complete campaign progression", campaignProgression},
         {"delivery deadline and retry", missionDeadline},
         {"save round trip and corruption", saveRoundTripAndCorruption},
+        {"version 1 save migration", legacySaveMigration},
         {"thirty second simulation smoke", simulationSmoke},
     };
     int failures = 0;
