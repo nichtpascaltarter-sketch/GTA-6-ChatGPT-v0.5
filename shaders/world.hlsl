@@ -8,6 +8,7 @@ cbuffer Frame : register(b0) {
     float4 cameraForward;
     float4 viewport;
     row_major float4x4 lightProjection;
+    float4 visibility; // fog start/end, horizontal metric, camera far plane
 };
 #include "atmosphere.hlsli"
 struct VertexInput { float3 position:POSITION; float3 normal:NORMAL; float3 color:COLOR; float material:TEXCOORD0; };
@@ -126,15 +127,21 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
 float4 PSMain(PixelInput i):SV_TARGET {
     // Evaluate derivatives before the distance branch: neighboring pixels may
     // take different fog paths, but PCF's receiver-plane gradients stay valid.
+#ifndef FAR_GEOMETRY
     float3 projectedShadow=i.shadow.xyz/i.shadow.w;
     float3 shadowDx=ddx(projectedShadow),shadowDy=ddy(projectedShadow);
-    float distance=length(i.world-eyeTime.xyz);
-    [branch] if(distance>=440) return float4(skyRadianceAtPixel(i.position.xy),1);
+#endif
+    float3 eyeOffset=i.world-eyeTime.xyz;
+    float distance=length(eyeOffset);
+    float coverageDistance=visibility.z>.5?length(eyeOffset.xz):distance;
+    [branch] if(coverageDistance>=visibility.y) return float4(skyRadianceAtPixel(i.position.xy),1);
     float3 n=normalize(i.normal),v=normalize(eyeTime.xyz-i.world),l=normalize(sunDay.xyz);
     float3 albedo=max(i.color,.008);
     float roughness=.76,metallic=0;
+#ifndef FAR_GEOMETRY
     float grain=surfaceGrain(i.world,n);
     albedo*=.97+grain*.06;
+#endif
     bool metal=i.material>.5 && i.material<1.5;
     bool glass=i.material>1.5 && i.material<2.5;
     bool water=i.material>2.5 && i.material<3.5;
@@ -143,15 +150,21 @@ float4 PSMain(PixelInput i):SV_TARGET {
     if(glass){metallic=.48;roughness=.18;}
     if(road){
         roughness=lerp(.86,.19,weather.x);
+#ifndef FAR_GEOMETRY
         float aggregate=atmosphereNoise(i.world.xz*24);
-        albedo*=(.92+aggregate*.13)*(1-weather.x*.37);
+        albedo*=.92+aggregate*.13;
+#endif
+        albedo*=1-weather.x*.37;
     }
     if(!metal&&!glass&&!water&&!road) albedo*=1-.08*exp(-max(i.world.y,0)*1.4);
     if(water){
+#ifndef FAR_GEOMETRY
         float t=eyeTime.w;
         float dx=cos(i.world.x*.20+i.world.z*.07+t*.9)*.09+sin(i.world.z*.49+t*1.3)*.04;
         float dz=sin(i.world.z*.17+i.world.x*.11+t*.74)*.08+cos(i.world.x*.43-t)*.04;
-        n=normalize(n+float3(dx,0,dz));roughness=.16;albedo*=.62;
+        n=normalize(n+float3(dx,0,dz));
+#endif
+        roughness=.16;albedo*=.62;
     }
     float nl=saturate(dot(n,l)),nv=saturate(dot(n,v));
     float3 h=normalize(l+v);float nh=saturate(dot(n,h)),vh=saturate(dot(v,h));
@@ -161,14 +174,17 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float g=(nl/(nl*(1-k)+k))*(nv/(nv*(1-k)+k));
     float3 f0=lerp(float3(.04,.04,.04),albedo,metallic);
     float3 f=f0+(1-f0)*pow(1-vh,5);
-    float visibility=rasterVisibility(projectedShadow,shadowDx,shadowDy,nl);
+    float shadowVisibility=1;
+#ifndef FAR_GEOMETRY
+    shadowVisibility=rasterVisibility(projectedShadow,shadowDx,shadowDy,nl);
 #ifdef ENABLE_RAYTRACING
-    visibility=min(visibility,sunVisibility(i.world,n));
+    shadowVisibility=min(shadowVisibility,sunVisibility(i.world,n));
+#endif
 #endif
     float3 sunColor=lerp(float3(3.1,1.20,.42),float3(2.6,2.42,2.12),saturate(sunDay.y*2));
     sunColor*=sunDay.w*(1-weather.x*.78);
     float3 diffuse=albedo*(1-metallic)/3.14159265;
-    float3 color=(diffuse*(1-f)+d*g*f/max(.01,4*nl*nv))*sunColor*nl*visibility;
+    float3 color=(diffuse*(1-f)+d*g*f/max(.01,4*nl*nv))*sunColor*nl*shadowVisibility;
     float hemi=saturate(n.y*.5+.5);
     float3 ambient=lerp(float3(.060,.054,.048),float3(.20,.28,.37),hemi)*(.15+.85*sunDay.w);
     color+=ambient*albedo*(1-metallic*.55);
@@ -184,17 +200,21 @@ float4 PSMain(PixelInput i):SV_TARGET {
         float fresnel=.05+.95*pow(1-nv,5);
         float strength=water?lerp(.28,.92,fresnel):(glass?(.12+.46*fresnel):(metal?.37:weather.x*.33));
         color=lerp(color,reflected,strength);
+#ifndef FAR_GEOMETRY
         if(water) color+=float3(.55,.65,.56)*pow(saturate(sin(i.world.x*.31+i.world.z*.18+eyeTime.w)*.5+.5),35)*.024;
+#endif
     }
+#ifndef FAR_GEOMETRY
     color+=localLighting(i.world,n,v,albedo,roughness,metallic);
+#endif
     float haze=1-exp(-distance*(.00065+weather.x*.0021));
-    float outerFade=smoothstep(260,440,distance);
+    float outerFade=smoothstep(visibility.x,visibility.y,coverageDistance);
     haze=max(haze,outerFade);
     float3 fogRay=cameraRayAtPixel(i.position.xy);
     float3 fogColor=atmosphereBaseRadiance(fogRay);
-    // Near physical haze needs only the base atmosphere. Introduce clouds,
-    // discs and stars smoothly across the existing outer visibility fade,
-    // avoiding both near-facade FBM work and a lighting step at 260 metres.
+    // Physical haze uses slant distance; streamed coverage uses horizontal
+    // distance so high aircraft still see the terrain below. Only the outer
+    // fade needs the full cloud/disc/star model used by the background.
     [branch] if(outerFade>0) fogColor=lerp(fogColor,atmosphereRadiance(fogRay),outerFade);
     color=lerp(color,fogColor,saturate(haze));
     color+=screenRainIntensity(i.position.xy);

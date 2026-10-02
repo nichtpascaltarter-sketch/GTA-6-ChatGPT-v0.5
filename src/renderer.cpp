@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "render_visibility.h"
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -25,6 +26,7 @@
 #include "world_vs.h"
 #include "shadow_vs.h"
 #include "world_ps.h"
+#include "world_far_ps.h"
 #include "world_rt_ps.h"
 #include "sky_vs.h"
 #include "sky_ps.h"
@@ -44,6 +46,7 @@ constexpr uint64_t MaxVertexBudget=256*MiB,MaxIndexBudget=64*MiB;
 constexpr uint64_t MaxStagingBytes=384*MiB;
 constexpr size_t MaxUploadBatches=4;
 constexpr float ShadowSpan=240.0f;
+constexpr float SceneNear=.12f,SceneFar=3000.0f;
 constexpr DXGI_FORMAT ColorFormat=DXGI_FORMAT_R8G8B8A8_UNORM;
 constexpr DXGI_FORMAT SceneFormat=DXGI_FORMAT_R16G16B16A16_FLOAT;
 constexpr DXGI_FORMAT DepthFormat=DXGI_FORMAT_D32_FLOAT;
@@ -51,8 +54,9 @@ struct Constants {
     Mat4 viewProjection;
     float eyeTime[4],sunDay[4],weather[4],cameraRight[4],cameraUp[4],cameraForward[4],viewport[4];
     Mat4 lightProjection;
+    float visibility[4];
 };
-static_assert(sizeof(Constants)<=256,"Frame constants must fit one aligned allocation");
+static_assert(sizeof(Constants)==256,"Frame constants must fit one aligned allocation");
 static_assert(sizeof(Light)==48,"Shader light layout mismatch");
 static_assert(sizeof(Vertex)==40,"Shader vertex layout mismatch");
 static_assert(sizeof(UiVertex)==24,"UI vertex layout mismatch");
@@ -116,14 +120,16 @@ struct Renderer::Impl {
     ComPtr<ID3D12DescriptorHeap> rtvHeap,dsvHeap,resourceHeap;
     std::array<ComPtr<ID3D12Resource>,FrameCount> backBuffers;ComPtr<ID3D12Resource> depth,shadowDepth,sceneColor,resolvedColor;
     ComPtr<ID3D12RootSignature> rootSignature;
-    ComPtr<ID3D12PipelineState> worldPipeline,rayPipeline,skyPipeline,uiPipeline,shadowPipeline,postPipeline;
+    ComPtr<ID3D12PipelineState> worldPipeline,farPipeline,rayPipeline,skyPipeline,uiPipeline,shadowPipeline,postPipeline;
     struct ResidentChunk {
         ArenaRange vertices,indices;
+        RenderTileKey key;Box bounds;
         ComPtr<ID3D12Resource> blas;
         uint64_t blasBytes=0;
         uint64_t geometryBytes()const{return uint64_t(vertices.count)*sizeof(Vertex)+uint64_t(indices.count)*sizeof(uint32_t);}
     };
-    using ChunkKey=std::pair<int,int>;
+    struct ActiveTile {std::shared_ptr<ResidentChunk> chunk;bool rayTrace=false,shadowCaster=false;};
+    using ChunkKey=RenderTileKey;
     using ChunkMap=std::map<ChunkKey,std::shared_ptr<ResidentChunk>>;
     struct RetiredChunk {uint64_t fence=0;std::shared_ptr<ResidentChunk> chunk;};
     struct RetiredScene {uint64_t fence=0;ComPtr<ID3D12Resource> tlas,metadata;};
@@ -141,7 +147,8 @@ struct Renderer::Impl {
     D3D12_VERTEX_BUFFER_VIEW worldVB{};D3D12_INDEX_BUFFER_VIEW worldIB{};
     ArenaAllocator vertexAllocator,indexAllocator;
     ChunkMap resident;
-    std::vector<std::shared_ptr<ResidentChunk>> activeChunks;
+    std::vector<ActiveTile> activeChunks;
+    std::vector<std::shared_ptr<ResidentChunk>> rayResidents;
     std::deque<RetiredChunk> retiredChunks;
     std::deque<RetiredScene> retiredScenes;
     std::deque<UploadBatch> uploadBatches;
@@ -235,7 +242,7 @@ struct Renderer::Impl {
         auto handle=rtvHeap->GetCPUDescriptorHandleForHeapStart();
         for(UINT i=0;i<FrameCount;++i){if(!checked(swapChain->GetBuffer(i,IID_PPV_ARGS(&backBuffers[i])),"Get swap-chain buffer",error))return false;device->CreateRenderTargetView(backBuffers[i].Get(),nullptr,handle);handle.ptr+=rtvStride;}
         D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=width;desc.Height=height;desc.DepthOrArraySize=1;desc.MipLevels=1;desc.Format=DepthFormat;desc.SampleDesc.Count=sceneSamples;desc.Layout=D3D12_TEXTURE_LAYOUT_UNKNOWN;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-        D3D12_CLEAR_VALUE clear{};clear.Format=DepthFormat;clear.DepthStencil.Depth=1;
+        D3D12_CLEAR_VALUE clear{};clear.Format=DepthFormat;clear.DepthStencil.Depth=0;
         auto properties=heapProperties(D3D12_HEAP_TYPE_DEFAULT);
         if(!checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_DEPTH_WRITE,&clear,IID_PPV_ARGS(&depth)),"Create multisample scene depth",error))return false;
         device->CreateDepthStencilView(depth.Get(),nullptr,dsvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -292,13 +299,15 @@ struct Renderer::Impl {
         p.BlendState.RenderTarget[0].SrcBlend=D3D12_BLEND_ONE;p.BlendState.RenderTarget[0].DestBlend=D3D12_BLEND_ZERO;p.BlendState.RenderTarget[0].BlendOp=D3D12_BLEND_OP_ADD;
         p.BlendState.RenderTarget[0].SrcBlendAlpha=D3D12_BLEND_ONE;p.BlendState.RenderTarget[0].DestBlendAlpha=D3D12_BLEND_ZERO;p.BlendState.RenderTarget[0].BlendOpAlpha=D3D12_BLEND_OP_ADD;p.BlendState.RenderTarget[0].LogicOp=D3D12_LOGIC_OP_NOOP;
         p.SampleMask=UINT_MAX;p.RasterizerState.FillMode=D3D12_FILL_MODE_SOLID;p.RasterizerState.CullMode=D3D12_CULL_MODE_NONE;p.RasterizerState.DepthClipEnable=TRUE;
-        p.DepthStencilState.DepthEnable=TRUE;p.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ALL;p.DepthStencilState.DepthFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        p.DepthStencilState.DepthEnable=TRUE;p.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ALL;p.DepthStencilState.DepthFunc=D3D12_COMPARISON_FUNC_GREATER_EQUAL;
         p.DepthStencilState.StencilReadMask=D3D12_DEFAULT_STENCIL_READ_MASK;p.DepthStencilState.StencilWriteMask=D3D12_DEFAULT_STENCIL_WRITE_MASK;
         p.DepthStencilState.FrontFace.StencilFailOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilDepthFailOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilPassOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilFunc=D3D12_COMPARISON_FUNC_ALWAYS;p.DepthStencilState.BackFace=p.DepthStencilState.FrontFace;
         p.InputLayout={layout,4};p.PrimitiveTopologyType=D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;p.NumRenderTargets=1;p.RTVFormats[0]=SceneFormat;p.DSVFormat=DepthFormat;p.SampleDesc.Count=sceneSamples;
         if(!checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&worldPipeline)),"Create world pipeline (Shader Model 6 support required)",error))return false;
+        p.PS={g_world_far_ps,sizeof(g_world_far_ps)};
+        if(!checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&farPipeline)),"Create distant world pipeline",error))return false;
         if(raySupported){p.PS={g_world_rt_ps,sizeof(g_world_rt_ps)};if(FAILED(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&rayPipeline))))raySupported=false;}
-        auto shadow=p;shadow.VS={g_shadow_vs,sizeof(g_shadow_vs)};shadow.PS={nullptr,0};shadow.NumRenderTargets=0;shadow.RTVFormats[0]=DXGI_FORMAT_UNKNOWN;shadow.SampleDesc.Count=1;
+        auto shadow=p;shadow.VS={g_shadow_vs,sizeof(g_shadow_vs)};shadow.PS={nullptr,0};shadow.NumRenderTargets=0;shadow.RTVFormats[0]=DXGI_FORMAT_UNKNOWN;shadow.SampleDesc.Count=1;shadow.DepthStencilState.DepthFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;
         shadow.RasterizerState.DepthBias=250;shadow.RasterizerState.SlopeScaledDepthBias=1.0f;
         // Depth clamp retains off-screen tall casters at the light frustum planes.
         shadow.RasterizerState.DepthClipEnable=FALSE;
@@ -326,7 +335,11 @@ struct Renderer::Impl {
     StreamStats stats()const{
         StreamStats result=streaming;result.residentChunks=uint32_t(resident.size());
         result.pendingBatches=uint32_t(uploadBatches.size());
-        for(const auto& chunk:activeChunks)result.residentBytes+=chunk->geometryBytes();
+        for(const auto& tile:activeChunks){
+            const auto& chunk=*tile.chunk;const size_t lod=size_t(chunk.key.lod);
+            result.residentBytes+=chunk.geometryBytes();++result.residentTilesByLod[lod];result.residentBytesByLod[lod]+=chunk.geometryBytes();
+        }
+        result.rayInstances=raySupported?uint32_t(rayResidents.size()):0;
         for(const auto& batch:uploadBatches)result.pendingUploadBytes+=batch.stagingBytes;
         for(const auto& item:retiredChunks)result.retiredBytes+=item.chunk->geometryBytes()+item.chunk->blasBytes;
         for(const auto& item:retiredScenes){if(item.tlas)result.retiredBytes+=item.tlas->GetDesc().Width;if(item.metadata)result.retiredBytes+=item.metadata->GetDesc().Width;}
@@ -340,10 +353,10 @@ struct Renderer::Impl {
         }
         return true;
     }
-    bool createArenas(uint64_t requiredVertices,uint64_t requiredIndices,std::string& error){
-        uint64_t vertexBytes=DefaultVertexBudget;
+    bool createArenas(uint64_t requiredVertices,uint64_t requiredIndices,bool distant,std::string& error){
+        uint64_t vertexBytes=distant?128*MiB:DefaultVertexBudget;
         while(vertexBytes<streaming.vertexArenaBytes)vertexBytes*=2;
-        uint64_t indexBytes=std::max(DefaultIndexBudget,streaming.indexArenaBytes);
+        uint64_t indexBytes=std::max(distant?32*MiB:DefaultIndexBudget,streaming.indexArenaBytes);
         // Two visible sets provide room for a teleport as well as ordinary
         // seven-chunk boundaries. Hard caps are never exceeded or truncated.
         const uint64_t vertexTarget=std::min(MaxVertexBudget,requiredVertices*2);
@@ -357,7 +370,7 @@ struct Renderer::Impl {
         ComPtr<ID3D12Resource> vertices,indices;
         if(!createBuffer(vertexBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_GENERIC_READ,vertices,error)||
            !createBuffer(indexBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_GENERIC_READ,indices,error))return false;
-        streaming.retiredChunks+=resident.size();resident.clear();activeChunks.clear();
+        streaming.retiredChunks+=resident.size();resident.clear();activeChunks.clear();rayResidents.clear();
         retiredChunks.clear();retiredScenes.clear();tlas.Reset();instanceMetadata.Reset();
         worldVertices=std::move(vertices);worldIndices=std::move(indices);
         streaming.vertexArenaBytes=vertexBytes;streaming.indexArenaBytes=indexBytes;
@@ -423,10 +436,20 @@ struct Renderer::Impl {
         D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};build.Inputs=top;build.DestAccelerationStructureData=batch.tlas->GetGPUVirtualAddress();build.ScratchAccelerationStructureData=batch.scratch->GetGPUVirtualAddress();
         batch.rayCommands->BuildRaytracingAccelerationStructure(&build,0,nullptr);uavBarrier(batch.commands.Get(),batch.tlas.Get());return true;
     }
-    void drawWorld(){
+    enum class DrawPass {Shadow,Main,Far};
+    void drawWorld(const ClipVolume& volume,DrawPass pass){
         if(activeChunks.empty())return;
         commands->IASetVertexBuffers(0,1,&worldVB);commands->IASetIndexBuffer(&worldIB);
-        for(const auto& chunk:activeChunks)if(chunk->indices.count)commands->DrawIndexedInstanced(chunk->indices.count,1,chunk->indices.first,INT(chunk->vertices.first),0);
+        for(const auto& tile:activeChunks){
+            const auto& chunk=*tile.chunk;if(!chunk.indices.count)continue;
+            if(pass==DrawPass::Shadow){if(!tile.shadowCaster)continue;}
+            else if((chunk.key.lod==WorldLod::Far)!=(pass==DrawPass::Far))continue;
+            if(!volume.visible(chunk.bounds)){
+                if(pass==DrawPass::Shadow)++streaming.shadowCulled;else ++streaming.mainCulled;continue;
+            }
+            commands->DrawIndexedInstanced(chunk.indices.count,1,chunk.indices.first,INT(chunk.vertices.first),0);
+            if(pass==DrawPass::Shadow)++streaming.shadowDrawn;else ++streaming.mainDrawn;
+        }
     }
 
 };
@@ -498,71 +521,77 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.resourceHeap)),"Create shader-resource descriptors",error))return false;
     p.rtvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     p.srvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    std::fprintf(stderr,"Scene depth: reverse-Z; near=%.2fm; far=%.0fm; shadows=forward-Z\n",SceneNear,SceneFar);
     return p.selectSceneSamples(error)&&p.createTargets(error)&&p.createShadowTarget(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
 }
 bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
     auto& p=*impl;if(!p.device){error="Renderer is not initialized";return false;}
     if(!p.collectRetired(error))return false;
-    if(p.worldPublished&&p.streaming.epoch==epoch&&p.worldRevision==world.revision)return true;
+    if(p.worldPublished&&p.streaming.epoch==epoch&&p.worldRevision==world.renderRevision)return true;
+    const auto views=world.renderTiles();
     uint64_t requiredVertices=0,requiredIndices=0;
-    std::map<Impl::ChunkKey,const Chunk*> sources;
-    if(world.chunks.size()>0xffffff){error="World stream exceeds the DXR instance identifier limit";return false;}
-    for(const auto& chunk:world.chunks){
-        if(!sources.emplace(Impl::ChunkKey{chunk.x,chunk.z},&chunk).second){error="World stream contains duplicate chunk coordinates";return false;}
-        if(chunk.mesh.vertices.size()>MaxVertexBudget/sizeof(Vertex)||chunk.mesh.indices.size()>MaxIndexBudget/sizeof(uint32_t)){
-            error="A world chunk exceeds the 256 MiB vertex / 64 MiB index arena limits";return false;
+    std::map<std::pair<int,int>,bool> selectedCells;
+    if(views.size()>0xffffff){error="World stream exceeds the DXR instance identifier limit";return false;}
+    for(const auto& view:views){
+        if(!view.mesh||size_t(view.key.lod)>size_t(WorldLod::Far)){error="World render view contains an invalid mesh or LOD";return false;}
+        if(!selectedCells.emplace(std::pair{view.key.x,view.key.z},true).second){error="World render view contains overlapping LODs for one cell";return false;}
+        const auto& mesh=*view.mesh;
+        if(mesh.vertices.size()>MaxVertexBudget/sizeof(Vertex)||mesh.indices.size()>MaxIndexBudget/sizeof(uint32_t)){
+            error="A world tile exceeds the 256 MiB vertex / 64 MiB index arena limits";return false;
         }
-        requiredVertices+=chunk.mesh.vertices.size()*sizeof(Vertex);requiredIndices+=chunk.mesh.indices.size()*sizeof(uint32_t);
-        if(chunk.mesh.indices.size()%3){error="World chunk has an incomplete triangle";return false;}
+        requiredVertices+=mesh.vertices.size()*sizeof(Vertex);requiredIndices+=mesh.indices.size()*sizeof(uint32_t);
+        if(mesh.indices.size()%3){error="World tile has an incomplete triangle";return false;}
     }
-    if(requiredVertices>MaxVertexBudget||requiredIndices>MaxIndexBudget){error="Visible world exceeds the 256 MiB vertex / 64 MiB index hard budget; no chunks were dropped";return false;}
-    // A repack has already waited for the queue. Keep the old coherent scene
-    // until the replacement submission succeeds, so allocation failure can
-    // restore it. Peak arena allocation during this rare transaction is 2x.
+    if(requiredVertices>MaxVertexBudget||requiredIndices>MaxIndexBudget){error="Visible world exceeds the 256 MiB vertex / 64 MiB index hard budget; no tiles were dropped";return false;}
+    // Repack waits before taking this snapshot. Keep the prior coherent scene
+    // available until replacement submission succeeds (bounded 2x arena peak).
     struct ArenaBackup {
         Impl& p;bool committed=false;
         ComPtr<ID3D12Resource> vertices,indices,tlas,metadata;
         D3D12_VERTEX_BUFFER_VIEW vb;D3D12_INDEX_BUFFER_VIEW ib;
         ArenaAllocator vertexAllocator,indexAllocator;
-        Impl::ChunkMap resident;std::vector<std::shared_ptr<Impl::ResidentChunk>> active;
+        Impl::ChunkMap resident;std::vector<Impl::ActiveTile> active;
+        std::vector<std::shared_ptr<Impl::ResidentChunk>> rays;
         StreamStats stats;bool published;
         explicit ArenaBackup(Impl& owner):p(owner),vertices(p.worldVertices),indices(p.worldIndices),tlas(p.tlas),metadata(p.instanceMetadata),vb(p.worldVB),ib(p.worldIB),
-            vertexAllocator(p.vertexAllocator),indexAllocator(p.indexAllocator),resident(p.resident),active(p.activeChunks),stats(p.streaming),published(p.worldPublished){}
+            vertexAllocator(p.vertexAllocator),indexAllocator(p.indexAllocator),resident(p.resident),active(p.activeChunks),rays(p.rayResidents),stats(p.streaming),published(p.worldPublished){}
         ~ArenaBackup(){if(committed)return;
             p.worldVertices=std::move(vertices);p.worldIndices=std::move(indices);p.tlas=std::move(tlas);p.instanceMetadata=std::move(metadata);p.worldVB=vb;p.worldIB=ib;
-            p.vertexAllocator=std::move(vertexAllocator);p.indexAllocator=std::move(indexAllocator);p.resident=std::move(resident);p.activeChunks=std::move(active);
+            p.vertexAllocator=std::move(vertexAllocator);p.indexAllocator=std::move(indexAllocator);p.resident=std::move(resident);p.activeChunks=std::move(active);p.rayResidents=std::move(rays);
             stats.pressureWaits=p.streaming.pressureWaits;stats.repackWaits=p.streaming.repackWaits;p.streaming=stats;p.worldPublished=published;
         }
     };
     std::unique_ptr<ArenaBackup> backup;
-    if(!p.worldVertices){backup=std::make_unique<ArenaBackup>(p);if(!p.createArenas(requiredVertices,requiredIndices,error))return false;}
+    if(!p.worldVertices){backup=std::make_unique<ArenaBackup>(p);if(!p.createArenas(requiredVertices,requiredIndices,world.distantEnabled(),error))return false;}
     ArenaAllocator plannedVertices,plannedIndices;
     Impl::ChunkMap nextResident;
-    std::vector<std::shared_ptr<Impl::ResidentChunk>> ordered,added;
-    std::vector<const Chunk*> addedSources;
+    std::vector<Impl::ActiveTile> ordered;
+    std::vector<std::shared_ptr<Impl::ResidentChunk>> added,nextRays;
+    std::vector<const Mesh*> addedSources;
     uint64_t retained=0,uploadVertexBytes=0,uploadIndexBytes=0;
     auto plan=[&](){
-        plannedVertices=p.vertexAllocator;plannedIndices=p.indexAllocator;nextResident.clear();ordered.clear();added.clear();addedSources.clear();
+        plannedVertices=p.vertexAllocator;plannedIndices=p.indexAllocator;nextResident.clear();ordered.clear();added.clear();addedSources.clear();nextRays.clear();
         retained=uploadVertexBytes=uploadIndexBytes=0;
-        for(const auto& source:world.chunks){
-            Impl::ChunkKey key{source.x,source.z};auto old=p.resident.find(key);
+        for(const auto& view:views){
+            const auto& source=*view.mesh;auto old=p.resident.find(view.key);
             std::shared_ptr<Impl::ResidentChunk> chunk;
             if(p.worldPublished&&p.streaming.epoch==epoch&&old!=p.resident.end()){
                 chunk=old->second;++retained;
             }else{
-                chunk=std::make_shared<Impl::ResidentChunk>();
-                if(!plannedVertices.allocate(uint32_t(source.mesh.vertices.size()),chunk->vertices)||
-                   !plannedIndices.allocate(uint32_t(source.mesh.indices.size()),chunk->indices))return false;
+                chunk=std::make_shared<Impl::ResidentChunk>();chunk->key=view.key;
+                if(!plannedVertices.allocate(uint32_t(source.vertices.size()),chunk->vertices)||
+                   !plannedIndices.allocate(uint32_t(source.indices.size()),chunk->indices))return false;
                 added.push_back(chunk);addedSources.push_back(&source);
-                uploadVertexBytes+=source.mesh.vertices.size()*sizeof(Vertex);uploadIndexBytes+=source.mesh.indices.size()*sizeof(uint32_t);
+                uploadVertexBytes+=source.vertices.size()*sizeof(Vertex);uploadIndexBytes+=source.indices.size()*sizeof(uint32_t);
             }
-            nextResident.emplace(key,chunk);ordered.push_back(std::move(chunk));
+            nextResident.emplace(view.key,chunk);ordered.push_back({chunk,view.rayTrace,view.shadowCaster});
+            if(p.raySupported&&view.rayTrace&&chunk->indices.count)nextRays.push_back(chunk);
         }
+        // Stable instance order ignores raster-only arrivals and source order.
+        std::sort(nextRays.begin(),nextRays.end(),[](const auto& a,const auto& b){return a->key<b->key;});
         return true;
     };
     if(!plan()){
-        // Only memory pressure can wait here. Ordinary stream updates have
-        // enough unoccupied arena space and submit without a CPU fence wait.
         while(!p.retiredChunks.empty()){
             ++p.streaming.pressureWaits;
             if(!p.wait(p.retiredChunks.front().fence,error)||!p.collectRetired(error))return false;
@@ -573,40 +602,46 @@ bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
             std::fputs("World stream repack waiting for GPU; replacing fragmented or undersized arenas.\n",stderr);
             if(!p.flush(error)||!p.collectRetired(error))return false;
             backup=std::make_unique<ArenaBackup>(p);
-            if(!p.createArenas(requiredVertices,requiredIndices,error)||!plan()){
+            if(!p.createArenas(requiredVertices,requiredIndices,world.distantEnabled(),error)||!plan()){
                 if(error.empty())error="World stream arena repack could not fit the complete visible set";return false;
             }
         }
     }
-    for(const auto* source:addedSources)for(uint32_t index:source->mesh.indices)if(index>=source->mesh.vertices.size()){
-        error="World chunk triangle references a missing vertex";return false;
-    }
-    if(added.empty()&&nextResident.size()==p.resident.size()){
-        p.activeChunks=std::move(ordered);p.streaming.retainedChunks+=retained;p.streaming.epoch=epoch;p.worldRevision=world.revision;p.worldPublished=true;
+    bool rayChanged=p.raySupported&&nextRays!=p.rayResidents;
+    if(added.empty()&&nextResident.size()==p.resident.size()&&!rayChanged){
+        // Prefetch cache revisions need not submit GPU work or inflate counters.
+        p.activeChunks=std::move(ordered);p.streaming.epoch=epoch;p.streaming.renderRevision=world.renderRevision;
+        p.worldRevision=world.renderRevision;p.worldPublished=true;
         if(backup)backup->committed=true;return true;
     }
-    uint64_t instanceCount=0;for(const auto& chunk:ordered)if(chunk->indices.count)++instanceCount;
-    const uint64_t instanceBytes=p.raySupported?std::max<uint64_t>(256,instanceCount*sizeof(D3D12_RAYTRACING_INSTANCE_DESC)):0;
-    const uint64_t metadataBytes=p.raySupported?std::max<uint64_t>(256,instanceCount*8):0;
+    const uint64_t instanceCount=nextRays.size();
+    const uint64_t instanceBytes=rayChanged&&instanceCount?std::max<uint64_t>(256,instanceCount*sizeof(D3D12_RAYTRACING_INSTANCE_DESC)):0;
+    const uint64_t metadataBytes=rayChanged&&instanceCount?std::max<uint64_t>(256,instanceCount*8):0;
     const uint64_t stagingBytes=(uploadVertexBytes?std::max<uint64_t>(256,uploadVertexBytes):0)+(uploadIndexBytes?std::max<uint64_t>(256,uploadIndexBytes):0)+instanceBytes+metadataBytes;
-    // Reclaiming old ranges during this pressure wait changes the allocator.
-    // Re-plan afterwards so the committed free list includes those releases.
     if(!p.stagingRoom(stagingBytes,error))return false;
+    // Retirement may have coalesced the free lists while enforcing staging caps.
     if(!plan()){error="World stream ranges could not be allocated after staging retirement";return false;}
-    Impl::UploadBatch batch;batch.stagingBytes=stagingBytes;batch.arenaVertices=p.worldVertices;batch.arenaIndices=p.worldIndices;batch.chunks=added;
+    rayChanged=p.raySupported&&nextRays!=p.rayResidents;
+    for(size_t i=0;i<added.size();++i){
+        const auto& source=*addedSources[i];
+        if(!meshBounds(source,added[i]->bounds)){error="World tile contains a non-finite vertex position";return false;}
+        for(uint32_t index:source.indices)if(index>=source.vertices.size()){error="World tile triangle references a missing vertex";return false;}
+    }
+    std::vector<std::shared_ptr<Impl::ResidentChunk>> rayBuilds;
+    if(rayChanged)for(const auto& chunk:nextRays)if(!chunk->blas)rayBuilds.push_back(chunk);
+    Impl::UploadBatch batch;batch.stagingBytes=stagingBytes;batch.arenaVertices=p.worldVertices;batch.arenaIndices=p.worldIndices;
+    batch.chunks=added;batch.chunks.insert(batch.chunks.end(),nextRays.begin(),nextRays.end());
     if(!checked(p.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&batch.allocator)),"Create stream command allocator",error)||
        !checked(p.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,batch.allocator.Get(),nullptr,IID_PPV_ARGS(&batch.commands)),"Create stream command list",error))return false;
     if(uploadVertexBytes&&!p.createBuffer(uploadVertexBytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.vertices,error))return false;
     if(uploadIndexBytes&&!p.createBuffer(uploadIndexBytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.indices,error))return false;
-    // Copy source meshes while setWorld owns their lifetime. No worker or
-    // deferred upload stores pointers into World::chunks beyond this call.
     auto fillStaging=[&](ID3D12Resource* resource,bool vertices){
         if(!resource)return true;void* data=nullptr;D3D12_RANGE noRead{0,0};
-        if(!checked(resource->Map(0,&noRead,&data),"Map chunk staging buffer",error))return false;
+        if(!checked(resource->Map(0,&noRead,&data),"Map tile staging buffer",error))return false;
         size_t offset=0;
         for(const auto* source:addedSources){
-            size_t bytes=vertices?source->mesh.vertices.size()*sizeof(Vertex):source->mesh.indices.size()*sizeof(uint32_t);
-            if(bytes)std::memcpy(static_cast<uint8_t*>(data)+offset,vertices?static_cast<const void*>(source->mesh.vertices.data()):static_cast<const void*>(source->mesh.indices.data()),bytes);
+            size_t bytes=vertices?source->vertices.size()*sizeof(Vertex):source->indices.size()*sizeof(uint32_t);
+            if(bytes)std::memcpy(static_cast<uint8_t*>(data)+offset,vertices?static_cast<const void*>(source->vertices.data()):static_cast<const void*>(source->indices.data()),bytes);
             offset+=bytes;
         }
         D3D12_RANGE written{0,offset};resource->Unmap(0,&written);return true;
@@ -623,28 +658,30 @@ bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
     }
     if(uploadVertexBytes)transition(batch.commands.Get(),p.worldVertices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);
     if(uploadIndexBytes)transition(batch.commands.Get(),p.worldIndices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);
-    if(p.raySupported&&!p.prepareRayScene(batch,ordered,added,error)){
+    if(rayChanged&&!p.prepareRayScene(batch,nextRays,rayBuilds,error)){
         if(FAILED(p.device->GetDeviceRemovedReason()))return false;
         std::fprintf(stderr,"DXR stream preparation unavailable; continuing with raster rendering: %s\n",error.c_str());
         p.raySupported=false;batch.tlas.Reset();batch.metadata.Reset();batch.instances.Reset();batch.scratch.Reset();
-        for(auto& chunk:added){chunk->blas.Reset();chunk->blasBytes=0;}error.clear();
+        for(auto& chunk:rayBuilds){chunk->blas.Reset();chunk->blasBytes=0;}nextRays.clear();error.clear();
     }
-    // Prepared AS resources and the metadata belong to exactly the same
-    // resident list. Queue order makes them ready before the next frame.
-    if(!checked(batch.commands->Close(),"Close chunk upload command list",error))return false;
+    if(!checked(batch.commands->Close(),"Close tile upload command list",error))return false;
     const uint64_t priorTail=p.nextFence-1;batch.fence=p.nextFence++;
     p.uploadBatches.push_back(std::move(batch));auto& submitted=p.uploadBatches.back();
     ID3D12CommandList* lists[]={submitted.commands.Get()};p.queue->ExecuteCommandLists(1,lists);
-    if(!checked(p.queue->Signal(p.fence.Get(),submitted.fence),"Signal chunk upload completion",error))return false;
+    if(!checked(p.queue->Signal(p.fence.Get(),submitted.fence),"Signal tile upload completion",error))return false;
     for(const auto& [key,chunk]:p.resident){auto replacement=nextResident.find(key);if(replacement==nextResident.end()||replacement->second!=chunk){
         p.retiredChunks.push_back({priorTail,chunk});++p.streaming.retiredChunks;
     }}
-    if(p.tlas||p.instanceMetadata)p.retiredScenes.push_back({priorTail,p.tlas,p.instanceMetadata});
+    if(rayChanged){
+        if(p.tlas||p.instanceMetadata)p.retiredScenes.push_back({priorTail,p.tlas,p.instanceMetadata});
+        p.tlas=submitted.tlas;p.instanceMetadata=submitted.metadata;p.rayResidents=std::move(nextRays);
+        if(p.tlas)++p.streaming.tlasBuilds;
+        if(p.raySupported)p.streaming.blasBuilds+=rayBuilds.size();
+    }
     p.vertexAllocator=std::move(plannedVertices);p.indexAllocator=std::move(plannedIndices);p.resident=std::move(nextResident);p.activeChunks=std::move(ordered);
-    p.tlas=submitted.tlas;p.instanceMetadata=submitted.metadata;
     p.streaming.uploadedChunks+=added.size();p.streaming.retainedChunks+=retained;
-    if(p.raySupported)for(const auto& chunk:added)if(chunk->blas)++p.streaming.blasBuilds;
-    p.streaming.epoch=epoch;p.worldRevision=world.revision;p.worldPublished=true;
+    for(const auto& chunk:added)++p.streaming.uploadedTilesByLod[size_t(chunk->key.lod)];
+    p.streaming.epoch=epoch;p.streaming.renderRevision=world.renderRevision;p.worldRevision=world.renderRevision;p.worldPublished=true;
     if(backup)backup->committed=true;
     return p.checkDebugMessages(error);
 }
@@ -661,7 +698,11 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     if(dynamicIndexBytes&&!p.writeUpload(frame.dynamicIndices.Get(),dynamic->indices.data(),dynamicIndexBytes,error))return false;
     if(uiBytes&&!p.writeUpload(frame.ui.Get(),input.ui->data(),uiBytes,error))return false;
     Constants c{};const float fov=68*Pi/180,aspect=float(p.width)/float(p.height);
-    c.viewProjection=multiply(lookAt(input.eye,input.target),perspective(fov,aspect,.12f,900));
+    c.viewProjection=multiply(lookAt(input.eye,input.target),reversePerspective(fov,aspect,SceneNear,SceneFar));
+    const auto fog=visibilityRange(input.coverageRadius);
+    c.visibility[0]=fog.start;c.visibility[1]=fog.end;c.visibility[2]=fog.horizontal?1.0f:0.0f;c.visibility[3]=SceneFar;
+    p.streaming.fogStart=fog.start;p.streaming.fogEnd=fog.end;
+    p.streaming.mainDrawn=p.streaming.mainCulled=p.streaming.shadowDrawn=p.streaming.shadowCulled=0;
     c.eyeTime[0]=input.eye.x;c.eyeTime[1]=input.eye.y;c.eyeTime[2]=input.eye.z;c.eyeTime[3]=input.time;
     float sunAngle=(input.dayTime-6)*Pi/12;Vec3 sun=normalized({std::cos(sunAngle),std::sin(sunAngle),.27f});float daylight=clamp((sun.y+.10f)/.30f,0,1);daylight=daylight*daylight*(3-2*daylight);
     c.sunDay[0]=sun.x;c.sunDay[1]=sun.y;c.sunDay[2]=sun.z;c.sunDay[3]=daylight;
@@ -685,6 +726,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     // Snap the projected world origin to whole shadow texels to avoid shimmer.
     Vec3 lightDirection=normalized({sun.x,std::max(sun.y,.06f),sun.z});
     Vec3 lightCenter=input.eye+Vec3{forward.x,0,forward.z}*45.0f;
+    lightCenter.y=std::isfinite(input.groundHeight)?input.groundHeight:0.0f;
     Mat4 lightView=lookAt(lightCenter+lightDirection*450.0f,lightCenter);
     Mat4 orthographic{};orthographic.m[0]=2/ShadowSpan;orthographic.m[5]=2/ShadowSpan;orthographic.m[10]=1/900.0f;orthographic.m[15]=1;
     c.lightProjection=multiply(lightView,orthographic);
@@ -692,6 +734,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     c.lightProjection.m[12]+=(std::round(c.lightProjection.m[12]*halfResolution)-c.lightProjection.m[12]*halfResolution)/halfResolution;
     c.lightProjection.m[13]+=(std::round(c.lightProjection.m[13]*halfResolution)-c.lightProjection.m[13]*halfResolution)/halfResolution;
     c.viewport[2]=1.0f/float(ShadowSize);c.viewport[3]=float(lightCount);
+    const ClipVolume mainVolume(c.viewProjection),shadowVolume(c.lightProjection,true);
     std::memcpy(frame.mappedConstants,&c,sizeof(c));
     if(!checked(frame.allocator->Reset(),"Reset frame allocator",error)||!checked(p.commands->Reset(frame.allocator.Get(),nullptr),"Reset frame command list",error))return false;
     p.commands->SetGraphicsRootSignature(p.rootSignature.Get());p.commands->SetGraphicsRootConstantBufferView(0,frame.constants->GetGPUVirtualAddress());
@@ -700,19 +743,22 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     auto shadowDSV=p.shadowDSV();p.commands->ClearDepthStencilView(shadowDSV,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);p.commands->OMSetRenderTargets(0,nullptr,FALSE,&shadowDSV);
     D3D12_VIEWPORT lightViewport{0,0,float(ShadowSize),float(ShadowSize),0,1};D3D12_RECT lightScissor{0,0,LONG(ShadowSize),LONG(ShadowSize)};
     p.commands->RSSetViewports(1,&lightViewport);p.commands->RSSetScissorRects(1,&lightScissor);p.commands->SetPipelineState(p.shadowPipeline.Get());
-    p.drawWorld();
+    p.drawWorld(shadowVolume,Impl::DrawPass::Shadow);
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
     transition(p.commands.Get(),p.shadowDepth.Get(),D3D12_RESOURCE_STATE_DEPTH_WRITE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     ID3D12DescriptorHeap* heaps[]={p.resourceHeap.Get()};p.commands->SetDescriptorHeaps(1,heaps);p.commands->SetGraphicsRootDescriptorTable(4,p.resourceHeap->GetGPUDescriptorHandleForHeapStart());
     auto rtv=p.sceneRTV();auto dsv=p.dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    const float clear[]={0,0,0,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);
+    const float clear[]={0,0,0,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,0,0,0,nullptr);
     p.commands->OMSetRenderTargets(1,&rtv,FALSE,&dsv);D3D12_VIEWPORT viewport{0,0,float(p.width),float(p.height),0,1};D3D12_RECT scissor{0,0,LONG(p.width),LONG(p.height)};p.commands->RSSetViewports(1,&viewport);p.commands->RSSetScissorRects(1,&scissor);
     p.commands->SetGraphicsRootShaderResourceView(5,frame.lights->GetGPUVirtualAddress());
     if(ray){p.commands->SetGraphicsRootShaderResourceView(1,p.tlas->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(2,p.worldVertices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(3,p.worldIndices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(7,p.instanceMetadata->GetGPUVirtualAddress());}
     p.commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);p.commands->SetPipelineState(p.skyPipeline.Get());p.commands->DrawInstanced(3,1,0,0);
     p.commands->SetPipelineState(ray?p.rayPipeline.Get():p.worldPipeline.Get());
-    p.drawWorld();
+    p.drawWorld(mainVolume,Impl::DrawPass::Main);
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
+    if(std::any_of(p.activeChunks.begin(),p.activeChunks.end(),[](const auto& tile){return tile.chunk->key.lod==WorldLod::Far&&tile.chunk->indices.count;})){
+        p.commands->SetPipelineState(p.farPipeline.Get());p.drawWorld(mainVolume,Impl::DrawPass::Far);
+    }
     // Resolve in linear space before tone mapping. The 1x path aliases the
     // scene texture and uses a read/write transition instead of a resolve.
     if(p.sceneSamples>1){
