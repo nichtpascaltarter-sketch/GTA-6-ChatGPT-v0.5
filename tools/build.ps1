@@ -90,7 +90,7 @@ try {
     $systemLibraries = @('kernel32.lib', 'user32.lib', 'gdi32.lib', 'shell32.lib',
         'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'xinput9_1_0.lib', 'ole32.lib',
         'uuid.lib', 'avrt.lib')
-    $sourceNames = @('main', 'world', 'world_geometry', 'world_streamer', 'game', 'visuals', 'renderer', 'audio')
+    $sourceNames = @('main', 'world', 'world_geometry', 'world_streamer', 'game', 'pedestrians', 'visuals', 'renderer', 'audio')
     $sources = @($sourceNames | ForEach-Object { Join-Path $repo "src\$_.cpp" })
     $executable = Join-Path $output 'MeridianCoast.exe'
     Write-Host "Building $Configuration x64 executable with static C/C++ runtime"
@@ -108,8 +108,10 @@ try {
             @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'render_visibility'; Sources = @() },
             @{ Name = 'render_timing'; Sources = @() },
-            @{ Name = 'game'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
-            @{ Name = 'workshop_lighting'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'game'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'pedestrian'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'workshop_lighting'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'pedestrian_visuals'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
         )

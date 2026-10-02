@@ -2,6 +2,10 @@ name: Native Windows build
 
 on:
   push:
+    paths-ignore:
+      - 'validation/**'
+      - 'PROGRESS.md'
+      - 'README.md'
   pull_request:
   workflow_dispatch:
 
