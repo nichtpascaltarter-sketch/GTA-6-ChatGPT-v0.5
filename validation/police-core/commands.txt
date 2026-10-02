@@ -1,0 +1,14 @@
+Working directory: /workspace/GTA-6-ChatGPT-v0.5-police
+Compiler: g++ (Debian 14.2.0-19) 14.2.0
+
+g++ -std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror tests/law_tests.cpp src/law.cpp src/law_navigation.cpp src/world.cpp src/world_geometry.cpp -o /tmp/law-final-tests
+/tmp/law-final-tests > /tmp/law-final-strict.log 2>&1
+
+g++ -std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror tests/law_navigation_tests.cpp src/law_navigation.cpp src/world.cpp src/world_geometry.cpp -o /tmp/law-navigation-final-tests
+/tmp/law-navigation-final-tests > /tmp/law-navigation-final-strict.log 2>&1
+
+g++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/law_tests.cpp src/law.cpp src/law_navigation.cpp src/world.cpp src/world_geometry.cpp -o /tmp/law-final-asan
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/law-final-asan > /tmp/law-final-asan.log 2>&1
+
+g++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer tests/law_navigation_tests.cpp src/law_navigation.cpp src/world.cpp src/world_geometry.cpp -o /tmp/law-navigation-final-asan
+ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/law-navigation-final-asan > /tmp/law-navigation-final-asan.log 2>&1
