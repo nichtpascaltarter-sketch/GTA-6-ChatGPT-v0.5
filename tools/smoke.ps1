@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
-    [int] $TimeoutSeconds = 180,
-    [int] $Frames = 120
+    [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
+    [ValidateRange(1, 10000)] [int] $Frames = 120
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -11,16 +11,28 @@ $directory = Split-Path -Parent $Executable
 $screenshot = Join-Path $directory 'smoke.bmp'
 $stdout = Join-Path $directory 'smoke-stdout.log'
 $stderr = Join-Path $directory 'smoke-stderr.log'
+$sessionCopy = Join-Path $directory 'smoke-session.log'
 if (Test-Path $screenshot) { Remove-Item -LiteralPath $screenshot -Force }
+if (Test-Path $sessionCopy) { Remove-Item -LiteralPath $sessionCopy -Force }
 
+$startedAt = [DateTime]::UtcNow
 $process = Start-Process -FilePath $Executable -WorkingDirectory $directory -PassThru -NoNewWindow `
     -ArgumentList @('--smoke', '--warp', '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 $null = $process.Handle
-if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-    $process.Kill()
-    $process.WaitForExit()
-    throw "WARP smoke test exceeded $TimeoutSeconds seconds."
+try {
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        $process.Kill()
+        $process.WaitForExit()
+        throw "WARP smoke test exceeded $TimeoutSeconds seconds."
+    }
+} finally {
+    $dataDirectory = [Environment]::GetFolderPath('LocalApplicationData')
+    if (-not $dataDirectory) { $dataDirectory = [IO.Path]::GetTempPath() }
+    $sessionLog = Join-Path $dataDirectory 'MeridianCoast\session.log'
+    if ((Test-Path $sessionLog) -and (Get-Item $sessionLog).LastWriteTimeUtc -ge $startedAt.AddSeconds(-1)) {
+        Copy-Item -LiteralPath $sessionLog -Destination $sessionCopy -Force
+    }
 }
 # Refresh ensures ExitCode is populated after WaitForExit on Windows PowerShell.
 $process.Refresh()
@@ -28,6 +40,13 @@ if ($process.ExitCode -ne 0) {
     if (Test-Path $stderr) { Get-Content $stderr | Write-Host }
     throw "WARP smoke test failed with exit code $($process.ExitCode)."
 }
+if (-not (Test-Path $sessionCopy -PathType Leaf)) { throw 'Smoke test did not produce a current session log.' }
+$sessionText = [IO.File]::ReadAllText($sessionCopy)
+$frameMatch = [regex]::Match($sessionText, 'Exit 0 after ([0-9]+) frames')
+if (-not $frameMatch.Success -or [int] $frameMatch.Groups[1].Value -ne $Frames) {
+    throw 'The session log does not confirm the requested number of rendered frames.'
+}
+$adapterMatch = [regex]::Match($sessionText, 'Adapter: ([^\r\n]+)')
 if (-not (Test-Path $screenshot -PathType Leaf)) { throw 'Smoke test did not save a screenshot.' }
 $bytes = [IO.File]::ReadAllBytes($screenshot)
 if ($bytes.Length -lt 54 -or $bytes[0] -ne 66 -or $bytes[1] -ne 77) {
@@ -55,7 +74,9 @@ for ($y = 0; $y -lt $height; $y += [Math]::Max(1, [int] ($height / 40))) {
 if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors.Count) sampled colors)." }
 [ordered] @{
     adapter = 'D3D12 WARP'
+    reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
+    renderedFrames = [int] $frameMatch.Groups[1].Value
     exitCode = $process.ExitCode
     width = $width
     height = $height
