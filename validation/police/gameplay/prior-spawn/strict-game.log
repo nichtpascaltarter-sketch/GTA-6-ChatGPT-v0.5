@@ -1,0 +1,57 @@
+Dynamic mesh triangles: spawn 37086, urban teleport 47098
+PASS initialization and geometry
+PASS lighting activation and vehicle transforms
+PASS lighting capacity, range, and order
+PASS movement, pause, and timestep bounds
+PASS movement sound follows displacement and contact
+PASS vehicle interaction
+PASS vehicle boarding respects walls
+PASS vehicle exit requires a clear path
+PASS workshop bay repairs
+PASS workshop service boundaries
+PASS workshop counter first aid
+Populated workshop visit: 8.73333 s drive, 11.25 s walk, repair and first aid $100
+PASS workshop populated service visit
+PASS workshop interior save round trip
+PASS camera close walls and workshop sweep
+PASS boat handling and swimming
+PASS aircraft flight, stall, and landing
+PASS hard aircraft landings across frame offsets
+PASS aircraft altitude separates road contacts
+PASS ditched aircraft exit and swimming
+PASS aircraft exit prefers a clear dock
+PASS weapons and radio
+PASS shoulder aim and nearest hit
+PASS police damage respects solid walls
+PASS patrol detection uses altitude
+PASS officer detection uses altitude
+PASS road campaign progression and rescue unlock
+PASS delivery deadline and retry
+PASS save round trip and corruption
+PASS version 1 save migration
+PASS version 2 save migration
+PASS version 3 save migration
+PASS version 4 save migration
+Legacy original population: 84 -> 84
+Migrated neighborhood: 84 people, 50 vehicles, 16 residents travelled, 15 reached work in 150 s
+Legacy distant population: 84 -> 100
+Migrated neighborhood: 100 people, 50 vehicles, 16 residents travelled, 16 reached work in 150 s
+PASS authentic legacy population migration
+PASS resident routines save and corruption
+PASS seated resident save validation
+PASS resident save away from neighborhood
+PASS rescue contract and hold persistence
+PASS survey contract flight and landing
+PASS craft contract failure and recovery
+PASS craft loans preserve occupied vehicles
+PASS craft contract visuals survive load
+PASS Harbor Split start and objectives
+PASS Harbor Split failure and loan recovery
+PASS Harbor Split ordered gates and medal rewards
+PASS Harbor Split collision penalties
+PASS Harbor Split save interruption and corruption
+Harbor Split driven: 67.1499 s, peak penalty 0 s, path deviation 3.81059 m, bike health 100
+PASS Harbor Split populated control-driven course
+PASS unoccupied aircraft motion and persistence
+PASS thirty second simulation smoke
+49/49 game tests passed

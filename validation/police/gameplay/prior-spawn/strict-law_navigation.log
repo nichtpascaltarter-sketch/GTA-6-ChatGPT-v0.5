@@ -1,0 +1,9 @@
+PASS availability and ground projection
+PASS sight and standing-body clearance
+PASS terrain occludes sight
+PASS clear and wall-detour routes
+PASS corners and narrow opening
+PASS unreachable destination and reset
+PASS incremental geometry work bounds
+PASS obstacle bounds and invalid input
+8/8 law navigation tests passed

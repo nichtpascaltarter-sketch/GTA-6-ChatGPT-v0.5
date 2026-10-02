@@ -1,0 +1,1 @@
+Completed prior-spawn snapshot only: strict13/49/9/12/8 and integrated sanitizer13/13 passed. Both obsolete full49 sanitizer processes were terminated before completion by agreement after a real spawn-overlap issue was found; no full sanitizer pass is claimed for this snapshot. Source manifest records this earlier snapshot. Final results belong in the parent directory.

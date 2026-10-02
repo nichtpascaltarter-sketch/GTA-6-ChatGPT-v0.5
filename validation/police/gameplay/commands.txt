@@ -1,0 +1,78 @@
+Compiler: g++ (Debian 14.2.0-19) 14.2.0
+Run from the repository root. Linux portable simulation only; no native D3D12 claim.
+
+Canonical clean rebuild of the tested final source:
+  mkdir -p build/police-validation/reproduce-{strict,sanitized}
+  for mode in strict sanitized; do
+    flags=(-std=c++20 -Wall -Wextra -Wpedantic -Werror)
+    if [ "$mode" = sanitized ]; then
+      flags+=(-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined)
+    else
+      flags+=(-O2)
+    fi
+    output="build/police-validation/reproduce-$mode"
+    for source in game game_law law law_navigation pedestrians visuals world world_geometry; do
+      g++ "${flags[@]}" -c "src/$source.cpp" -o "$output/$source.o" || exit 1
+    done
+    for target in game_police game pedestrian law law_navigation; do
+      g++ "${flags[@]}" "tests/${target}_tests.cpp" "$output/"*.o -o "$output/${target}_tests" || exit 1
+      ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 "$output/${target}_tests" > "$output/$target.log" 2>&1 || exit 1
+    done
+  done
+
+Historical build sequence (superseded by the final clean run in item6):
+1. Clean common-object strict build used the flags above in final-strict/.
+   A final visuals.cpp pose edit overlapped that first build. Its earlier logs
+   are not the final strict logs archived here.
+2. The new fifth-patrol binding regression failed against the original v6 loader.
+   After the loader repair, src/game.cpp AND src/visuals.cpp were explicitly
+   recompiled using the same strict flags into final-strict/. All five strict
+   targets were relinked from the complete final-strict/*.o set and rerun.
+3. The clean sanitizer common-object build used the flags above in
+   final-sanitized/. Its game.cpp object predates the canonical-binding repair;
+   the other seven objects use the final source hashes. The expanded 13-case
+   integrated suite deliberately detects the old loader in that earlier run.
+   Those earlier results, if retained, are under prior-binding/ only.
+4. The repaired src/game.cpp was compiled with the same sanitizer flags into
+   fixed-sanitized/game.o. All five then-repaired sanitizer targets were linked with:
+     fixed-sanitized/game.o
+     final-sanitized/game_law.o final-sanitized/law.o
+     final-sanitized/law_navigation.o final-sanitized/pedestrians.o
+     final-sanitized/visuals.o final-sanitized/world.o
+     final-sanitized/world_geometry.o
+   Output executables and logs were written to fixed-sanitized/. The old
+   final-sanitized/game.o was explicitly excluded. All runs use
+   ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1.
+5. Earlier source-before manifests were moved alongside their completed
+   diagnostic logs under prior-binding/ and prior-spawn/. Both obsolete full49
+   sanitizer runners were terminated after the natural officer-spawn bug was
+   identified; neither is claimed as a completed full-game sanitizer pass.
+6. After new-game spawn clearance and bounded legacy-start recovery were fixed,
+   the integrated suite gained its14th populated recovery scenario and the core
+   pause/input suite gained queued-clue recovery coverage. Both complete common
+   object sets were rebuilt from the final frozen source (game/law commit901f56f) in final-strict/
+   and final-sanitized/ with the exact flags from the clean recipe above. All
+   eight sources and all five targets were compiled again. Final archived
+   strict-* and sanitized-* logs come from these clean directories, superseding
+   every incremental object combination described above.
+7. source-before.sha256 records the final repaired source and every recursively
+   included project header used by these five targets. source-after.sha256 and
+   source-verification.log were generated after all final runs passed.
+   All23 recorded project source/header files match the before-run hashes.
+
+Before-fix diagnostics:
+- before-officer-spacing.log came from the earlier integration object set in
+  build/police-validation/strict/. It shows an initial 0.8 m officer separation
+  shrinking below 0.68 m under natural shared-clue movement. No complete source
+  manifest was captured for that preliminary diagnostic; it is not a final
+  verification claim.
+- before-patrol-binding.log came from final-strict/ before its game.cpp rebuild,
+  with the final 13-case test file. It shows a CRC-valid v6 save binding a managed
+  patrol to the fifth police car was accepted. after-patrol-binding.log reruns
+  that same focused test with the repaired loader.
+
+- before-officer-spawn.log uses the earlier final-strict/ object set and proves
+  the new14th scenario rejects the obstructed natural starts. Its full pre-fix
+  source hashes are recorded in prior-spawn/source.sha256, apart from the new
+  diagnostic test file. after-officer-spawn.log verifies the populated recovery
+  path after the repair.

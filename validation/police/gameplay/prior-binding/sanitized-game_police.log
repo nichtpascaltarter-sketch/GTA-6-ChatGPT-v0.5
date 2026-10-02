@@ -1,0 +1,14 @@
+PASS actual sight and hidden-player invariance
+PASS actual gunshot hearing
+PASS damage requires discrete shots
+PASS interposed bodies and vehicles
+PASS friendly officer blocks rear fire
+PASS natural officer approach preserves spacing
+PASS occupied vehicle absorbs shots
+PASS occupied patrol retains controls
+PASS pause clears shot output
+PASS current save preserves knowledge and cooldown
+PASS legacy saves preserve uncertainty
+PASS invalid police tail is atomic
+FAIL patrol save bindings remain canonical: v6 loader accepted a patrol binding to an unmanaged fifth police vehicle
+12/13 game police tests passed
