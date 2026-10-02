@@ -9,6 +9,7 @@ cbuffer Frame : register(b0) {
     float4 viewport;
     row_major float4x4 lightProjection;
 };
+#include "atmosphere.hlsli"
 struct VertexInput { float3 position:POSITION; float3 normal:NORMAL; float3 color:COLOR; float material:TEXCOORD0; };
 struct PixelInput { float4 position:SV_POSITION; float3 world:TEXCOORD0; float3 normal:TEXCOORD1; float3 color:COLOR; nointerpolation float material:TEXCOORD2; float4 shadow:TEXCOORD3; };
 PixelInput VSMain(VertexInput v) {
@@ -21,11 +22,9 @@ PixelInput VSMain(VertexInput v) {
 float4 VSShadow(VertexInput v):SV_POSITION { return mul(float4(v.position,1),lightProjection); }
 Texture2D<float> shadowMap : register(t3);
 SamplerComparisonState shadowSampler : register(s0);
-float rasterVisibility(float4 position,float normalDotLight) {
-    float3 projected=position.xyz/position.w;
+float rasterVisibility(float3 projected,float3 px,float3 py,float normalDotLight) {
     // Follow the receiver plane across the PCF footprint. A constant depth
     // comparison causes striping on walls nearly parallel to the sun rays.
-    float3 px=ddx(projected),py=ddy(projected);
     float2 uvx=px.xy*float2(.5,-.5),uvy=py.xy*float2(.5,-.5);
     float determinant=uvx.x*uvy.y-uvx.y*uvy.x;
     float2 depthSlope=0;
@@ -46,27 +45,16 @@ float rasterVisibility(float4 position,float normalDotLight) {
     float coverage=(1-smoothstep(.82,.98,edge))*smoothstep(.02,.12,sunDay.y);
     return lerp(1,visibility,coverage);
 }
-float hash(float2 p) { return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
-float noise(float2 p) {
-    float2 i=floor(p),f=frac(p); f=f*f*(3-2*f);
-    return lerp(lerp(hash(i),hash(i+float2(1,0)),f.x),lerp(hash(i+float2(0,1)),hash(i+1),f.x),f.y);
-}
 float surfaceGrain(float3 position,float3 normal) {
     // Project onto the surface's dominant plane using equal metres per axis.
     // Mixing height into XZ stretched and sheared the grain into facade bands.
     float3 axis=abs(normal);
     float2 uv=axis.y>=axis.x&&axis.y>=axis.z?position.xz:(axis.x>=axis.z?position.zy:position.xy);
-    return noise(uv*2.1);
+    return atmosphereNoise(uv*2.1);
 }
-float3 skyColor(float3 direction) {
-    float h=saturate(direction.y);
-    float3 zenith=lerp(float3(.012,.023,.065),float3(.07,.25,.52),sunDay.w);
-    float3 horizon=lerp(float3(.035,.05,.10),float3(.48,.65,.74),sunDay.w);
-    float sunset=pow(saturate(1-abs(sunDay.y)*2.8),3)*sunDay.w;
-    horizon+=float3(.40,.13,.015)*sunset*pow(saturate(dot(normalize(float3(direction.x,.07,direction.z)),normalize(float3(sunDay.x,.07,sunDay.z)))),4);
-    float3 c=lerp(horizon,zenith,pow(h,.45));
-    return lerp(c,float3(.16,.20,.23)*(.2+.8*sunDay.w),weather.x*.72);
-}
+// Reflections retain the cheaper gradient/weather approximation; primary
+// visibility fading uses the full sky, including clouds and celestial discs.
+float3 reflectionSkyApproximation(float3 direction) { return atmosphereBaseRadiance(direction); }
 float3 surfaceEmission(float3 color) {
     // Window occupancy is authored per pane by its warm tint. Cool unoccupied
     // panes remain reflective; bright signs, lenses and signal lamps stay lit.
@@ -122,7 +110,7 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
     RayDesc ray; ray.Origin=p+n*.08; ray.Direction=direction; ray.TMin=.04; ray.TMax=450;
     RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
     q.TraceRayInline(scene,RAY_FLAG_NONE,255,ray); while(q.Proceed()){}
-    if(q.CommittedStatus()!=COMMITTED_TRIANGLE_HIT) return skyColor(direction);
+    if(q.CommittedStatus()!=COMMITTED_TRIANGLE_HIT) return reflectionSkyApproximation(direction);
     InstanceMetadata instance=sceneInstances[q.CommittedInstanceID()];
     uint base=instance.firstIndex+q.CommittedPrimitiveIndex()*3;
     SceneVertex a=sceneVertices[instance.firstVertex+sceneIndices[base]],b=sceneVertices[instance.firstVertex+sceneIndices[base+1]],c=sceneVertices[instance.firstVertex+sceneIndices[base+2]];
@@ -132,10 +120,16 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
     float3 lit=albedo*(float3(.14,.18,.23)*(.15+.85*sunDay.w)+max(0,dot(normal,sunDay.xyz))*sunDay.w*float3(1.6,1.4,1.1));
     if(a.material>1.5 && a.material<2.5) lit+=surfaceEmission(albedo);
     float haze=1-exp(-q.CommittedRayT()*(.0015+weather.x*.002));
-    return lerp(lit,skyColor(direction),haze);
+    return lerp(lit,reflectionSkyApproximation(direction),haze);
 }
 #endif
 float4 PSMain(PixelInput i):SV_TARGET {
+    // Evaluate derivatives before the distance branch: neighboring pixels may
+    // take different fog paths, but PCF's receiver-plane gradients stay valid.
+    float3 projectedShadow=i.shadow.xyz/i.shadow.w;
+    float3 shadowDx=ddx(projectedShadow),shadowDy=ddy(projectedShadow);
+    float distance=length(i.world-eyeTime.xyz);
+    [branch] if(distance>=440) return float4(skyRadianceAtPixel(i.position.xy),1);
     float3 n=normalize(i.normal),v=normalize(eyeTime.xyz-i.world),l=normalize(sunDay.xyz);
     float3 albedo=max(i.color,.008);
     float roughness=.76,metallic=0;
@@ -149,7 +143,7 @@ float4 PSMain(PixelInput i):SV_TARGET {
     if(glass){metallic=.48;roughness=.18;}
     if(road){
         roughness=lerp(.86,.19,weather.x);
-        float aggregate=noise(i.world.xz*24);
+        float aggregate=atmosphereNoise(i.world.xz*24);
         albedo*=(.92+aggregate*.13)*(1-weather.x*.37);
     }
     if(!metal&&!glass&&!water&&!road) albedo*=1-.08*exp(-max(i.world.y,0)*1.4);
@@ -167,7 +161,7 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float g=(nl/(nl*(1-k)+k))*(nv/(nv*(1-k)+k));
     float3 f0=lerp(float3(.04,.04,.04),albedo,metallic);
     float3 f=f0+(1-f0)*pow(1-vh,5);
-    float visibility=rasterVisibility(i.shadow,nl);
+    float visibility=rasterVisibility(projectedShadow,shadowDx,shadowDy,nl);
 #ifdef ENABLE_RAYTRACING
     visibility=min(visibility,sunVisibility(i.world,n));
 #endif
@@ -183,7 +177,7 @@ float4 PSMain(PixelInput i):SV_TARGET {
     color+=albedo*float3(.085,.11,.17)*saturate(dot(n,moonDirection))*(1-sunDay.w);
     if(glass) color+=surfaceEmission(albedo);
     if(metal||glass||water||(road&&weather.x>.12)) {
-        float3 r=reflect(-v,n), reflected=skyColor(r);
+        float3 r=reflect(-v,n), reflected=reflectionSkyApproximation(r);
 #ifdef ENABLE_RAYTRACING
         reflected=reflectionColor(i.world,n,r);
 #endif
@@ -193,12 +187,16 @@ float4 PSMain(PixelInput i):SV_TARGET {
         if(water) color+=float3(.55,.65,.56)*pow(saturate(sin(i.world.x*.31+i.world.z*.18+eyeTime.w)*.5+.5),35)*.024;
     }
     color+=localLighting(i.world,n,v,albedo,roughness,metallic);
-    float distance=length(i.world-eyeTime.xyz);
     float haze=1-exp(-distance*(.00065+weather.x*.0021));
-    haze=max(haze,smoothstep(260,440,distance));
-    color=lerp(color,skyColor(normalize(i.world-eyeTime.xyz)),saturate(haze));
-    float2 rainUV=i.position.xy/viewport.xy;
-    float rain=step(.991,hash(float2(floor((rainUV.x+rainUV.y*.10)*490),floor((rainUV.y+eyeTime.w*1.8)*38))));
-    color+=rain*weather.x*.24;
+    float outerFade=smoothstep(260,440,distance);
+    haze=max(haze,outerFade);
+    float3 fogRay=cameraRayAtPixel(i.position.xy);
+    float3 fogColor=atmosphereBaseRadiance(fogRay);
+    // Near physical haze needs only the base atmosphere. Introduce clouds,
+    // discs and stars smoothly across the existing outer visibility fade,
+    // avoiding both near-facade FBM work and a lighting step at 260 metres.
+    [branch] if(outerFade>0) fogColor=lerp(fogColor,atmosphereRadiance(fogRay),outerFade);
+    color=lerp(color,fogColor,saturate(haze));
+    color+=screenRainIntensity(i.position.xy);
     return float4(max(color,0),1);
 }
