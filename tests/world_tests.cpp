@@ -25,14 +25,58 @@ void geometry() {
     for(const auto& v:c.vertices)assert(dot(v.position-Vec3{0,2,0},v.normal)>0);
     size_t old=m.vertices.size();appendMesh(m,c);assert(m.vertices.size()==old+c.vertices.size());validateMesh(m);
 }
+bool sameVector(Vec3 a,Vec3 b) {return a.x==b.x&&a.y==b.y&&a.z==b.z;}
+bool sourceOnEmissiveFace(const Mesh& m,Vec3 p) {
+    for(size_t i=0;i<m.indices.size();i+=3) {
+        const Vertex& a=m.vertices[m.indices[i]];const Vertex& b=m.vertices[m.indices[i+1]];const Vertex& c=m.vertices[m.indices[i+2]];
+        if(a.material!=2 || b.material!=2 || c.material!=2 || a.normal.y>-.999f)continue;
+        if(!close(a.position.y,p.y,.001f) || !close(b.position.y,p.y,.001f) || !close(c.position.y,p.y,.001f))continue;
+        auto side=[](Vec3 p0,Vec3 p1,Vec3 point){return (p1.x-p0.x)*(point.z-p0.z)-(p1.z-p0.z)*(point.x-p0.x);};
+        float ab=side(a.position,b.position,p),bc=side(b.position,c.position,p),ca=side(c.position,a.position,p);
+        if((ab>=-.001f&&bc>=-.001f&&ca>=-.001f)||(ab<=.001f&&bc<=.001f&&ca<=.001f))return true;
+    }
+    return false;
+}
+void lighting() {
+    World w;w.stream({8,0,8});const Chunk& origin=find(w,0,0);
+    assert(origin.lights.size()==15); // Twelve street lamps and three market downlights.
+    for(float along:{24.0f,64.0f,104.0f})for(Vec3 expected:{Vec3{9.2f,8.31f,along},Vec3{118.8f,8.31f,along},Vec3{along,8.31f,9.2f},Vec3{along,8.31f,118.8f}}) {
+        int count=0;
+        for(const auto& light:origin.lights)if(length(light.position-expected)<.001f) {
+            ++count;assert(light.radius==28&&light.intensity==100);assert(sameVector(light.color,{1,.72f,.40f}));
+            assert(sameVector(light.direction,{0,-1,0})&&light.cone==-.15f);
+        }
+        assert(count==1);
+    }
+    for(float z:{35.0f,54.0f,73.0f}) {
+        int count=0;for(const auto& light:origin.lights)if(length(light.position-Vec3{88.3f,3.07f,z})<.001f) {
+            ++count;assert(light.radius==11&&light.intensity==22);assert(sameVector(light.color,{1,.78f,.46f}));
+        }
+        assert(count==1);
+    }
+    size_t lamps=0,shops=0;
+    for(const auto& chunk:w.chunks)for(const auto& light:chunk.lights) {
+        assert(std::isfinite(light.position.x)&&std::isfinite(light.position.y)&&std::isfinite(light.position.z));
+        assert(std::isfinite(light.radius)&&light.radius>0&&light.radius<=64);
+        assert(std::isfinite(light.intensity)&&light.intensity>0&&light.intensity<=256);
+        assert(std::isfinite(light.cone)&&light.cone>=-1&&light.cone<1);
+        assert(light.color.x>=0&&light.color.x<=1&&light.color.y>=0&&light.color.y<=1&&light.color.z>=0&&light.color.z<=1);
+        assert(close(length(light.direction),1,.001f));assert(sourceOnEmissiveFace(chunk.mesh,light.position));
+        if(light.radius==28)++lamps;else ++shops;
+    }
+    assert(lamps==588);assert(shops>0&&shops<300);
+    assert(w.blocked({11,0,24},.2f));assert(!w.blocked({12,0,24},.45f));
+    std::printf("Central light sources: %zu street lamps, %zu shop/market downlights\n",lamps,shops);
+}
 void streamingAndSeams() {
     World w;assert(w.stream({8,0,8}));assert(w.revision==1);assert(w.chunks.size()==49);
     assert(!w.stream({127.99f,0,127.99f}));assert(w.revision==1);
-    const Chunk snapshot=find(w,0,0);const Vertex* data=find(w,0,0).mesh.vertices.data();
+    const Chunk snapshot=find(w,0,0);const Vertex* data=find(w,0,0).mesh.vertices.data();const Light* lightData=find(w,0,0).lights.data();
     Mesh combined=w.combinedMesh();validateMesh(combined);
     std::printf("Central 49 chunks: %zu vertices, %zu triangles, %zu collision solids in block 0,0\n",combined.vertices.size(),combined.indices.size()/3,snapshot.solids.size());
     assert(combined.indices.size()/3<350000);
     assert(w.stream({128,0,0}));assert(w.revision==2);assert(w.chunks.size()==49);
+    assert(find(w,0,0).lights.data()==lightData);
     assert(find(w,0,0).mesh.vertices.data()==data); // Retained chunks keep their allocated geometry.
     assert(w.stream({-128,0,-128}));assert(w.chunks.size()==49);
     const auto& a=find(w,0,0);const auto& b=find(w,1,0);
@@ -45,6 +89,13 @@ void streamingAndSeams() {
     assert(w.stream({4096,0,2048}));assert(w.stream({8,0,8}));
     const auto& restored=find(w,0,0);
     assert(restored.mesh.vertices.size()==snapshot.mesh.vertices.size());assert(restored.mesh.indices==snapshot.mesh.indices);
+    assert(restored.lights.size()==snapshot.lights.size());
+    for(size_t i=0;i<snapshot.lights.size();++i) {
+        const Light& originalLight=snapshot.lights[i];const Light& restoredLight=restored.lights[i];
+        assert(sameVector(originalLight.position,restoredLight.position)&&sameVector(originalLight.direction,restoredLight.direction));
+        assert(sameVector(originalLight.color,restoredLight.color)&&originalLight.radius==restoredLight.radius);
+        assert(originalLight.intensity==restoredLight.intensity&&originalLight.cone==restoredLight.cone);
+    }
     for(size_t i=0;i<snapshot.mesh.vertices.size();++i) {
         const auto& originalVertex=snapshot.mesh.vertices[i];const auto& restoredVertex=restored.mesh.vertices[i];
         assert(originalVertex.position.x==restoredVertex.position.x&&originalVertex.position.y==restoredVertex.position.y&&originalVertex.position.z==restoredVertex.position.z);
@@ -82,4 +133,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();streamingAndSeams();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();streamingAndSeams();collision();std::puts("World tests passed.");}

@@ -98,10 +98,14 @@ void broadleaf(Mesh& m,Vec3 p,float scale,uint32_t seed) {
         cone(m,q,(2.7f-n*.35f)*scale,3.2f*scale,{.075f+n*.025f,.22f+n*.035f,.085f+n*.012f},7);
     }
 }
-void streetlight(Mesh& m,Vec3 p,float yaw) {
+void streetlight(Chunk& chunk,Vec3 p,float yaw) {
+    Mesh& m=chunk.mesh;
     addCylinder(m,p,.12f,8.4f,{.20f,.23f,.25f},6,1);
     addBox(m,p+rotated({1.0f,8.3f,0},yaw),{1.1f,.08f,.08f},{.22f,.25f,.27f},yaw,1);
     addBox(m,p+rotated({1.8f,8.24f,0},yaw),{.48f,.07f,.25f},{.94f,.85f,.60f},yaw,2);
+    // The light originates on the underside of the visible lens, directly above the road edge.
+    chunk.lights.push_back({p+rotated({1.8f,8.17f,0},yaw),28,{1,.72f,.40f},100,{0,-1,0},-.15f});
+    chunk.solids.push_back({p-Vec3{.12f,0,.12f},p+Vec3{.12f,8.4f,.12f}});
 }
 void roofGable(Mesh& m,Vec3 p,float hx,float hz,float rise,Vec3 color) {
     Vec3 a=p+Vec3{-hx,0,-hz},b=p+Vec3{-hx,0,hz},c=p+Vec3{hx,0,hz},d=p+Vec3{hx,0,-hz},e=p+Vec3{0,rise,-hz},f=p+Vec3{0,rise,hz};
@@ -157,7 +161,8 @@ void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 
         const float* a=strokes[*s-'a'];facadeLine(m,origin,along,a[0]*scale,a[1]*scale,a[2]*scale,a[3]*scale,.31f*scale,color,2);
     }
 }
-void shopfront(Mesh& m,Vec3 p,float width,float yaw,uint32_t seed) {
+void shopfront(Chunk& chunk,Vec3 p,float width,float yaw,uint32_t seed,bool illuminated) {
+    Mesh& m=chunk.mesh;
     static const char* names[]={"LOW TIDE","CITRUS","GULL CAFE","ORBIT VINYL","SUN MART","RELAY","MESA DELI","TIDAL TEA"};
     Vec3 along=rotated({1,0,0},yaw),out=rotated({0,0,-1},yaw);
     Vec3 awning=seed%3==0?Vec3{.08f,.32f,.30f}:seed%3==1?Vec3{.60f,.23f,.12f}:Vec3{.23f,.30f,.44f};
@@ -178,6 +183,11 @@ void shopfront(Mesh& m,Vec3 p,float width,float yaw,uint32_t seed) {
     }
     addBox(m,p+along*(width*.65f)+Vec3{0,1.38f,0}+out*.3f,{.83f,1.38f,.06f},{.09f,.17f,.18f},yaw,2);
     addBox(m,p+along*(width*.65f+.54f)+Vec3{0,1.15f,0}+out*.4f,{.035f,.26f,.045f},{.74f,.71f,.58f},yaw,1);
+    if(illuminated) {
+        Vec3 light=p+Vec3{0,3.07f,0}+out*.65f,across=along*std::min(1.4f,width*.23f),depth=out*.08f;
+        addQuad(m,light-across+depth,light+across+depth,light+across-depth,light-across-depth,{1,.78f,.46f},2);
+        chunk.lights.push_back({light,11,{1,.78f,.46f},22,{0,-1,0},-.15f});
+    }
 }
 void roundWindows(Mesh& m,Vec3 p,float radius,float height,int floors) {
     constexpr int sides=20;
@@ -250,8 +260,8 @@ void building(Chunk& chunk,Vec3 p,float hx,float hz,float h,uint32_t seed,bool s
                 for(float dx:{-.7f,0.0f,.7f})addBox(m,p+Vec3{dx*hx,podium+(h-podium)*.5f,-hz-.20f},{.42f,(h-podium)*.5f,.3f},c*1.1f);
             }
         }
-        shopfront(m,p+Vec3{0,0,-hz-.04f},hx*.86f,0,seed);
-        shopfront(m,p+Vec3{-hx-.04f,0,0},hz*.86f,Pi*.5f,seed+3);
+        shopfront(chunk,p+Vec3{0,0,-hz-.04f},hx*.86f,0,seed,seed%3==0);
+        shopfront(chunk,p+Vec3{-hx-.04f,0,0},hz*.86f,Pi*.5f,seed+3,seed%5==0);
         addBox(m,p+Vec3{-hx*.32f,h+1.0f,hz*.2f},{2.3f,.8f,1.45f},{.45f,.48f,.47f},0,1);
     }
     chunk.solids.push_back({p+Vec3{-hx,0,-hz},p+Vec3{hx,h,hz}});
@@ -328,7 +338,7 @@ void marketArcade(Chunk& chunk,Vec3 p) {
     for(int shop=0;shop<3;++shop) {
         Vec3 q=p+Vec3{0,0,shop*19.0f};
         addBox(m,q+Vec3{0,2.5f,0},{7,2.5f,7.7f},{.73f,.63f,.43f});
-        shopfront(m,q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2));
+        shopfront(chunk,q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2),true);
         roofGable(m,q+Vec3{0,5,0},7.6f,8.3f,2.6f,{.48f,.24f,.13f});
         addBox(m,q+Vec3{-8.1f,1.0f,8.2f},{1.7f,1,1.4f},{.22f,.34f,.20f});
         for(int crate=0;crate<3;++crate) {
@@ -506,7 +516,12 @@ Chunk World::generate(int cx,int cz) const {
             if(!axialRoad(vertical?line:x+64,vertical?z+64:line))continue;
             float side=edge%2?-1.0f:1.0f;
             Vec3 p=vertical?Vec3{line+side*12,0,z+64}:Vec3{x+64,0,line+side*12};p.y=height(p.x,p.z)+.14f;
-            streetlight(m,p,vertical?(side>0?Pi:0):(side>0?Pi*.5f:-Pi*.5f));
+            for(float offset:{24.0f,64.0f,104.0f}) {
+                // Leave the walking line at offset 12 clear, including the opening mission marker.
+                Vec3 pole=vertical?Vec3{line+side*11,0,z+offset}:Vec3{x+offset,0,line+side*11};
+                pole.y=height(pole.x,pole.z)+.14f;
+                streetlight(c,pole,vertical?(side>0?Pi:0):(side>0?Pi*.5f:-Pi*.5f));
+            }
             if(edge%2==0)streetFurniture(c,p,vertical?0:-Pi*.5f,seed+static_cast<uint32_t>(edge)*13);
             for(float off:{29.0f,99.0f}) {
                 Vec3 t=vertical?Vec3{line+side*16,0,z+off}:Vec3{x+off,0,line+side*16}; t.y=height(t.x,t.z);
