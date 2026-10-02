@@ -1,5 +1,6 @@
 #pragma once
 #include "world.h"
+#include "pedestrians.h"
 #include <string>
 #include <vector>
 
@@ -16,7 +17,20 @@ struct Vehicle {
     bool police=false,parked=false; float health=100;
     float pitch=0,roll=0,throttle=0;
 };
-struct Pedestrian {Vec3 position;float yaw=0,phase=0,panic=0,health=100;};
+struct Pedestrian {
+    Vec3 position;float yaw=0,phase=0,panic=0,health=100;
+    uint32_t identity=0;
+    PedestrianActivity activity=PedestrianActivity::Walk;
+    float motion=0,activityTime=0,sitBlend=0;
+    Vec3 seatPosition;
+    bool carrying=false;
+};
+inline Vec3 pedestrianBodyPoint(const Pedestrian& p,float height){
+    Vec3 offset=p.seatPosition-(p.position+Vec3{0,.81f,0});
+    if(!std::isfinite(p.sitBlend)||!std::isfinite(offset.x)||!std::isfinite(offset.y)||!std::isfinite(offset.z)||length(offset)>4)offset={};
+    else offset=offset*clamp(p.sitBlend,0,1);
+    return p.position+Vec3{0,height,0}+offset;
+}
 struct Mission { const char* title;const char* briefing;Vec3 start,target;int reward;};
 enum class TrialPhase {Inactive,Boarding,Countdown,Running};
 struct HarborSplitState {
@@ -48,6 +62,8 @@ struct Game {
     bool objectiveIsTrial() const;
     float objectiveTimeRemaining() const;
     const char* workshopInstruction() const;
+    PedestrianStats pedestrianStats() const;
+    static const char* pedestrianActivityName(PedestrianActivity);
     static Vec3 harborSplitContact();
     static Vec3 harborSplitStart();
     static const std::vector<Vec3>& harborSplitCourse();
@@ -67,5 +83,16 @@ private:
     mutable std::string objectiveDescription;
     void endHarborSplit(const char* reason);
     void updateHarborSplit(float dt,float damage);
+    PedestrianSimulation pedestrianSimulation;
+    void initializePedestrians(bool relocateResidents);
+    void synchronizePedestrians();
+    void beginPedestrianFrame(float dt);
+    void updateCivilianPedestrians(float dt);
+    void alertPedestrians(Vec3 position,float radius);
+    void frightenPedestrian(size_t index,Vec3 position,float duration);
+    float pedestrianTrafficSpeed(const Vehicle&,float proposed) const;
+    bool persistentPedestrian(size_t index) const;
+    void recyclePedestrian(size_t index);
+    bool validatePedestrianRoutes(bool rejectInvalid);
 };
 }

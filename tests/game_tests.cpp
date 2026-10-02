@@ -1361,6 +1361,27 @@ void refreshSaveChecksum(std::vector<char>& bytes) {
     setLittleEndian(bytes, 16, ~checksum);
 }
 
+size_t versionFourPrefixSize(const std::vector<char>& bytes) {
+    const size_t vehicleCount = littleEndian(bytes, 112);
+    require(vehicleCount <= 256, "save fixture has an invalid vehicle count");
+    const size_t pedestrianCountOffset = 116 + vehicleCount * 76;
+    const size_t pedestrianCount = littleEndian(bytes, pedestrianCountOffset);
+    require(pedestrianCount <= 512, "save fixture has an invalid pedestrian count");
+    const size_t end = pedestrianCountOffset + 4 + pedestrianCount * 28 + 16;
+    require(end <= bytes.size(), "save fixture has a truncated version 4 prefix");
+    return end;
+}
+
+std::vector<char> versionFourFixture(const std::vector<char>& current) {
+    require(littleEndian(current, 8) == 5, "migration fixture requires a version 5 source save");
+    const size_t end = versionFourPrefixSize(current);
+    std::vector<char> result(current.begin(), current.begin() + end);
+    setLittleEndian(result, 8, 4);
+    setLittleEndian(result, 12, uint32_t(result.size() - 20));
+    refreshSaveChecksum(result);
+    return result;
+}
+
 void saveRoundTripAndCorruption() {
     mc::Game game;
     game.initialize();
@@ -1497,9 +1518,9 @@ void legacySaveMigration() {
     TemporarySave save;
     require(game.save(save.path.string()), "could not write migration fixture");
     std::ifstream input(save.path, std::ios::binary);
-    const std::vector<char> current((std::istreambuf_iterator<char>(input)), {});
+    const std::vector<char> latest((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(current, 8) == 4, "new saves do not use version 4");
+    const std::vector<char> current = versionFourFixture(latest);
     require(littleEndian(current, 112) == legacyVehicleCount,
             "migration fixture has an unexpected vehicle count");
     constexpr size_t vehicleStart = 116, currentStride = 76, legacyStride = 64;
@@ -1532,7 +1553,7 @@ void legacySaveMigration() {
     require(countKind(mc::VehicleKind::Boat) == 1 && countKind(mc::VehicleKind::Aircraft) == 1,
             "legacy migration duplicated or omitted a starter craft");
     require(game.save(save.path.string()) && game.load(save.path.string()),
-            "migrated save could not be saved and reloaded as version 4");
+            "migrated save could not be saved and reloaded as version 5");
     require(game.vehicles.size() == legacyVehicleCount + 2,
             "reloading a migrated save duplicated starter craft");
 }
@@ -1551,7 +1572,7 @@ void versionTwoSaveMigration() {
     std::ifstream input(save.path, std::ios::binary);
     std::vector<char> legacy((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(legacy, 8) == 4, "version 2 fixture requires a version 4 source save");
+    legacy = versionFourFixture(legacy);
     legacy.resize(legacy.size() - 16);
     setLittleEndian(legacy, 8, 2);
     setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
@@ -1567,7 +1588,7 @@ void versionTwoSaveMigration() {
     require(game.save(save.path.string()), "migrated version 2 save could not be upgraded");
     std::ifstream upgradedInput(save.path, std::ios::binary);
     const std::vector<char> upgraded((std::istreambuf_iterator<char>(upgradedInput)), {});
-    require(littleEndian(upgraded, 8) == 4 && littleEndian(upgraded, upgraded.size() - 16) == 0,
+    require(littleEndian(upgraded, 8) == 5 && littleEndian(upgraded, versionFourPrefixSize(upgraded) - 16) == 0,
             "version 2 migration did not initialize the rescue hold to zero");
 }
 
@@ -1632,7 +1653,7 @@ void rescueContractAndHoldPersistence() {
     input.close();
     for (uint32_t invalidHold : {0x7fc00000u, 0xbf800000u, 0x40800000u}) {
         std::vector<char> corrupted = original;
-        setLittleEndian(corrupted, corrupted.size() - 16, invalidHold);
+        setLittleEndian(corrupted, versionFourPrefixSize(corrupted) - 16, invalidHold);
         refreshSaveChecksum(corrupted);
         writeBytes(save.path, corrupted);
         require(!game.load(save.path.string()) && game.activeMission == 4 && game.missionStage == 1,
@@ -2193,7 +2214,7 @@ void harborSplitSaveAndCorruption() {
     std::ifstream input(save.path, std::ios::binary);
     const std::vector<char> original((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(original, 8) == 4, "Harbor Split records did not use save version 4");
+    require(littleEndian(original, 8) == 5, "Harbor Split records did not use save version 5");
     require(game.load(save.path.string()), "Harbor Split records could not be restored");
     require(game.harborSplit.phase == mc::TrialPhase::Inactive &&
             game.harborSplit.checkpoint == 0 && close(game.harborSplit.elapsed, 0) &&
@@ -2212,16 +2233,16 @@ void harborSplitSaveAndCorruption() {
     };
     for (uint32_t invalid : {0x7fc00000u, 0x7f800000u, 0xbf800000u, 0x43160000u, 0u}) {
         auto bytes = original;
-        setLittleEndian(bytes, bytes.size() - 12, invalid);
+        setLittleEndian(bytes, versionFourPrefixSize(bytes) - 12, invalid);
         reject(bytes);
     }
     for (uint32_t invalid : {0u, 1u, 2u, 4u, 0xffffffffu}) {
         auto bytes = original;
-        setLittleEndian(bytes, bytes.size() - 8, invalid);
+        setLittleEndian(bytes, versionFourPrefixSize(bytes) - 8, invalid);
         reject(bytes);
     }
     auto bytes = original;
-    setLittleEndian(bytes, bytes.size() - 4, 2);
+    setLittleEndian(bytes, versionFourPrefixSize(bytes) - 4, 2);
     reject(bytes);
     bytes = original;
     bytes.resize(bytes.size() - 1);
@@ -2252,7 +2273,7 @@ void versionThreeSaveMigration() {
     std::ifstream input(save.path, std::ios::binary);
     std::vector<char> legacy((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(legacy, 8) == 4, "version 3 fixture requires a version 4 source save");
+    legacy = versionFourFixture(legacy);
     legacy.resize(legacy.size() - 12);
     setLittleEndian(legacy, 8, 3);
     setLittleEndian(legacy, 12, uint32_t(legacy.size() - 20));
@@ -2265,6 +2286,382 @@ void versionThreeSaveMigration() {
             "version 3 migration did not preserve the campaign and initialize empty trial records");
     tick(game, {}, 90);
     require(game.missionStage == 2, "version 3 migration lost the in-progress rescue transfer hold");
+}
+
+std::vector<char> readSaveBytes(const std::filesystem::path& path) {
+    std::ifstream input(path, std::ios::binary);
+    require(bool(input), "could not read save fixture");
+    return std::vector<char>((std::istreambuf_iterator<char>(input)), {});
+}
+
+std::vector<size_t> pedestrianRecordOffsets(const std::vector<char>& bytes) {
+    require(littleEndian(bytes, 8) == 5, "pedestrian records require save version 5");
+    const size_t prefix = versionFourPrefixSize(bytes);
+    const size_t count = littleEndian(bytes, prefix + 4);
+    require(count <= 512, "pedestrian fixture has too many records");
+    size_t offset = prefix + 8;
+    std::vector<size_t> records;
+    for (size_t i = 0; i < count; ++i) {
+        records.push_back(offset);
+        const size_t routeCount = littleEndian(bytes, offset + 124);
+        require(routeCount <= 64, "pedestrian fixture route exceeds its bound");
+        offset += 128 + routeCount * 4;
+        require(offset <= bytes.size(), "pedestrian fixture has a truncated record");
+    }
+    require(offset == bytes.size(), "pedestrian fixture contains unexpected trailing data");
+    return records;
+}
+
+void verifyLegacyPeople(const mc::Game& game, const std::vector<mc::Pedestrian>& before) {
+    for (size_t i = 0; i < before.size(); ++i) {
+        const uint32_t identity = uint32_t(i + 1);
+        require(std::count_if(game.pedestrians.begin(), game.pedestrians.end(), [&](const auto& p) { return p.identity == identity; }) == 1,
+                "legacy migration duplicated or lost an old pedestrian identity");
+        const auto found = std::find_if(game.pedestrians.begin(), game.pedestrians.end(), [&](const auto& p) { return p.identity == identity; });
+        require(mc::length(found->position - before[i].position) < .001f && close(found->health, before[i].health) &&
+                close(found->yaw, before[i].yaw) && close(found->phase, before[i].phase) && close(found->panic, before[i].panic),
+                "legacy migration changed an existing person's position, condition, or animation state");
+    }
+}
+
+void versionFourSaveMigration() {
+    mc::Game game;
+    game.initialize();
+    game.money = 9040;
+    game.completedMissions = 3;
+    game.harborSplit.bestTime = 80;
+    game.harborSplit.medal = 3;
+    game.vehicles[0].health = 61;
+    game.pedestrians[4].health = 80;
+    const auto before = game.pedestrians;
+    TemporarySave save;
+    require(game.save(save.path.string()), "could not create version 4 migration fixture");
+    writeBytes(save.path, versionFourFixture(readSaveBytes(save.path)));
+    require(game.load(save.path.string()), "valid version 4 save was rejected");
+    require(game.money == 9040 && game.completedMissions == 3 && game.harborSplit.medal == 3 &&
+            close(game.harborSplit.bestTime, 80) && close(game.vehicles[0].health, 61),
+            "version 4 migration changed campaign, economy, vehicles, or time-trial records");
+    require(game.pedestrians.size() == before.size(), "already reachable version 4 population unnecessarily grew");
+    verifyLegacyPeople(game, before);
+    tick(game);
+    require(game.pedestrianStats().persistentResidents == 16, "version 4 migration did not establish the resident roster");
+    std::vector<uint32_t> identities;
+    for (const auto& p : game.pedestrians) identities.push_back(p.identity);
+    require(game.save(save.path.string()) && game.load(save.path.string()), "migrated version 4 save could not be upgraded");
+    require(littleEndian(readSaveBytes(save.path), 8) == 5 && game.pedestrians.size() == identities.size(),
+            "version 4 migration did not produce the current save format");
+    for (size_t i = 0; i < identities.size(); ++i)
+        require(game.pedestrians[i].identity == identities[i], "reloading a migrated save replaced resident identity");
+}
+
+void verifyMigratedResidentBehavior(mc::Game& game) {
+    game.player = {13.2f, game.world.height(13.2f, 13.2f), 13.2f};
+    game.dayTime = 8;
+    game.world.stream(game.player);
+    const size_t population = game.pedestrians.size(), fleet = game.vehicles.size();
+    std::array<uint32_t, 16> identities{};
+    std::array<float, 16> travelled{};
+    std::array<bool, 16> worked{};
+    for (size_t slot = 0; slot < 16; ++slot) identities[slot] = game.pedestrians[slot + 4].identity;
+    for (int frame = 0; frame < 4500; ++frame) {
+        const auto before = game.pedestrians;
+        game.update({}, 1.f / 30);
+        require(game.pedestrians.size() == population && game.vehicles.size() == fleet,
+                "migrated neighborhood warmup changed population or fleet size");
+        const auto stats = game.pedestrianStats();
+        require(stats.persistentResidents == 16 && stats.decisions <= 8 && stats.routeSearches <= 2 &&
+                stats.routeExpansions <= 512 && stats.sightChecks <= 8 &&
+                stats.neighborChecks <= 16 * (population + fleet),
+                "full migrated population exceeded pedestrian work budgets or lost its residents");
+        for (size_t slot = 0; slot < 16; ++slot) {
+            const size_t index = slot + 4;
+            const auto& resident = game.pedestrians[index];
+            require(resident.identity == identities[slot], "migrated resident was recycled during active simulation");
+            const float step = mc::length(resident.position - before[index].position);
+            // Vehicle impacts can push an actor two metres; ordinary walking cannot.
+            require(finite(resident.position) && step < 2.2f &&
+                    (resident.health < before[index].health || step < .16f),
+                    "migrated resident teleported instead of travelling physically");
+            travelled[slot] += step;
+            if (resident.activity == mc::PedestrianActivity::Work) {
+                bool atWork = false;
+                for (const auto& site : mc::World::pedestrianPlaces())
+                    if (site.kind == mc::PedestrianPlaceKind::Work)
+                        atWork |= mc::length(resident.position - site.position) < .3f;
+                require(atWork, "migrated resident worked without arriving at a real workplace");
+                worked[slot] = true;
+            }
+        }
+    }
+    size_t arrivals = 0, progressing = 0;
+    for (size_t slot = 0; slot < 16; ++slot) {
+        arrivals += worked[slot] ? 1 : 0;
+        progressing += travelled[slot] > 1 ? 1 : 0;
+        require(game.pedestrians[slot + 4].health <= 0 || travelled[slot] > 1 || worked[slot],
+                "living migrated resident never attached to a route or reached an activity");
+    }
+    require(arrivals > 0 && progressing > 0, "full migrated population never walked to a workplace");
+    std::cout << "Migrated neighborhood: " << population << " people, " << fleet << " vehicles, "
+              << progressing << " residents travelled, " << arrivals << " reached work in 150 s\n";
+}
+
+void authenticLegacyPopulationMigration() {
+    TemporarySave save;
+    for (bool distant : {false, true}) {
+        mc::Game game;
+        game.initialize();
+        require(game.pedestrians.size() == 84, "new games changed the production population count");
+        if (distant) game.player = {-4096, game.world.height(-4096, 2048), 2048};
+        for (size_t i = 0; i < game.pedestrians.size(); ++i) {
+            auto& p = game.pedestrians[i];
+            if (distant) p.position = game.player + mc::Vec3{float(i % 10) * 1.5f, 0, float(i / 10) * 1.5f};
+            else if (i < 4) p.position = game.vehicles[i + 8].position + mc::Vec3{8, 0, 0};
+            else {
+                // Original pre-routines initializer: five-by-five blocks, sidewalk offset twelve.
+                const int block = int(i) - 4;
+                float x = float((block % 5) - 2) * 128 + 12;
+                float z = float(((block / 5) % 5) - 2) * 128 + 12;
+                const float walk = float((block * 31) % 100);
+                if (block & 1) x += walk; else z += walk;
+                p.position = {x, 0, z};
+            }
+            p.position.y = game.world.height(p.position.x, p.position.z);
+            p.phase = mc::random01(uint32_t(i)) * 2 * mc::Pi;
+            p.yaw = mc::random01(uint32_t(i) + 7) * 2 * mc::Pi;
+            p.health = i == 17 ? 37.f : 100.f;
+            p.panic = i == 17 ? 6.f : 0.f;
+        }
+        const auto before = game.pedestrians;
+        require(game.save(save.path.string()), "could not create authentic legacy population fixture");
+        writeBytes(save.path, versionFourFixture(readSaveBytes(save.path)));
+        require(game.load(save.path.string()), "authentic legacy population failed to migrate");
+        verifyLegacyPeople(game, before);
+        require(game.pedestrians.size() >= 84 && game.pedestrians.size() <= 100,
+                "legacy resident insertion exceeded its bounded population");
+        if (distant) {
+            require(game.pedestrians.size() == 100, "distant legacy population did not retain all eighty civilians and add sixteen residents");
+            for (uint32_t identity = 85; identity <= 100; ++identity)
+                require(std::count_if(game.pedestrians.begin(), game.pedestrians.end(), [&](const auto& p) { return p.identity == identity; }) == 1,
+                        "distant legacy migration omitted or duplicated a new resident identity");
+        }
+        const size_t migratedCount = game.pedestrians.size();
+        require(game.save(save.path.string()) && game.load(save.path.string()), "migrated production population could not round trip as version 5");
+        require(game.pedestrians.size() == migratedCount, "version 5 reload inserted another resident roster");
+        verifyLegacyPeople(game, before);
+        tick(game);
+        require(game.pedestrianStats().persistentResidents == 16, "legacy migration did not establish sixteen persistent residents");
+        std::cout << "Legacy " << (distant ? "distant" : "original") << " population: 84 -> " << migratedCount << '\n';
+        verifyMigratedResidentBehavior(game);
+    }
+    mc::Game oversized;
+    oversized.initialize();
+    oversized.pedestrians.resize(85);
+    require(oversized.save(save.path.string()), "could not create a well-formed 85-person version 5 bound fixture");
+    writeBytes(save.path, versionFourFixture(readSaveBytes(save.path)));
+    require(!oversized.load(save.path.string()), "legacy parser accepted more than 84 people");
+    oversized.pedestrians.resize(101);
+    require(!oversized.save(save.path.string()), "version 5 writer accepted more than 100 people");
+}
+
+void pedestrianSaveRoundTripAndCorruption() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.clear();
+    game.dayTime = 13;
+    tick(game, {}, 30);
+    game.harborSplit.bestTime = 80;
+    game.harborSplit.medal = 3;
+    TemporarySave save, snapshot;
+    require(game.save(save.path.string()), "could not save active resident routines");
+    const auto original = readSaveBytes(save.path);
+    const auto records = pedestrianRecordOffsets(original);
+    require(records.size() == game.pedestrians.size() && records.size() > 5,
+            "save omitted pedestrian routine records");
+    require(game.load(save.path.string()) && game.save(snapshot.path.string()), "resident routine round trip failed");
+    require(readSaveBytes(snapshot.path) == original,
+            "resident round trip changed identities, activities, reservations, routes, or timers");
+    const auto reject = [&](std::vector<char> bytes) {
+        refreshSaveChecksum(bytes);
+        writeBytes(save.path, bytes);
+        require(!game.load(save.path.string()), "invalid resident state with valid CRC was accepted");
+        require(game.save(snapshot.path.string()) && readSaveBytes(snapshot.path) == original,
+                "failed resident load partially replaced the current game");
+    };
+    const size_t prefix = versionFourPrefixSize(original), resident = records[4];
+    for (const auto& change : std::vector<std::pair<size_t, uint32_t>>{
+            {prefix, 0}, {prefix + 4, uint32_t(records.size() - 1)},
+            {resident, 0}, {resident, littleEndian(original, records[5])},
+            {resident + 4, 8}, {resident + 8, 0x7fc00000u},
+            {resident + 12, 0xbf800000u}, {resident + 16, 0x40000000u},
+            {resident + 20, 0x7f800000u}, {resident + 32, 2}, {resident + 36, 8},
+            {resident + 40, 0xffffffffu}, {resident + 44, 0xffffffffu},
+            {records[5] + 40, littleEndian(original, resident + 40)},
+            {records[5] + 44, littleEndian(original, resident + 44)},
+            {resident + 48, 0xffffffffu}, {resident + 60, 0xffffffffu},
+            {resident + 64, 5}, {resident + 68, 0x40000000u},
+            {resident + 72, 0xbf800000u}, {resident + 80, 0x7fc00000u},
+            {resident + 84, 0x7f800000u}, {resident + 88, 0x47000000u},
+            {resident + 112, 0xffffffffu}, {resident + 120, 65}, {resident + 124, 65}}) {
+        auto bytes = original;
+        setLittleEndian(bytes, change.first, change.second);
+        reject(bytes);
+    }
+    auto truncated = original;
+    truncated.pop_back();
+    setLittleEndian(truncated, 12, uint32_t(truncated.size() - 20));
+    reject(truncated);
+    bool checkedRoute = false;
+    for (size_t record : records) if (littleEndian(original, record + 124) > 0) {
+        auto bytes = original;
+        setLittleEndian(bytes, record + 128, 0xffffffffu);
+        reject(bytes);
+        bytes = original;
+        setLittleEndian(bytes, record + 52, 0);
+        reject(bytes);
+        checkedRoute = true;
+        break;
+    }
+    require(checkedRoute, "resident save fixture never exercised a persisted route");
+    const auto network = game.world.pedestrianNetwork(game.player);
+    const auto linked = [&](uint32_t from, uint32_t to, bool crossingOnly) {
+        for (const auto& edge : network.edges) {
+            const uint32_t a = network.nodes[edge.from].id, b = network.nodes[edge.to].id;
+            if (((a == from && b == to) || (a == to && b == from)) && (!crossingOnly || edge.crossingId != 0))
+                return true;
+        }
+        return false;
+    };
+    bool checkedDisconnected = false, checkedFalseCrossing = false;
+    for (size_t record : records) if (littleEndian(original, record + 124) >= 3) {
+        const uint32_t first = littleEndian(original, record + 128);
+        const uint32_t second = littleEndian(original, record + 132);
+        if (!checkedDisconnected) for (const auto& node : network.nodes) if (node.id != first && !linked(first, node.id, false)) {
+            auto bytes = original;
+            setLittleEndian(bytes, record + 132, node.id);
+            reject(bytes);
+            checkedDisconnected = true;
+            break;
+        }
+        if (!checkedFalseCrossing && first != second && linked(first, second, false) && !linked(first, second, true)) {
+            auto bytes = original;
+            setLittleEndian(bytes, record + 36, littleEndian(bytes, record + 36) | 4);
+            setLittleEndian(bytes, record + 60, first);
+            setLittleEndian(bytes, record + 112, first);
+            setLittleEndian(bytes, record + 116, second);
+            setLittleEndian(bytes, record + 120, 1);
+            reject(bytes);
+            checkedFalseCrossing = true;
+        }
+    }
+    require(checkedDisconnected && checkedFalseCrossing,
+            "resident save fixture did not cover disconnected valid nodes and a false committed crossing");
+    const auto before = game.pedestrians;
+    tick(game);
+    for (size_t i = 4; i < before.size(); ++i)
+        require(game.pedestrians[i].identity == before[i].identity &&
+                mc::length(game.pedestrians[i].position - before[i].position) < .2f,
+                "restored resident route teleported or replaced its pedestrian");
+}
+
+void seatedResidentSaveValidation() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.clear();
+    game.pedestrians.resize(5);
+    for (size_t i = 0; i < 4; ++i) game.pedestrians[i].health = 0;
+    const mc::PedestrianPlace* seat = nullptr;
+    for (const auto& place : mc::World::pedestrianPlaces()) if (place.kind == mc::PedestrianPlaceKind::Seat) {
+        seat = &place;
+        break;
+    }
+    require(seat != nullptr, "seat save fixture has no physical seat");
+    game.pedestrians[4].position = seat->approach;
+    for (int frame = 0; frame < 1800 && game.pedestrians[4].activity != mc::PedestrianActivity::Sit; ++frame) {
+        game.dayTime = 13;
+        tick(game);
+    }
+    require(game.pedestrians[4].activity == mc::PedestrianActivity::Sit,
+            "resident never physically reached a seat for the save fixture");
+    tick(game, {}, 90);
+    TemporarySave save, snapshot;
+    require(game.save(save.path.string()), "seated resident could not be saved");
+    const auto original = readSaveBytes(save.path);
+    const size_t record = pedestrianRecordOffsets(original)[4];
+    require(game.load(save.path.string()) && game.save(snapshot.path.string()) && readSaveBytes(snapshot.path) == original,
+            "seated resident pose and reservation did not round trip");
+    const size_t legacyPosition = 116 + littleEndian(original, 112) * 76 + 4 + 4 * 28;
+    for (size_t position : {record + 20, legacyPosition}) {
+        auto bytes = original;
+        for (size_t component = 0; component < 3; ++component) setLittleEndian(bytes, position + component * 4, 0);
+        refreshSaveChecksum(bytes);
+        writeBytes(save.path, bytes);
+        require(!game.load(save.path.string()), "seated resident accepted a valid position detached from its canonical seat");
+        require(game.save(snapshot.path.string()) && readSaveBytes(snapshot.path) == original,
+                "rejected seated resident save changed the active reservation or pose");
+    }
+    for (bool side : {false, true}) {
+        writeBytes(save.path, original);
+        require(game.load(save.path.string()), "could not restore the seated firing fixture");
+        // Both rays pass above the seat and in front of the real backrest.
+        game.player = side ? game.pedestrians[4].seatPosition + mc::right(game.pedestrians[4].yaw) * 8 :
+            game.pedestrians[4].position + mc::forward(game.pedestrians[4].yaw) * 8 +
+            mc::right(game.pedestrians[4].yaw) * 4;
+        game.player.y = game.world.height(game.player.x, game.player.z);
+        require(!game.world.blocked(game.player, .34f), "seated firing fixture obstructs the shooter");
+        game.yaw = std::atan2(game.pedestrians[4].seatPosition.x - game.player.x,
+                              game.pedestrians[4].seatPosition.z - game.player.z);
+        mc::Input aim;
+        aim.aim = true;
+        tick(game, aim);
+        const mc::Vec3 torso = mc::pedestrianBodyPoint(game.pedestrians[4], 1);
+        for (int correction = 0; correction < 12; ++correction) {
+            const mc::Vec3 eye = game.cameraEye();
+            const mc::Vec3 current = mc::normalized(game.cameraTarget() - eye);
+            const mc::Vec3 desired = mc::normalized(torso - eye);
+            game.yaw += mc::wrapAngle(std::atan2(desired.x, desired.z) - std::atan2(current.x, current.z));
+            game.pitch += std::asin(-desired.y) - std::asin(-current.y);
+        }
+        const mc::Vec3 eye = game.cameraEye(), ray = mc::normalized(game.cameraTarget() - eye);
+        require(mc::length(mc::cross(torso - eye, ray)) < .03f,
+                "seated firing fixture did not align the crosshair with the visible torso");
+        const int rounds = game.ammo;
+        aim.fire = true;
+        tick(game, aim);
+        if (!close(game.pedestrians[4].health, 60))
+            std::cerr << "Seated shot: health " << game.pedestrians[4].health << " torso " << torso.x << ',' << torso.y << ',' << torso.z
+                      << " endpoint " << game.shotEnd.x << ',' << game.shotEnd.y << ',' << game.shotEnd.z << '\n';
+        require(close(game.pedestrians[4].health, 60) && game.ammo == rounds - 1,
+                "a crosshair hit on the seated torso missed its offset collision body");
+    }
+    writeBytes(save.path, original);
+    require(game.load(save.path.string()), "could not restore the seated death fixture");
+    game.pedestrians[4].health = 0;
+    tick(game);
+    require(game.pedestrians[4].activity == mc::PedestrianActivity::Wait &&
+            close(game.pedestrians[4].sitBlend, 0) && !game.pedestrians[4].carrying,
+            "dead seated resident retained an occupied pose or carried object");
+    require(game.save(save.path.string()) && game.load(save.path.string()) &&
+            close(game.pedestrians[4].health, 0),
+            "dead resident reservation cleanup produced an unloadable save");
+}
+
+void residentSaveAwayFromNeighborhood() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.clear();
+    tick(game, {}, 30);
+    game.player = {-4096, game.world.height(-4096, 2048), 2048};
+    tick(game, {}, 90);
+    const auto before = game.pedestrians;
+    require(!game.world.collisionReady(before[4].position), "offscreen resident fixture did not unload the neighborhood");
+    TemporarySave save;
+    require(game.save(save.path.string()) && game.load(save.path.string()),
+            "canonical resident references could not load without their neighborhood chunks");
+    tick(game);
+    for (size_t i = 4; i < 20; ++i)
+        require(game.pedestrians[i].identity == before[i].identity &&
+                mc::length(game.pedestrians[i].position - before[i].position) < .001f,
+                "offscreen save lost resident identity or simulated without collision data");
 }
 
 void harborSplitDrivenCourse() {
@@ -2510,6 +2907,11 @@ int main() {
         {"version 1 save migration", legacySaveMigration},
         {"version 2 save migration", versionTwoSaveMigration},
         {"version 3 save migration", versionThreeSaveMigration},
+        {"version 4 save migration", versionFourSaveMigration},
+        {"authentic legacy population migration", authenticLegacyPopulationMigration},
+        {"resident routines save and corruption", pedestrianSaveRoundTripAndCorruption},
+        {"seated resident save validation", seatedResidentSaveValidation},
+        {"resident save away from neighborhood", residentSaveAwayFromNeighborhood},
         {"rescue contract and hold persistence", rescueContractAndHoldPersistence},
         {"survey contract flight and landing", surveyContractFlightAndLanding},
         {"craft contract failure and recovery", craftContractFailureAndRecovery},

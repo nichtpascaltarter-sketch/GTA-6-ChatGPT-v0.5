@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <set>
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -19,6 +20,7 @@ namespace mc {
 namespace {
 constexpr float Lane=3.2f;
 constexpr int Magazine=30;
+constexpr uint32_t LegacyPedestrianLimit=84,PedestrianSaveLimit=100;
 constexpr Vec3 Outfitter{-116,0,128};
 constexpr Vec3 DispatchDestination{-372,0,256};
 constexpr Vec3 SignalDestination{780,0,-384};
@@ -286,6 +288,7 @@ void Game::initialize(){
         else {int block=i-4;float x=float((block%5)-2)*128+12,z=float(((block/5)%5)-2)*128+12;float walk=float((block*31)%100);if(block&1)x+=walk;else z+=walk;p.position={x,0,z};}
         p.position=atGround(world,p.position);p.phase=random01(uint32_t(i))*2*Pi;p.yaw=random01(uint32_t(i)+7)*2*Pi;pedestrians.push_back(p);pedestrianTargets.push_back(pedestrianCorner(world,p.position,uint32_t(i)*37));
     }
+    initializePedestrians(true);
     message="MERIDIAN COAST  /  Walk to the amber marker. Press M to meet Inez.  E enters a vehicle.";messageTime=13;
 }
 const Mission* Game::missionInfo() const {
@@ -460,6 +463,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
     if(streamWorld)world.stream(player);
     if(trafficTargets.size()!=vehicles.size()){trafficTargets.clear();for(size_t i=0;i<vehicles.size();++i)trafficTargets.push_back(nextTrafficTarget(world,vehicles[i],uint32_t(i)));}
     if(pedestrianTargets.size()!=pedestrians.size()){pedestrianTargets.clear();for(size_t i=0;i<pedestrians.size();++i)pedestrianTargets.push_back(pedestrianCorner(world,pedestrians[i].position,uint32_t(i)));}
+    beginPedestrianFrame(dt);
     if(radio){radioStation=(radioStation+1)%4;static const char* names[]={"Radio off","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};message=names[radioStation];messageTime=4;}
     if(interact){
         if(occupied>=0){
@@ -562,19 +566,19 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
                 const Vec3 eye=cameraEye(),sight=normalized(cameraTarget()-eye);
                 float aimDistance=140.0f;
                 for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)aimDistance=std::min(aimDistance,rayBox(eye,sight,box,aimDistance));
-                for(const Pedestrian& p:pedestrians)if(p.health>0)aimDistance=std::min(aimDistance,raySphere(eye,sight,p.position+Vec3{0,1.0f,0},.56f,aimDistance));
+                for(const Pedestrian& p:pedestrians)if(p.health>0)aimDistance=std::min(aimDistance,raySphere(eye,sight,pedestrianBodyPoint(p,1.0f),.56f,aimDistance));
                 for(const Vehicle& v:vehicles)aimDistance=std::min(aimDistance,raySphere(eye,sight,v.position+Vec3{0,.85f,0},1.2f,aimDistance));
                 direction=normalized(eye+sight*aimDistance-origin);
             }
             shotOrigin=origin;
             float hit=140.0f;int person=-1,car=-1;
             for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)hit=std::min(hit,rayBox(origin,direction,box,hit));
-            for(size_t i=0;i<pedestrians.size();++i){const Pedestrian& p=pedestrians[i];if(p.health<=0)continue;float t=raySphere(origin,direction,p.position+Vec3{0,1.0f,0},.56f,hit);if(t<hit){hit=t;person=int(i);car=-1;}}
+            for(size_t i=0;i<pedestrians.size();++i){const Pedestrian& p=pedestrians[i];if(p.health<=0)continue;float t=raySphere(origin,direction,pedestrianBodyPoint(p,1.0f),.56f,hit);if(t<hit){hit=t;person=int(i);car=-1;}}
             for(size_t i=0;i<vehicles.size();++i){float t=raySphere(origin,direction,vehicles[i].position+Vec3{0,.85f,0},1.2f,hit);if(t<hit){hit=t;person=-1;car=int(i);}}
-            if(person>=0){Pedestrian& p=pedestrians[size_t(person)];p.health=std::max(0.0f,p.health-40);p.panic=14;wanted=std::max(wanted,person<4?3:2);}
+            if(person>=0){Pedestrian& p=pedestrians[size_t(person)];p.health=std::max(0.0f,p.health-40);p.panic=14;frightenPedestrian(size_t(person),origin,14);wanted=std::max(wanted,person<4?3:2);}
             if(car>=0){Vehicle& v=vehicles[size_t(car)];v.health=std::max(0.0f,v.health-12);if(v.police)wanted=std::max(wanted,3);}
             shotEnd=origin+direction*hit;wanted=std::max(wanted,1);wantedTimer=22+float(wanted)*5;
-            for(Pedestrian& p:pedestrians)if(planarDistance(p.position,player)<80)p.panic=12;
+            alertPedestrians(origin,80);
         }else {fireCooldown=.3f;message=reserveAmmo>0?"Magazine empty. Press R to reload.":"Out of ammunition. Visit the outfitter west of the harbor.";messageTime=3;}
     }
     bool policeSight=false;
@@ -617,6 +621,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         if(std::abs(turn)>.7f)targetSpeed=std::min(targetSpeed,6.0f);
         for(size_t j=0;j<vehicles.size();++j){if(i==j||std::abs(vehicles[j].position.y-v.position.y)>2.5f)continue;Vec3 offset=vehicles[j].position-v.position;float ahead=dot(offset,forward(v.yaw));if(ahead>0&&ahead<10+std::abs(v.speed)*.65f&&std::abs(dot(offset,right(v.yaw)))<2.3f)targetSpeed=std::min(targetSpeed,std::max(0.0f,(ahead-5)*.75f));}
         if(occupied<0){Vec3 offset=player-v.position;if(dot(offset,forward(v.yaw))>0&&planarDistance(player,v.position)<10&&std::abs(dot(offset,right(v.yaw)))<2)targetSpeed=v.police&&wanted>0?2.0f:0.0f;}
+        targetSpeed=pedestrianTrafficSpeed(v,targetSpeed);
         v.speed=towards(v.speed,targetSpeed,dt*(targetSpeed<v.speed?8:3.8f));v.steer=clamp(turn*1.5f,-1,1);
         v.yaw=wrapAngle(v.yaw+clamp(turn,-1.2f*dt,1.2f*dt));v.velocity=forward(v.yaw)*v.speed;
         Vec3 before=v.position;v.position=world.move(v.position,v.velocity*dt,v.kind==VehicleKind::Motorcycle?.45f:1.0f);v.position=atGround(world,v.position);
@@ -629,10 +634,11 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         }
         player=driven.position;
     }
+    updateCivilianPedestrians(dt);
     for(size_t i=0;i<pedestrians.size();++i){
         Pedestrian& p=pedestrians[i];if(p.health<=0)continue;
-        p.panic=std::max(0.0f,p.panic-dt);Vec3 target=pedestrianTargets[i];float speed=1.0f+random01(uint32_t(i)*37)*.65f;
         if(i<4){
+            p.panic=std::max(0.0f,p.panic-dt);Vec3 target=pedestrianTargets[i];float speed=1.3f;
             if(wanted>0&&planarDistance(p.position,player)<85){
                 target=player;speed=3.7f;
                 const Vec3 eye=p.position+Vec3{0,1.55f,0},toPlayer=player+Vec3{0,1.1f,0}-eye;
@@ -644,17 +650,11 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
                 }
             }
             else if(i+8<vehicles.size()){target=vehicles[i+8].position+Vec3{8,0,0};speed=1.3f;}
-        }else if(p.panic>0){target=p.position+normalized(p.position-player)*15;speed=4.4f;}
-        else if(planarDistance(p.position,target)<1.0f){
-            float grid=roadGrid(p.position);float bx=std::floor(p.position.x/grid)*grid,bz=std::floor(p.position.z/grid)*grid;
-            bool east=p.position.x-bx>grid*.5f,north=p.position.z-bz>grid*.5f;
-            // Walk one edge of the block at a time, never diagonally through its buildings.
-            if(east&&!north)target={bx+grid-12,0,bz+grid-12};else if(east&&north)target={bx+12,0,bz+grid-12};else if(!east&&north)target={bx+12,0,bz+12};else target={bx+grid-12,0,bz+12};
-            pedestrianTargets[i]=atGround(world,target);
+            Vec3 delta=target-p.position;delta.y=0;float distance=length(delta);const Vec3 before=p.position;
+            if(distance>.25f&&speed>0){Vec3 direction=delta/distance;p.yaw=wrapAngle(p.yaw+wrapAngle(std::atan2(direction.x,direction.z)-p.yaw)*std::min(1.0f,dt*7));p.position=world.move(p.position,direction*(std::min(distance,speed*dt)),.28f);p.position=atGround(world,p.position);p.phase+=planarDistance(p.position,before)*3;}
+            p.motion=std::min(1.0f,planarDistance(p.position,before)/dt/2.2f);p.activity=p.motion>.05f?PedestrianActivity::Walk:PedestrianActivity::Wait;p.activityTime+=dt;
         }
-        Vec3 delta=target-p.position;delta.y=0;float distance=length(delta);
-        if(distance>.25f&&speed>0){Vec3 direction=delta/distance;p.yaw=wrapAngle(p.yaw+wrapAngle(std::atan2(direction.x,direction.z)-p.yaw)*std::min(1.0f,dt*7));Vec3 before=p.position;p.position=world.move(p.position,direction*(std::min(distance,speed*dt)),.28f);p.position=atGround(world,p.position);p.phase+=planarDistance(p.position,before)*3;}
-        for(size_t j=0;j<vehicles.size();++j){Vehicle& v=vehicles[j];if(std::abs(v.speed)<2.5f||std::abs(v.position.y-p.position.y)>2.5f)continue;float distanceToCar=planarDistance(p.position,v.position);if(distanceToCar<2){p.health=std::max(0.0f,p.health-std::abs(v.speed)*7);p.position=world.move(p.position,normalized(p.position-v.position)*2,.28f);p.panic=12;if(int(j)==occupied){wanted=std::max(wanted,i<4?3:2);wantedTimer=32;v.speed*=.84f;}}else if(distanceToCar<7&&i>=4)p.panic=std::max(p.panic,3.0f);}
+        for(size_t j=0;j<vehicles.size();++j){Vehicle& v=vehicles[j];if(std::abs(v.speed)<2.5f||std::abs(v.position.y-p.position.y)>2.5f)continue;float distanceToCar=planarDistance(p.position,v.position);if(distanceToCar<2){p.health=std::max(0.0f,p.health-std::abs(v.speed)*7);p.position=world.move(p.position,normalized(p.position-v.position)*2,.28f);p.panic=12;frightenPedestrian(i,v.position,12);if(int(j)==occupied){wanted=std::max(wanted,i<4?3:2);wantedTimer=32;v.speed*=.84f;}}}
     }
     if(wanted>0){
         if(policeSight)wantedTimer=std::max(wantedTimer,8.0f);
@@ -670,7 +670,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             if(world.biome(p.x,p.z)==Biome::Ocean)continue;
             v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0.0f:8.0f;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
         }
-        for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{12,0,12};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
+        for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(persistentPedestrian(i)||planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{13.2f,0,13.2f};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;p.motion=0;p.activity=PedestrianActivity::Walk;p.sitBlend=0;p.carrying=false;recyclePedestrian(i);pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
     }
     if(missionAction){
         if(harborSplit.phase!=TrialPhase::Inactive)endHarborSplit("Run withdrawn.");
@@ -771,7 +771,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
 }
 bool Game::save(const std::string& path) const {
     try {
-        if(path.empty()||vehicles.size()>256||pedestrians.size()>512)return false;
+        if(path.empty()||vehicles.size()>256||pedestrians.size()>PedestrianSaveLimit)return false;
         SaveWriter payload;
         payload.vector(player);payload.real(yaw);payload.real(pitch);payload.real(health);payload.integer(money);payload.integer(ammo);payload.integer(reserveAmmo);payload.integer(wanted);
         payload.integer(occupied);payload.integer(activeMission);payload.integer(missionStage);payload.integer(completedMissions);payload.integer(radioStation);
@@ -782,7 +782,18 @@ bool Game::save(const std::string& path) const {
         for(const Pedestrian& p:pedestrians){payload.vector(p.position);payload.real(p.yaw);payload.real(p.phase);payload.real(p.panic);payload.real(p.health);}
         payload.real(missionHold);
         payload.real(harborSplit.bestTime);payload.integer(harborSplit.medal);payload.u32(harborSplit.phase!=TrialPhase::Inactive?1u:0u);
-        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(4);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
+        Game pedestrianState;pedestrianState.pedestrians=pedestrians;pedestrianState.pedestrianSimulation=pedestrianSimulation;pedestrianState.synchronizePedestrians();
+        const auto& simulation=pedestrianState.pedestrianSimulation;
+        payload.u32(simulation.nextIdentity);payload.u32(uint32_t(pedestrians.size()));
+        for(size_t i=0;i<pedestrians.size();++i){
+            const auto& p=pedestrianState.pedestrians[i];const auto& b=simulation.brains[i];
+            payload.u32(p.identity);payload.u32(uint32_t(p.activity));payload.real(p.motion);payload.real(p.activityTime);payload.real(p.sitBlend);payload.vector(p.seatPosition);payload.u32(p.carrying?1u:0u);
+            payload.u32((b.persistent?1u:0u)|(b.hasThreat?2u:0u)|(b.crossingCommitted?4u:0u));
+            payload.u32(b.home);payload.u32(b.work);payload.u32(b.destination);payload.u32(b.reserved);payload.u32(b.group);payload.u32(b.node);payload.integer(b.schedule);
+            payload.real(b.decisionDelay);payload.real(b.dwell);payload.real(b.blockedTime);payload.real(b.crossingWait);payload.real(b.reactionTime);payload.vector(b.threat);payload.vector(b.escape);
+            payload.u32(b.crossingFrom);payload.u32(b.crossingTo);payload.u32(b.routeOffset);payload.u32(uint32_t(b.route.size()));for(uint32_t node:b.route)payload.u32(node);
+        }
+        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(5);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
         const std::filesystem::path destination=utf8Path(path);
         std::filesystem::path temporary=destination;temporary+=".tmp";
         if(!destination.parent_path().empty())std::filesystem::create_directories(destination.parent_path());
@@ -802,7 +813,7 @@ bool Game::load(const std::string& path){
         std::vector<uint8_t> bytes(static_cast<size_t>(size));file.seekg(0);file.read(reinterpret_cast<char*>(bytes.data()),size);if(!file)return false;
         const uint8_t magic[8]={'M','C','S','T','S','A','V','E'};
         if(std::memcmp(bytes.data(),magic,8)!=0)return false;
-        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>4)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
+        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>5)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
         Game state;SaveReader reader{bytes,20};
         state.player=reader.vector();state.yaw=reader.real();state.pitch=reader.real();state.health=reader.real();state.money=reader.integer();state.ammo=reader.integer();state.reserveAmmo=reader.integer();state.wanted=reader.integer();
         state.occupied=reader.integer();state.activeMission=reader.integer();state.missionStage=reader.integer();state.completedMissions=reader.integer();state.radioStation=reader.integer();
@@ -817,7 +828,7 @@ bool Game::load(const std::string& path){
             state.vehicles.push_back(v);
         }
         if(state.occupied< -1||state.occupied>=int(state.vehicles.size()))return false;
-        uint32_t pedestrianCount=reader.u32();if(pedestrianCount>512)return false;state.pedestrians.reserve(pedestrianCount);
+        uint32_t pedestrianCount=reader.u32();if(pedestrianCount>(version<5?LegacyPedestrianLimit:PedestrianSaveLimit))return false;state.pedestrians.reserve(pedestrianCount);
         for(uint32_t i=0;i<pedestrianCount;++i){Pedestrian p;p.position=reader.vector();p.yaw=reader.real();p.phase=reader.real();p.panic=reader.real();p.health=reader.real();if(!reader.good||!validPosition(p.position)||std::abs(p.yaw)>Pi*2||std::abs(p.phase)>1e9f||p.panic<0||p.panic>10000||p.health<0||p.health>100)return false;state.pedestrians.push_back(p);}
         if(version>=3)state.missionHold=reader.real();
         uint32_t interruptedTrial=0;
@@ -825,10 +836,49 @@ bool Game::load(const std::string& path){
         if(state.harborSplit.bestTime<0||state.harborSplit.bestTime>=SplitLimit||state.harborSplit.medal<0||state.harborSplit.medal>3||interruptedTrial>1)return false;
         if((state.harborSplit.bestTime==0)!=(state.harborSplit.medal==0)||(state.harborSplit.bestTime>0&&splitMedal(state.harborSplit.bestTime)!=state.harborSplit.medal))return false;
         if(interruptedTrial&&state.activeMission>=0)return false;
+        if(version>=5){
+            auto& simulation=state.pedestrianSimulation;
+            simulation.nextIdentity=reader.u32();const uint32_t count=reader.u32();if(count!=state.pedestrians.size()||simulation.nextIdentity==0||simulation.nextIdentity>1000000000u)return false;
+            simulation.brains.resize(count);std::set<uint32_t> identities,reservations,homes,workplaces;
+            const auto knownPlace=[](uint32_t id){return id==0||World::validPedestrianPlace(id);};
+            const auto knownNode=[](uint32_t id){return id==0||World::validPedestrianNode(id);};
+            const auto kindIs=[](uint32_t id,PedestrianPlaceKind kind){for(const auto& p:World::pedestrianPlaces())if(p.id==id)return p.kind==kind;return false;};
+            for(size_t i=0;i<count;++i){
+                auto& p=state.pedestrians[i];auto& b=simulation.brains[i];
+                p.identity=reader.u32();const uint32_t activity=reader.u32();p.activity=PedestrianActivity(activity);p.motion=reader.real();p.activityTime=reader.real();p.sitBlend=reader.real();p.seatPosition=reader.vector();const uint32_t carrying=reader.u32();p.carrying=carrying==1;
+                const uint32_t flags=reader.u32();b.persistent=(flags&1u)!=0;b.hasThreat=(flags&2u)!=0;b.crossingCommitted=(flags&4u)!=0;b.identity=p.identity;
+                b.home=reader.u32();b.work=reader.u32();b.destination=reader.u32();b.reserved=reader.u32();b.group=reader.u32();b.node=reader.u32();b.schedule=reader.integer();
+                b.decisionDelay=reader.real();b.dwell=reader.real();b.blockedTime=reader.real();b.crossingWait=reader.real();b.reactionTime=reader.real();b.threat=reader.vector();b.escape=reader.vector();
+                b.crossingFrom=reader.u32();b.crossingTo=reader.u32();b.routeOffset=reader.u32();const uint32_t routeCount=reader.u32();if(routeCount>64)return false;
+                for(uint32_t j=0;j<routeCount;++j){const uint32_t node=reader.u32();if(!World::validPedestrianNode(node))return false;b.route.push_back(node);}
+                if(!reader.good||p.identity==0||p.identity>=simulation.nextIdentity||!identities.insert(p.identity).second||activity>7||carrying>1||flags>7||p.motion<0||p.motion>1.3f||p.activityTime<0||p.activityTime>1e9f||p.sitBlend<0||p.sitBlend>1||!validPosition(p.seatPosition))return false;
+                if(b.persistent!=(i>=4&&i<20)||b.group!=(i>=4&&i<8?uint32_t((i-4)/2+1):0u))return false;
+                if(b.persistent?(!kindIs(b.home,PedestrianPlaceKind::Home)||!kindIs(b.work,PedestrianPlaceKind::Work)):(b.home!=0||b.work!=0))return false;
+                if(b.persistent&&(!homes.insert(b.home).second||!workplaces.insert(b.work).second))return false;
+                if(!knownPlace(b.destination)||!knownPlace(b.reserved)||!knownNode(b.node)||!knownNode(b.crossingFrom)||!knownNode(b.crossingTo)||b.routeOffset>b.route.size())return false;
+                if(!b.route.empty()&&(!b.node||!b.destination||b.reserved!=b.destination||b.routeOffset>=b.route.size()))return false;
+                if(b.reserved&&(b.reserved!=b.destination||!reservations.insert(b.reserved).second))return false;
+                if((b.crossingFrom==0)!=(b.crossingTo==0)||(b.crossingCommitted&&!b.crossingFrom))return false;
+                if(b.crossingFrom&&(b.node!=b.crossingFrom||b.routeOffset>=b.route.size()||b.route[b.routeOffset]!=b.crossingTo))return false;
+                if(b.schedule< -1||b.schedule>4||b.decisionDelay<0||b.decisionDelay>1||b.dwell<0||b.dwell>300||b.blockedTime<0||b.blockedTime>10||b.crossingWait<0||b.crossingWait>3600||b.reactionTime<0||b.reactionTime>10||!validPosition(b.threat)||!validPosition(b.escape))return false;
+                if(p.activity==PedestrianActivity::Sit){
+                    if(!b.reserved||!kindIs(b.reserved,PedestrianPlaceKind::Seat))return false;
+                    for(const auto& seat:World::pedestrianPlaces())if(seat.id==b.reserved&&(length(p.seatPosition-seat.seatPosition)>.02f||planarDistance(p.position,seat.position)>.5f))return false;
+                }
+                if(p.activity==PedestrianActivity::Work||p.activity==PedestrianActivity::Talk){
+                    if(!b.reserved||b.reserved!=b.destination||!b.route.empty())return false;
+                    if(p.activity==PedestrianActivity::Work&&!kindIs(b.reserved,PedestrianPlaceKind::Work)&&!kindIs(b.reserved,PedestrianPlaceKind::Market))return false;
+                    if(p.activity==PedestrianActivity::Talk&&!kindIs(b.reserved,PedestrianPlaceKind::Conversation))return false;
+                    for(const auto& location:World::pedestrianPlaces())if(location.id==b.reserved&&planarDistance(p.position,location.position)>.5f)return false;
+                }
+            }
+        }
         if(!reader.good||reader.offset!=bytes.size()||state.missionHold<0||state.missionHold>3||(state.missionHold>0&&(state.activeMission!=4||state.missionStage!=1)))return false;
         if(state.occupied>=0&&planarDistance(state.player,state.vehicles[size_t(state.occupied)].position)>3)return false;
         if(version==1){if(state.vehicles.size()>254)return false;appendStarterCraft(state.vehicles,state.world);}
         state.world.stream(state.player);
+        if(version<5)state.initializePedestrians(false);
+        else {state.pedestrianSimulation.network=state.world.pedestrianNetwork(state.player);state.pedestrianSimulation.revision=state.world.pedestrianResidency();if(!state.validatePedestrianRoutes(true))return false;}
         for(size_t i=0;i<state.vehicles.size();++i)state.trafficTargets.push_back(nextTrafficTarget(state.world,state.vehicles[i],uint32_t(i)*719));
         for(size_t i=0;i<state.pedestrians.size();++i)state.pedestrianTargets.push_back(pedestrianCorner(state.world,state.pedestrians[i].position,uint32_t(i)*37));
         state.message=interruptedTrial?"Save restored. Harbor Split's interrupted run was cancelled; your records are safe. Return to Rafi's violet flag to retry.":"Save restored. Welcome back to Meridian Coast.";state.messageTime=interruptedTrial?10.0f:5.0f;
