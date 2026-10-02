@@ -38,6 +38,11 @@ jobs:
         shell: pwsh
         run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe
 
+      - name: Capture geography, weather, and vehicle scenes
+        if: matrix.configuration == 'Release'
+        shell: pwsh
+        run: ./tools/visual-sweep.ps1 -Executable ./build/Release/MeridianCoast.exe -Frames 8
+
       # GitHub's first-party artifact transport is CI infrastructure only. It is
       # never linked, bundled, installed, or required by the game or local build.
       - name: Upload executable and validation evidence
@@ -50,6 +55,7 @@ jobs:
             build/${{ matrix.configuration }}/MeridianCoast.exe
             build/${{ matrix.configuration }}/MeridianCoast.exe.sha256
             build/${{ matrix.configuration }}/MeridianCoast.exe.imports.txt
-            build/${{ matrix.configuration }}/smoke.bmp
-            build/${{ matrix.configuration }}/smoke-report.json
+            build/${{ matrix.configuration }}/smoke*.bmp
+            build/${{ matrix.configuration }}/smoke*-report.json
             build/${{ matrix.configuration }}/smoke-*.log
+            build/${{ matrix.configuration }}/visual-sweep.json

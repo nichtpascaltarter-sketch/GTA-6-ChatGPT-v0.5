@@ -2,22 +2,25 @@
 param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
-    [ValidateRange(1, 10000)] [int] $Frames = 120
+    [ValidateRange(1, 10000)] [int] $Frames = 120,
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm')]
+    [string] $Scene = 'city'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Executable = (Resolve-Path -LiteralPath $Executable).Path
 $directory = Split-Path -Parent $Executable
-$screenshot = Join-Path $directory 'smoke.bmp'
-$stdout = Join-Path $directory 'smoke-stdout.log'
-$stderr = Join-Path $directory 'smoke-stderr.log'
-$sessionCopy = Join-Path $directory 'smoke-session.log'
+$prefix = if ($Scene -eq 'city') { 'smoke' } else { "smoke-$Scene" }
+$screenshot = Join-Path $directory "$prefix.bmp"
+$stdout = Join-Path $directory "$prefix-stdout.log"
+$stderr = Join-Path $directory "$prefix-stderr.log"
+$sessionCopy = Join-Path $directory "$prefix-session.log"
 if (Test-Path $screenshot) { Remove-Item -LiteralPath $screenshot -Force }
 if (Test-Path $sessionCopy) { Remove-Item -LiteralPath $sessionCopy -Force }
 
 $startedAt = [DateTime]::UtcNow
 $process = Start-Process -FilePath $Executable -WorkingDirectory $directory -PassThru -NoNewWindow `
-    -ArgumentList @('--smoke', '--warp', '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
+    -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 $null = $process.Handle
 try {
@@ -74,6 +77,7 @@ for ($y = 0; $y -lt $height; $y += [Math]::Max(1, [int] ($height / 40))) {
 if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors.Count) sampled colors)." }
 [ordered] @{
     adapter = 'D3D12 WARP'
+    scene = $Scene
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value
@@ -83,5 +87,5 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     sampledColors = $colors.Count
     executableSha256 = (Get-FileHash -Algorithm SHA256 $Executable).Hash.ToLowerInvariant()
     screenshotSha256 = (Get-FileHash -Algorithm SHA256 $screenshot).Hash.ToLowerInvariant()
-} | ConvertTo-Json | Set-Content -Encoding Ascii -Path (Join-Path $directory 'smoke-report.json')
-Write-Host "WARP smoke passed: $Frames frames; $width x $height screenshot; $($colors.Count) sampled colors."
+} | ConvertTo-Json | Set-Content -Encoding Ascii -Path (Join-Path $directory "$prefix-report.json")
+Write-Host "WARP $Scene smoke passed: $Frames frames; $width x $height screenshot; $($colors.Count) sampled colors."
