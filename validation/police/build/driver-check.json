@@ -1,0 +1,15 @@
+{
+  "nativeTargets": 23,
+  "portableTargets": 23,
+  "applicationSources": 12,
+  "additionalScenes": 42,
+  "acceptedScenes": 46,
+  "allSourcesExist": true,
+  "sourceListsMatch": true,
+  "preserved": {
+    "market": true,
+    "sixLawGunfireTargets": true,
+    "timingAndSpatialAssertions": true
+  },
+  "jobTimeoutMinutes": 30
+}
