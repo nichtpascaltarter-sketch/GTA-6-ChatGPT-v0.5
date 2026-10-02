@@ -95,6 +95,12 @@ customers are not charged. Service is unavailable during a police pursuit.
 The location stays open by day and night; its rooms can be entered without
 a loading screen.
 
+Around Meridian Exchange, residents walk between homes, shops and market stalls,
+take seats during breaks, and meet for evening conversations. Marked crossings
+connect their routes, and approaching traffic can make them wait before crossing.
+Nearby threats and gunfire interrupt their routines; surviving residents settle
+back into their day after the danger passes. Resident state is retained in saves.
+
 ## Validation
 
 ```sh

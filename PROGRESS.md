@@ -198,20 +198,40 @@ no validation check was removed.
   people for resident roles, and adds home residents only for missing roles.
   New games retain 84 people; legacy saves can grow to 100. Twenty independent
   migration cases pass, with exact V5 round trips and remote freeze/return checks.
-- Finish the final gameplay/AI sanitizer and integrated portable checks, rebase
-  `development/neighborhood-routines` onto the verified main development branch,
-  retain all FPS and workshop build fixes, then run the complete native suite
-  including 34 additional scene captures. Do not replace the verified executable
-  until native checks and visual inspection pass. The workshop's one harmless
-  MSVC integer-list conversion warning is being removed in this candidate.
+- All 49 gameplay and nine pedestrian suites pass strict builds and full
+  ASan/UBSan/leak detection. The complete 12-target portable gate also passes
+  without compiler warnings, with all 45 source/test/shader hashes identical
+  before and after execution. Evidence is under `validation/routines/`.
+- The routines branch is rebased onto the verified main branch. Its simulation,
+  geometry and test source hashes remain identical; the only source changes
+  inherited during integration are the already-verified frame-rate/UI repairs.
+  Three build-tool conflicts were resolved by retaining the complete tested
+  union of workshop and resident targets and all 34 capture scenes. The workshop
+  integer-list warning is repaired with explicit float literals.
+- Run the complete native Release/Debug suite and inspect all six resident views
+  before replacing the verified executable. The exact-source natural capture,
+  frame-rate and UI checks pass, with unchanged capture compiler inputs. Routine poses
+  include carrying, stock checking, sitting, conversation, startle and flight;
+  no native quality or stability claim is made before Windows validation passes.
 - Spatial audio implementation has started separately in
   `/workspace/GTA-6-ChatGPT-v0.5-audio`, branch `development/spatial-world-audio`,
-  based on the verified milestone. Fixed-capacity source snapshots and authored
-  DSP are being implemented first; real entity tracking follows after routines
-  integration. Audit also found that focus loss/minimization currently
+  now based on the integrated routines source. Fixed-capacity snapshots and
+  authored DSP pass strict/sanitizer tests, deterministic lifecycle checks and
+  byte-identical empty-world comparisons against 2,319,840 reference samples.
+  Its eight-engine/eight-contact inputs feed bounded 12/12 voice banks and 36
+  contact tails without real-time allocation. Real entity tracking and runtime
+  vehicle identity are being implemented next; root owns main-loop integration.
+  Audit also found that focus loss/minimization currently
   blocks before publishing paused audio; repair that lifecycle path in the audio
-  implementation. Spatial sound, physical listening and device recovery remain
+  implementation; the audio branch now publishes suspension before those waits.
+  Spatial sound integration, physical listening and device recovery remain
   unverified until implemented and tested.
+- The following gameplay milestone will separate police severity from observed
+  location knowledge, add bounded last-known-position pursuit/search, and replace
+  continuous close-range damage with visible aimed shots and reloads. Preserve
+  existing contracts and test that different hidden player positions cannot
+  change police search decisions without new evidence. Implementation follows
+  the current audio and routine integration gates.
 - The evidence-only push at `58b4103` started duplicate native workflow
   `36951477521`; it was cancelled because game, shader and build source were
   unchanged from the accepted run. The next tooling batch ignores documentation

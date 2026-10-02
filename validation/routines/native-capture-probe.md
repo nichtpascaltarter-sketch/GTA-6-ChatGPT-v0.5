@@ -4,7 +4,7 @@ Six native inspection scenes use `ResidentCapture` to advance a fully initialize
 
 Carrying and fleeing require actual displacement and active motion. Work, sitting, and conversation must arise from normal decisions and persist for a stable window. Both alarm scenes first wait for a conversation, emit a real player gunshot, verify ammunition and muzzle feedback, then require that same calm resident to startle or flee. The camera tests each subject's head and torso, held props, static collision, and the final visible dynamic mesh. Native screenshots still require visual inspection.
 
-The strict portable probe passes all six scenes, unknown-scene rejection, and interruption handling. The exact source hashes and unedited output are adjacent. These are simulation and camera-preparation checks, not native rendering or performance evidence.
+The strict portable probe passes all six scenes, unknown-scene rejection, and interruption handling. The final rebased run records matching source hashes before compilation and after execution, its exact source commit and generated binary hash, and unedited output. These are simulation and camera-preparation checks, not native rendering or performance evidence.
 
 Reproduce from the repository root:
 

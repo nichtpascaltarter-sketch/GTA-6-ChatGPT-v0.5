@@ -1,0 +1,20 @@
+{
+  "previousRoutineSnapshot": "9f5894d",
+  "mainBase": "91ae738",
+  "rebasedSource": "287a9af",
+  "routineSimulationAndTestHashes": "All 14 files in gameplay/source.sha256 match after rebase",
+  "inheritedSourceChanges": [
+    "src/main.cpp",
+    "src/render_timing.h",
+    "src/ui.h",
+    "tests/render_timing_tests.cpp"
+  ],
+  "conflictResolution": "Build, smoke, and portable-test files match the complete pre-rebase validated routine versions byte-for-byte; these retain workshop and resident targets and all34 capture scenes.",
+  "localChecks": [
+    "Six natural resident captures and cancellation checks",
+    "Capture compiler inputs identical before and after",
+    "Measured frame-rate and GPU/CPU timing unit tests",
+    "Strict UI syntax check"
+  ],
+  "nativeStatus": "Pending full Windows Release/Debug build and inspection"
+}
