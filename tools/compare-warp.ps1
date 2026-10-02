@@ -124,6 +124,8 @@ try {
         }
     }
     $budget.Stop()
+    $launchSeconds = 0.0
+    foreach ($run in $runs) { $launchSeconds += [double] $run['elapsedSeconds'] }
     [ordered] @{
         schemaVersion = 1; repository = $Repository; variants = $variants
         environment = [ordered] @{
@@ -137,7 +139,7 @@ try {
             warmupFrames = 8; measuredOrder = 'A/B/B/A'; longPairOrder = 'B/A'
         }
         comparisonElapsedSeconds = [Math]::Round($budget.Elapsed.TotalSeconds, 3)
-        launchElapsedSecondsTotal = [Math]::Round(($runs | Measure-Object -Property elapsedSeconds -Sum).Sum, 3)
+        launchElapsedSecondsTotal = [Math]::Round($launchSeconds, 3)
         longPairStatus = $longPairStatus; runs = $runs.ToArray(); summaries = $summaries
         median120ChangePercent = [Math]::Round(100 * ($summaries[1].median120Seconds / $summaries[0].median120Seconds - 1), 3)
         limitations = @(
