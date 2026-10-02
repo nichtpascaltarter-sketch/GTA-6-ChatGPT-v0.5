@@ -204,11 +204,18 @@ no validation check was removed.
   including 34 additional scene captures. Do not replace the verified executable
   until native checks and visual inspection pass. The workshop's one harmless
   MSVC integer-list conversion warning is being removed in this candidate.
-- Next audio work will add bounded spatial sound from actual nearby vehicles and
-  civilian contacts. Audit also found that focus loss/minimization currently
+- Spatial audio implementation has started separately in
+  `/workspace/GTA-6-ChatGPT-v0.5-audio`, branch `development/spatial-world-audio`,
+  based on the verified milestone. Fixed-capacity source snapshots and authored
+  DSP are being implemented first; real entity tracking follows after routines
+  integration. Audit also found that focus loss/minimization currently
   blocks before publishing paused audio; repair that lifecycle path in the audio
   implementation. Spatial sound, physical listening and device recovery remain
   unverified until implemented and tested.
+- The evidence-only push at `58b4103` started duplicate native workflow
+  `36951477521`; it was cancelled because game, shader and build source were
+  unchanged from the accepted run. The next tooling batch ignores documentation
+  and validation-only pushes while preserving source, PR and manual checks.
 
 Captures for the verified checkpoint are in
 `/workspace/scratch/combined-b0c0c4c-release/`; original evidence and selected
