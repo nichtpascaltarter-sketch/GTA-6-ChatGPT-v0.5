@@ -1,0 +1,12 @@
+{
+  "src/resident_scenes.h": "6b3169d091fb1dce7af247efe202d7a1968ce0dd612c5ca6ba9cec7e568a12c3",
+  "src/game.cpp": "373ac912dc41d67a3dba58b80a12a5f5f857ab2e3596c56fee1a4c4dc618173b",
+  "src/game.h": "030b920c0b35aa66f1debd66fb95c7bbdf7895f1d493f99d2dd141d09afcbba6",
+  "src/pedestrians.cpp": "f22b556a26ca9950f326d3c84180e54a983be6d044ee3925b7a43a93066fcd95",
+  "src/pedestrians.h": "5a8595431afb0a99fd3b02bfa173afb5cea1cf618d194b7611c7c8bb55d6a86c",
+  "src/world.cpp": "769bf4d72dd4cf022909fee9030bb1d46600b63053075cccdb4148ccc2216b3d",
+  "src/world.h": "4f26bc40f4e0399114ff3eb8450df5eebcf5d450efe326f0a07bd699d465627e",
+  "src/world_geometry.cpp": "e4e94bf90f187ce2002ed64bf1eaa8dc814a9048bae4f3da9bd1a46ef35e2bc1",
+  "src/visuals.cpp": "359ab4a82f77f3cfba5071d5041dba47695080658d2b0bf2e82834ade20bb04e",
+  "validation/routines/native-capture-probe.cpp": "68bbcff656d3fbe48cd5a862a52318e7d6effc9bc9f1056d18e1ed9549850460"
+}

@@ -26,6 +26,7 @@
 #include "streaming_probe.h"
 #include "lod_probe.h"
 #include "timing_probe.h"
+#include "resident_scenes.h"
 
 namespace {
 using namespace mc;
@@ -164,9 +165,13 @@ int execute(HINSTANCE instance,const Options& options) {
         Renderer renderer;std::string error;
         if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
-        Game game;game.initialize();if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
+        Game game;game.initialize();ResidentCapture residentCapture;if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         if(options.smoke){
-            if(options.scene=="trial"||options.scene=="trial-run"||options.scene=="trial-map"){
+            if(options.scene.rfind("residents-",0)==0){
+                auto pump=[&](){MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(message.message==WM_QUIT)app.running=false;TranslateMessage(&message);DispatchMessageW(&message);}return app.running;};
+                if(!residentCapture.prepare(game,options.scene,log,error,pump)){log<<error<<'\n';throw std::runtime_error(error);}
+            }
+            else if(options.scene=="trial"||options.scene=="trial-run"||options.scene=="trial-map"){
                 game.player=Game::harborSplitContact()+Vec3{0,0,-5};game.player.y=game.world.height(game.player.x,game.player.z);
                 game.yaw=0;game.pitch=.14f;game.world.stream(game.player);
                 if(options.scene=="trial-run"){
@@ -310,6 +315,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
             if(options.smoke&&(options.scene=="trial"||options.scene=="trial-run"))game.paused=true;
             if(options.smoke&&options.scene.rfind("workshop",0)==0){game.paused=true;game.dayTime=options.scene=="workshop-night"?23.0f:14.0f;game.rain=0;}
+            if(residentCapture.active)game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(options.smoke&&options.scene=="lod"){
                 lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
@@ -369,6 +375,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 frame.target=carrier.position+right(carrier.yaw)*target.x+forward(carrier.yaw)*target.z+Vec3{0,target.y,0};
             }
             if(options.smoke&&options.scene=="lod")lodProbe.camera(game,frame.eye,frame.target);
+            if(residentCapture.active){frame.eye=residentCapture.eye;frame.target=residentCapture.target;}
             frame.coverageRadius=game.world.distantEnabled()?game.world.renderReadyRadius(frame.eye):-1.0f;
             frame.groundHeight=game.world.height(frame.eye.x,frame.eye.z);
             if(!renderer.render(frame,error)){result=6;break;}
@@ -405,6 +412,6 @@ int execute(HINSTANCE instance,const Options& options) {
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,PWSTR,int) {
     Options options=parseOptions();
     try{return execute(instance,options);}
-    catch(const std::exception& exception){if(!options.smoke)MessageBoxA(nullptr,exception.what(),"Meridian Coast - unrecoverable error",MB_OK|MB_ICONERROR);return 10;}
-    catch(...){if(!options.smoke)MessageBoxW(nullptr,L"An unexpected error ended the session.",L"Meridian Coast",MB_OK|MB_ICONERROR);return 11;}
+    catch(const std::exception& exception){std::fprintf(stderr,"%s\n",exception.what());if(!options.smoke)MessageBoxA(nullptr,exception.what(),"Meridian Coast - unrecoverable error",MB_OK|MB_ICONERROR);return 10;}
+    catch(...){std::fprintf(stderr,"An unexpected error ended the session.\n");if(!options.smoke)MessageBoxW(nullptr,L"An unexpected error ended the session.",L"Meridian Coast",MB_OK|MB_ICONERROR);return 11;}
 }
