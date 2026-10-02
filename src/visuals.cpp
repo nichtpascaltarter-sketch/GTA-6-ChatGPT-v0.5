@@ -183,7 +183,17 @@ Vec3 craftRotation(Vec3 point,const Vehicle& vehicle){
     Vec3 rolled{point.x*cr+point.y*sr,-point.x*sr+point.y*cr,point.z};
     return rotate({rolled.x,rolled.y*cp+rolled.z*sp,-rolled.y*sp+rolled.z*cp},vehicle.yaw);
 }
-void craftMesh(Mesh& mesh,const Vehicle& vehicle,float time,bool detail){
+void cabinOpening(Mesh& mesh,size_t firstIndex,Box opening){
+    size_t write=firstIndex;
+    for(size_t i=firstIndex;i<mesh.indices.size();i+=3){
+        const Vec3 center=(mesh.vertices[mesh.indices[i]].position+mesh.vertices[mesh.indices[i+1]].position+mesh.vertices[mesh.indices[i+2]].position)/3;
+        if(center.x>opening.min.x&&center.x<opening.max.x&&center.y>opening.min.y&&center.y<opening.max.y&&center.z>opening.min.z&&center.z<opening.max.z)continue;
+        for(size_t j=0;j<3;++j)mesh.indices[write++]=mesh.indices[i+j];
+    }
+    mesh.indices.resize(write);
+}
+bool coupeBody(const Vehicle& v,uint32_t seed){return !v.police&&seed%7u!=0u&&seed%3u==0u;}
+void craftMesh(Mesh& mesh,const Vehicle& vehicle,float time,bool detail,bool passenger){
     const size_t first=mesh.vertices.size();const int segments=detail?12:8;
     const Vec3 trim{.055f,.070f,.081f},chrome{.62f,.66f,.69f},cream{.83f,.82f,.72f};
     const Vec3 paint=vehicle.color*(.55f+.45f*clamp(vehicle.health/100,0,1));
@@ -224,9 +234,22 @@ void craftMesh(Mesh& mesh,const Vehicle& vehicle,float time,bool detail){
         ellipsoid(mesh,{-.95f,.68f,1.0f},{.045f,.04f,.085f},0,{1,.03f,.015f},6,3,2);
         ellipsoid(mesh,{.95f,.68f,1.0f},{.045f,.04f,.085f},0,{.03f,1,.17f},6,3,2);
     }else{
+        const size_t fuselage=mesh.indices.size();
         ellipsoid(mesh,{0,1.28f,-.10f},{.47f,.48f,3.34f},0,paint,segments,detail?10:6,1);
+        if(passenger)cabinOpening(mesh,fuselage,{{-.46f,1.48f,-.40f},{.46f,2.0f,1.72f}});
         ellipsoid(mesh,{0,1.27f,2.62f},{.38f,.36f,.67f},0,paint,segments,5,1);
+        const size_t canopy=mesh.indices.size();
         ellipsoid(mesh,{0,1.64f,.80f},{.405f,.30f,.91f},0,{.045f,.12f,.16f},segments,6,1);
+        if(passenger){
+            cabinOpening(mesh,canopy,{{.075f,1.53f,-.20f},{.5f,2.05f,1.47f}});
+            // A sliding side pane leaves the occupant and secured cabin load visible.
+            pipe({.40f,1.45f,-.02f},{.36f,1.82f,.20f},.018f,cream);
+            pipe({.36f,1.82f,.20f},{.33f,1.82f,1.22f},.018f,cream);
+            pipe({.33f,1.82f,1.22f},{.31f,1.48f,1.47f},.018f,cream);
+            pipe({.31f,1.48f,1.47f},{.40f,1.45f,-.02f},.022f,cream);
+            for(float side:{-1.0f,1.0f})panel({side*.43f,1.26f,-.15f},{side*.38f,1.26f,1.48f},{side*.31f,1.48f,1.48f},{side*.40f,1.45f,-.15f},{side,0,0},paint,1);
+            addBox(mesh,{0,1.30f,.40f},{.32f,.045f,.80f},trim);
+        }
         for(float side:{-1.0f,1.0f}){
             // Tapered airfoil sections, each with a shallow upper crown and dihedral toward the tip.
             const float span[4]={.35f,2.2f,4.70f,5.15f},leading[4]={.94f,.73f,.22f,.0f},trailing[4]={-1.12f,-1.08f,-.94f,-.86f};
@@ -258,15 +281,15 @@ void craftMesh(Mesh& mesh,const Vehicle& vehicle,float time,bool detail){
     }
     for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=vehicle.position+craftRotation(vertex.position,vehicle);vertex.normal=normalized(craftRotation(vertex.normal,vehicle));}
 }
-void vehicleMesh(Mesh& mesh,const Vehicle& v,float time,uint32_t seed,bool closeDetail){
-    if(v.kind==VehicleKind::Boat||v.kind==VehicleKind::Aircraft){craftMesh(mesh,v,time,closeDetail);return;}
+void vehicleMesh(Mesh& mesh,const Vehicle& v,float time,uint32_t seed,bool closeDetail,bool passenger){
+    if(v.kind==VehicleKind::Boat||v.kind==VehicleKind::Aircraft){craftMesh(mesh,v,time,closeDetail,passenger);return;}
     auto point=[&](Vec3 p){return v.position+rotate(p,v.yaw);};
     auto box=[&](Vec3 p,Vec3 half,Vec3 color,float material=0){addBox(mesh,point(p),half,color,v.yaw,material);};
     auto panel=[&](Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 normal,Vec3 color,float material=0){vehicleQuad(mesh,point(a),point(b),point(c),point(d),rotate(normal,v.yaw),color,material);};
     auto pipe=[&](Vec3 a,Vec3 b,float radius,Vec3 color,float material=1){tube(mesh,point(a),point(b),radius,radius,color,closeDetail?6:4,material);};
     const Vec3 trim{.035f,.042f,.05f},chrome{.52f,.57f,.60f},glass{.065f,.15f,.19f};
     const bool taxi=!v.police&&seed%7u==0u;
-    const bool coupe=!v.police&&!taxi&&seed%3u==0u;
+    const bool coupe=coupeBody(v,seed);
     const Vec3 paint=(taxi?Vec3{.94f,.57f,.025f}:v.color)*(.55f+.45f*clamp(v.health/100,0,1));
     if(v.kind==VehicleKind::Motorcycle){
         const int segments=closeDetail?12:8,rings=closeDetail?6:4;
@@ -323,10 +346,18 @@ void vehicleMesh(Mesh& mesh,const Vehicle& v,float time,uint32_t seed,bool close
     panel({-.72f,.995f,frontLow},{.72f,.995f,frontLow},{.60f,roofY-.045f,frontHigh},{-.60f,roofY-.045f,frontHigh},{0,1,1},glass,1);
     panel({.72f,.995f,rearLow},{-.72f,.995f,rearLow},{-.60f,roofY-.045f,rearHigh},{.60f,roofY-.045f,rearHigh},{0,1,-1},glass*.80f,1);
     for(float side:{-1.0f,1.0f}){
-        panel({side*.80f,.93f,bottomRear},{side*.80f,.93f,bottomFront},{side*.66f,roofY,roofFront},{side*.66f,roofY,roofRear},{side,0,0},paint,1);
+        const bool open=passenger&&side>0;
+        if(!open)panel({side*.80f,.93f,bottomRear},{side*.80f,.93f,bottomFront},{side*.66f,roofY,roofFront},{side*.66f,roofY,roofRear},{side,0,0},paint,1);
+        else{
+            pipe({.80f,.95f,bottomRear},{.80f,.95f,bottomFront},.034f,paint);
+            pipe({.80f,.93f,bottomFront},{.66f,roofY,roofFront},.034f,paint);
+            pipe({.66f,roofY,roofFront},{.66f,roofY,roofRear},.034f,paint);
+            pipe({.66f,roofY,roofRear},{.80f,.93f,bottomRear},.034f,paint);
+            ellipsoid(mesh,point({.40f,.78f,-.28f}),{.24f,.31f,.11f},v.yaw,trim,10,5);
+        }
         const float lowerX=side*(lerp(.80f,.66f,(.987f-.93f)/(roofY-.93f))+.005f);
         const float upperX=side*(lerp(.80f,.66f,(roofY-.055f-.93f)/(roofY-.93f))+.005f);
-        panel({lowerX,.987f,bottomRear+.15f},{lowerX,.987f,bottomFront-.15f},{upperX,roofY-.055f,roofFront-.055f},{upperX,roofY-.055f,roofRear+.065f},{side,0,0},glass*.86f,1);
+        if(!open)panel({lowerX,.987f,bottomRear+.15f},{lowerX,.987f,bottomFront-.15f},{upperX,roofY-.055f,roofFront-.055f},{upperX,roofY-.055f,roofRear+.065f},{side,0,0},glass*.86f,1);
         if(closeDetail){
             // B pillar sits outside the glass plane and splits the doors.
             const float pillarLow=side*(lerp(.80f,.66f,(.983f-.93f)/(roofY-.93f))+.009f);
@@ -378,13 +409,49 @@ void medicalCase(Mesh& mesh,Vec3 base,float yaw){
     addBox(mesh,point({0,.345f,0}),{.09f,.007f,.028f},red,yaw);
     addBox(mesh,point({0,.345f,0}),{.028f,.008f,.09f},red,yaw);
 }
+void caseStraps(Mesh& mesh,Vec3 base,float yaw){
+    auto point=[&](Vec3 p){return base+rotate(p,yaw);};
+    for(float side:{-1.0f,1.0f}){
+        const float x=side*.19f;
+        tube(mesh,point({x,-.025f,-.22f}),point({x,.35f,-.20f}),.013f,.013f,{.06f,.065f,.07f},5);
+        tube(mesh,point({x,.35f,-.20f}),point({x,.35f,.20f}),.013f,.013f,{.06f,.065f,.07f},5);
+        tube(mesh,point({x,.35f,.20f}),point({x,-.025f,.22f}),.013f,.013f,{.06f,.065f,.07f},5);
+    }
+}
+void clipToCabin(Mesh& mesh,size_t firstIndex,Box cabin){
+    const std::vector<uint32_t> triangles(mesh.indices.begin()+std::ptrdiff_t(firstIndex),mesh.indices.end());
+    mesh.indices.resize(firstIndex);
+    for(size_t i=0;i<triangles.size();i+=3){
+        std::array<Vertex,16> polygon{},scratch{};int count=3;
+        for(int j=0;j<3;++j)polygon[size_t(j)]=mesh.vertices[triangles[i+size_t(j)]];
+        for(int axis=0;axis<3&&count>=3;++axis)for(int side=0;side<2&&count>=3;++side){
+            auto component=[&](Vec3 p){return axis==0?p.x:(axis==1?p.y:p.z);};
+            const float boundary=component(side?cabin.max:cabin.min);int nextCount=0;
+            for(int j=0;j<count;++j){
+                const Vertex& a=polygon[size_t(j)];const Vertex& b=polygon[size_t((j+1)%count)];
+                const float da=(component(a.position)-boundary)*(side?-1.0f:1.0f),db=(component(b.position)-boundary)*(side?-1.0f:1.0f);
+                if(da>=0)scratch[size_t(nextCount++)]=a;
+                if((da>=0)!=(db>=0)){
+                    const float t=da/(da-db);Vertex cut;
+                    cut.position=lerp(a.position,b.position,t);cut.normal=normalized(lerp(a.normal,b.normal,t));cut.color=lerp(a.color,b.color,t);cut.material=lerp(a.material,b.material,t);
+                    scratch[size_t(nextCount++)]=cut;
+                }
+            }
+            polygon=scratch;count=nextCount;
+        }
+        if(count<3)continue;
+        const uint32_t start=uint32_t(mesh.vertices.size());
+        for(int j=0;j<count;++j)mesh.vertices.push_back(polygon[size_t(j)]);
+        for(int j=1;j<count-1;++j)mesh.indices.insert(mesh.indices.end(),{start,start+uint32_t(j),start+uint32_t(j+1)});
+    }
+}
 }
 
 Mesh Game::dynamicMesh() const {
     Mesh mesh;mesh.vertices.reserve(125000);mesh.indices.reserve(230000);
     for(size_t i=0;i<vehicles.size();++i){
         const Vehicle& v=vehicles[i];const float distance=planarDistance(v.position,player);if(distance>310)continue;
-        vehicleMesh(mesh,v,time,i==0?1u:hash32(uint32_t(i)+319u),distance<48);
+        vehicleMesh(mesh,v,time,i==0?1u:hash32(uint32_t(i)+319u),distance<48,activeMission==4&&missionStage>=2&&int(i)==occupied);
     }
     for(size_t i=0;i<pedestrians.size();++i){
         const Pedestrian& p=pedestrians[i];const float distance=planarDistance(p.position,player);if(distance>180)continue;
@@ -421,11 +488,23 @@ Mesh Game::dynamicMesh() const {
                     tube(mesh,survivor+Vec3{std::sin(a)*.6f,2.15f,std::cos(a)*.6f},survivor+Vec3{std::sin(b)*.6f,2.15f,std::cos(b)*.6f},.025f,.025f,{.12f,1,.58f},4,2);}
             }
         }else if(missionStage>=2){
-            if(occupied>=0&&size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Boat){
-                const Vehicle& boat=vehicles[size_t(occupied)];const size_t first=mesh.vertices.size();
-                personMesh(mesh,{-.54f,.04f,-1.31f},0,0,0,coat,skin,false,false,47,true,true);
-                medicalCase(mesh,{.56f,.64f,.67f},0);
-                for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=boat.position+craftRotation(vertex.position,boat);vertex.normal=normalized(craftRotation(vertex.normal,boat));}
+            if(occupied>=0&&size_t(occupied)<vehicles.size()){
+                const Vehicle& carrier=vehicles[size_t(occupied)];const size_t first=mesh.vertices.size();
+                Vec3 seat,load;float loadYaw=0;bool strapped=false;
+                switch(carrier.kind){
+                case VehicleKind::Boat:seat={-.54f,.04f,-1.31f};load={.56f,.64f,.67f};break;
+                case VehicleKind::Motorcycle:seat={0,.08f,-.50f};load={-.42f,.45f,-.63f};loadYaw=-Pi*.5f;strapped=true;break;
+                case VehicleKind::Aircraft:seat={.15f,.23f,.55f};load={-.10f,1.43f,0};loadYaw=Pi*.5f;strapped=true;break;
+                case VehicleKind::Car:{const uint32_t seed=occupied==0?1u:hash32(uint32_t(occupied)+319u);seat={.40f,coupeBody(carrier,seed)?-.45f:-.31f,-.02f};load={0,.94f,-1.55f};loadYaw=Pi;strapped=true;break;}
+                }
+                const size_t actorFirst=mesh.indices.size();
+                personMesh(mesh,seat,0,0,0,coat,skin,false,false,47,true,true);
+                // Interior geometry stays behind its opaque floor and side walls.
+                if(carrier.kind==VehicleKind::Car)clipToCabin(mesh,actorFirst,{{-.83f,.38f,-1.0f},{.83f,1.50f,1.0f}});
+                if(carrier.kind==VehicleKind::Aircraft)clipToCabin(mesh,actorFirst,{{-.29f,1.32f,-.25f},{.29f,2.10f,1.42f}});
+                medicalCase(mesh,load,loadYaw);if(strapped)caseStraps(mesh,load,loadYaw);
+                const bool craft=carrier.kind==VehicleKind::Boat||carrier.kind==VehicleKind::Aircraft;
+                for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=carrier.position+(craft?craftRotation(vertex.position,carrier):rotate(vertex.position,carrier.yaw));vertex.normal=normalized(craft?craftRotation(vertex.normal,carrier):rotate(vertex.normal,carrier.yaw));}
             }else if(occupied<0){
                 Vec3 companion=world.move(player,right(yaw)*.95f,.30f);companion.y=player.y;
                 personMesh(mesh,companion,yaw,playerPhase+.4f,playerMotion,coat,skin,false,false,47,true);
