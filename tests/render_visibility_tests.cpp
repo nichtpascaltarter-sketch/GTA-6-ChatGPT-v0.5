@@ -58,11 +58,11 @@ int main(){
         Vec3 eye{random(-6144,6144),random(0,1150),random(-6144,6144)};
         float yaw=random(-Pi,Pi),pitch=random(-1.3f,1.3f);Vec3 forward{std::sin(yaw)*std::cos(pitch),std::sin(pitch),std::cos(yaw)*std::cos(pitch)};
         Vec3 right=normalized(cross({0,1,0},forward)),up=cross(forward,right);
-        float depth=random(.01f,3200),x=random(-1.15f,1.15f),y=random(-1.15f,1.15f);
-        Vec3 center=eye+forward*depth+right*(x*depth*1.2f)+up*(y*depth*.7f),half{random(0,150),random(0,180),random(0,150)};
+        float distance=random(.01f,3200),x=random(-1.15f,1.15f),y=random(-1.15f,1.15f);
+        Vec3 center=eye+forward*distance+right*(x*distance*1.2f)+up*(y*distance*.7f),half{random(0,150),random(0,180),random(0,150)};
         Box b{center-half,center+half};float farClip=(i&1)?900.f:3000.f;
-        Mat4 projection=(i&2)?reversePerspective(68*Pi/180,16.f/9,.12f,farClip):perspective(68*Pi/180,16.f/9,.12f,farClip);
-        Mat4 m=multiply(lookAt(eye,eye+forward),projection);
+        Mat4 randomProjection=(i&2)?reversePerspective(68*Pi/180,16.f/9,.12f,farClip):perspective(68*Pi/180,16.f/9,.12f,farClip);
+        Mat4 m=multiply(lookAt(eye,eye+forward),randomProjection);
         ClipVolume f(m);verifySupports(f,b);bool oracle=cornerOracle(m,b,6),visible=f.visible(b);assert(!oracle||visible);
         visibleOracle+=oracle;conservativeOnly+=visible&&!oracle;
         Mat4 light{};light.m[0]=light.m[5]=2.f/240;light.m[10]=1.f/900;light.m[15]=1;
