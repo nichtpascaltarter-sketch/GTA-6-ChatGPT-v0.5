@@ -119,6 +119,14 @@ part of the game distribution.
    pass, as do 400,000 culling oracle cases and reverse-depth tests. Source review
    found no blocking issue. The five-phase native LOD probe and extended captures
    still need to pass before this becomes the verified executable.
+   First native run built and passed both city/legacy-streaming checks, then
+   stopped at LOD phase 1 because the probe omitted the cache's one-cell medium
+   hysteresis. The correct selected counts after that move are 49/191/849, with
+   240 shadow candidates; phase 0 correctly has 49/176/864 and 225. A real CPU
+   route reproduced all five expected selections. The corrected probe now has
+   a dedicated regression and 320-frame budget (Debug phase 0 used 70 frames).
+   Two test-local MSVC shadowing warnings were also repaired. Initial evidence
+   is under `validation/milestone-06/initial-lod/`; native rerun is next.
 8. Next content is an original repeatable motorcycle trial, developed separately
    from the LOD batch. Broader goals remain pedestrian routines, police tactics,
    interiors, destruction, animation, true dynamic GI and volumetric atmosphere.

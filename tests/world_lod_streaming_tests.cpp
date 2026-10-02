@@ -308,6 +308,29 @@ void realOriginWarmup() {
         static_cast<unsigned long long>(world.distantBytes()));
 }
 
+void mediumHysteresisSelection() {
+    World world;constexpr uint64_t epoch=902;
+    for(int center=0;center<3;++center){
+        const Vec3 position{float(center)*World::ChunkSize+8,0,8};
+        publishSmall(world,position,epoch);world.setDistantEnabled(true);
+        for(const auto& request:world.requestDistant(position,epoch))assert(world.installDistant(smallBuild(request)));
+        size_t detail=0,medium=0,far=0,shadows=0;
+        for(const auto& tile:world.renderTiles()){
+            const int distance=std::max(std::abs(tile.key.x-center),std::abs(tile.key.z));
+            if(distance<=World::StreamRadius)assert(tile.key.lod==WorldLod::Detail);
+            else if(distance<=World::MediumRadius)assert(tile.key.lod==WorldLod::Medium);
+            else if(distance>World::MediumRadius+1)assert(tile.key.lod==WorldLod::Far);
+            detail+=tile.key.lod==WorldLod::Detail;medium+=tile.key.lod==WorldLod::Medium;far+=tile.key.lod==WorldLod::Far;
+            shadows+=tile.shadowCaster;
+        }
+        assert(detail==49&&medium==size_t(center?191:176)&&far==size_t(center?849:864));
+        assert(shadows==detail+medium&&uniqueCoverage(world).size()==1089);
+        assert(world.detailFallbackCount()==0&&world.distantPendingCount()==0);
+        assert(std::abs(world.renderReadyRadius(position)-2056.0f)<.01f);
+    }
+    std::puts("LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates");
+}
+
 std::mutex gateMutex;
 std::condition_variable gateChanged;
 uint64_t heldEpoch=0;
@@ -368,6 +391,6 @@ void workerDisableCancellation() {
 int main() {
     defaultAndReadiness();distantRequestProtocol();representationAndHandover();
     fallbackMemoryBound();saturatedCacheHandover();visualCacheMemoryBound();playableEdgeBounds();
-    workerReplacementAndTeleport();workerDisableCancellation();realOriginWarmup();
+    workerReplacementAndTeleport();workerDisableCancellation();realOriginWarmup();mediumHysteresisSelection();
     std::puts("World LOD streaming tests passed.");
 }

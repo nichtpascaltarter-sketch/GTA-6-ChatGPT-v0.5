@@ -73,10 +73,17 @@ public:
         }
         if(frame<firstFrame_+4||cpu.pendingChunks||cpu.distantPending||cpu.queued||cpu.inFlight||cpu.completed||
            gpu.pendingBatches||gpu.retiredBytes)return true;
-        if(world.chunks.size()!=49||counts!=std::array<uint32_t,3>{49,176,864}||ready<2000||gpu.fogEnd<1980||
+        // A one-cell move keeps the departing strip of 15 medium tiles in the
+        // cache's deliberate one-cell hysteresis band. They remain the best
+        // selected representation until the player moves farther away.
+        const uint32_t medium=phase_==1?191u:176u;
+        if(world.chunks.size()!=49||counts!=std::array<uint32_t,3>{49,medium,1040-medium}||ready<2000||gpu.fogEnd<1980||
            gpu.mainDrawn+gpu.mainCulled!=1089||!gpu.mainDrawn||!gpu.mainCulled||
-           gpu.shadowDrawn+gpu.shadowCulled!=225||!gpu.shadowDrawn||!gpu.shadowCulled){
-            error="Distant-world diagnostic settled without full coverage or useful draw culling.";return false;
+           gpu.shadowDrawn+gpu.shadowCulled!=49+medium||!gpu.shadowDrawn||!gpu.shadowCulled){
+            log<<"LOD assertion: phase="<<phase_<<"; detail="<<counts[0]<<"; medium="<<counts[1]<<"; far="<<counts[2]
+               <<"; ready="<<ready<<"; fogEnd="<<gpu.fogEnd<<"; main="<<gpu.mainDrawn<<'/'<<gpu.mainCulled
+               <<"; shadow="<<gpu.shadowDrawn<<'/'<<gpu.shadowCulled<<'\n';log.flush();
+            error="Distant-world diagnostic settled without its expected complete coverage or useful draw culling.";return false;
         }
         const uint64_t detailUploads=gpu.uploadedTilesByLod[0]-settledDetailUploads_;
         if((phase_==1&&detailUploads!=7)||(phase_==4&&detailUploads!=49)){
