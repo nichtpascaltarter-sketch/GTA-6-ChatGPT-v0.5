@@ -1,0 +1,161 @@
+{
+  "city_axial": {
+    "exit": 0,
+    "wall_seconds": 0.8684927029999017,
+    "boundary_samples": 96,
+    "cold": {
+      "route": "city_axial",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "-960.000000",
+      "y": "20.000000",
+      "z": "64.000000",
+      "cx": "-8",
+      "cz": "0",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "35.417708",
+      "combined_ms": "13.038562",
+      "total_ms": "48.456270",
+      "vertices": "650052",
+      "indices": "908556",
+      "chunk_used_bytes": "29688600",
+      "chunk_capacity_bytes": "42440320",
+      "combined_bytes": "29636304",
+      "rss_kib": "62116",
+      "hwm_kib": "62116"
+    },
+    "stream_ms": {
+      "median": 3.7519514999999997,
+      "p95": 4.287228,
+      "max": 4.852578
+    },
+    "combined_ms": {
+      "median": 3.7499960000000003,
+      "p95": 9.482903,
+      "max": 12.576947
+    },
+    "total_ms": {
+      "median": 7.5124195,
+      "p95": 13.692894,
+      "max": 16.549233
+    },
+    "new_tiles": {
+      "7": 96
+    },
+    "max_vertices": 726020,
+    "max_indices": 1026744,
+    "max_chunk_used_bytes": 33203096,
+    "max_chunk_capacity_bytes": 45548696,
+    "max_combined_bytes": 33147776,
+    "max_cpu_mesh_capacity_bytes": 78696472,
+    "peak_rss_kib": 104588
+  },
+  "city_diagonal": {
+    "exit": 0,
+    "wall_seconds": 1.169189505000304,
+    "boundary_samples": 96,
+    "cold": {
+      "route": "city_diagonal",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "-960.000000",
+      "y": "20.000000",
+      "z": "-960.000000",
+      "cx": "-8",
+      "cz": "-8",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "33.234299",
+      "combined_ms": "8.761047",
+      "total_ms": "41.995346",
+      "vertices": "647030",
+      "indices": "904452",
+      "chunk_used_bytes": "29552000",
+      "chunk_capacity_bytes": "39386392",
+      "combined_bytes": "29499008",
+      "rss_kib": "61524",
+      "hwm_kib": "61524"
+    },
+    "stream_ms": {
+      "median": 6.9834295,
+      "p95": 8.197973,
+      "max": 12.933142
+    },
+    "combined_ms": {
+      "median": 3.7332395,
+      "p95": 4.802889,
+      "max": 11.653696
+    },
+    "total_ms": {
+      "median": 10.731068,
+      "p95": 14.155213,
+      "max": 18.773687
+    },
+    "new_tiles": {
+      "13": 96
+    },
+    "max_vertices": 726020,
+    "max_indices": 1026744,
+    "max_chunk_used_bytes": 33203096,
+    "max_chunk_capacity_bytes": 45548696,
+    "max_combined_bytes": 33147776,
+    "max_cpu_mesh_capacity_bytes": 78696472,
+    "peak_rss_kib": 108356
+  },
+  "coastal_aircraft": {
+    "exit": 0,
+    "wall_seconds": 2.5262034480001603,
+    "boundary_samples": 510,
+    "cold": {
+      "route": "coastal_aircraft",
+      "pass": "0",
+      "sample": "0",
+      "kind": "cold",
+      "x": "2388.166016",
+      "y": "160.000000",
+      "z": "-4210.000000",
+      "cx": "18",
+      "cz": "-33",
+      "new_tiles": "49",
+      "retained_tiles": "0",
+      "stream_ms": "21.648387",
+      "combined_ms": "3.413829",
+      "total_ms": "25.062216",
+      "vertices": "240349",
+      "indices": "319557",
+      "chunk_used_bytes": "10900780",
+      "chunk_capacity_bytes": "27469280",
+      "combined_bytes": "10892188",
+      "rss_kib": "24204",
+      "hwm_kib": "24204"
+    },
+    "stream_ms": {
+      "median": 2.937515,
+      "p95": 3.946157,
+      "max": 10.134923
+    },
+    "combined_ms": {
+      "median": 1.688566,
+      "p95": 2.185663,
+      "max": 5.155297
+    },
+    "total_ms": {
+      "median": 4.654025000000001,
+      "p95": 6.399104,
+      "max": 12.842571
+    },
+    "new_tiles": {
+      "7": 510
+    },
+    "max_vertices": 378406,
+    "max_indices": 506622,
+    "max_chunk_used_bytes": 17175904,
+    "max_chunk_capacity_bytes": 33253248,
+    "max_combined_bytes": 17162728,
+    "max_cpu_mesh_capacity_bytes": 50415976,
+    "peak_rss_kib": 58104
+  }
+}
