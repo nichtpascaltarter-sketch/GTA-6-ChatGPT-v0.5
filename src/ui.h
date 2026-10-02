@@ -77,7 +77,7 @@ private:
     }
 };
 
-inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Renderer& renderer) {
+inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Renderer& renderer,const Vec3* waypoint=nullptr) {
     const float s=ui.scale,margin=30*s;char b[160];const Vec3 teal{.31f,.88f,.77f},gold{1,.74f,.36f},muted{.65f,.72f,.74f};
     ui.rect(margin,margin,5*s,39*s,teal);ui.text(margin+18*s,margin,g.world.district(g.player),2.5f*s);
     int hour=int(g.dayTime),minute=int((g.dayTime-hour)*60);
@@ -101,6 +101,11 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     if(edge>limit){ox*=limit/edge;oy*=limit/edge;float l=std::sqrt(ox*ox+oy*oy),dx=ox/l,dy=oy/l;
         ui.triangle({cx+ox+dx*5*s,cy+oy+dy*5*s},{cx+ox-dx*5*s-dy*4*s,cy+oy-dy*5*s+dx*4*s},{cx+ox-dx*5*s+dy*4*s,cy+oy-dy*5*s-dx*4*s},gold);
     }else marker(objective,gold,4);
+    if(waypoint){float dx=(waypoint->x-g.player.x)*map/(range*2),dy=-(waypoint->z-g.player.z)*map/(range*2);
+        float extent=std::max(std::fabs(dx),std::fabs(dy));if(extent>limit){dx*=limit/extent;dy*=limit/extent;}
+        ui.line(cx+dx-4*s,cy+dy,cx+dx+4*s,cy+dy,2*s,teal);ui.line(cx+dx,cy+dy-4*s,cx+dx,cy+dy+4*s,2*s,teal);
+        std::snprintf(b,sizeof(b),"WAYPOINT %.2f KM",length(*waypoint-g.player)*.001f);ui.text(ui.width-margin-260*s,110*s,b,1.4f*s,teal);
+    }
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
     const Mission* mission=g.missionInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;

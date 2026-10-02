@@ -19,6 +19,7 @@
 #include "renderer.h"
 #include "audio.h"
 #include "ui.h"
+#include "map_ui.h"
 
 namespace {
 using namespace mc;
@@ -51,8 +52,8 @@ void saveSettings(const std::filesystem::path& path,const Settings& s) {
 }
 struct App {
     HWND window=nullptr;bool running=true,active=true,resized=false,focusedMouse=false;
-    unsigned width=1600,height=900;std::array<bool,256> pressed{};float mouseX=0,mouseY=0;
-    bool title=true,menu=true,showSettings=false,diagnostics=false;int selected=0;
+    unsigned width=1600,height=900;std::array<bool,256> pressed{};float mouseX=0,mouseY=0,wheel=0;
+    bool title=true,menu=true,showSettings=false,diagnostics=false,mapOpen=false,mapClick=false;int selected=0;
     RECT windowed{};DWORD oldStyle=0;bool borderless=false;WORD padButtons=0;
     ~App(){if(focusedMouse){ClipCursor(nullptr);ReleaseCapture();ShowCursor(TRUE);}if(window&&IsWindow(window))DestroyWindow(window);}
 };
@@ -81,7 +82,9 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp) {
     case WM_GETMINMAXINFO:{auto* limits=reinterpret_cast<MINMAXINFO*>(lp);limits->ptMinTrackSize={960,580};return 0;}
     case WM_DPICHANGED:{if(!app->borderless){const auto* r=reinterpret_cast<const RECT*>(lp);SetWindowPos(hwnd,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);}return 0;}
     case WM_ACTIVATEAPP:app->active=wp!=0;if(!app->active)captureMouse(*app,false);return 0;
-    case WM_KILLFOCUS:app->pressed.fill(false);app->mouseX=app->mouseY=0;captureMouse(*app,false);return 0;
+    case WM_KILLFOCUS:app->pressed.fill(false);app->mouseX=app->mouseY=app->wheel=0;app->mapClick=false;captureMouse(*app,false);return 0;
+    case WM_MOUSEWHEEL:app->wheel+=float(GET_WHEEL_DELTA_WPARAM(wp))/WHEEL_DELTA;return 0;
+    case WM_LBUTTONDOWN:app->mapClick=true;return 0;
     case WM_KEYDOWN:case WM_SYSKEYDOWN:if(wp<256&&!(lp&(1ll<<30)))app->pressed[size_t(wp)]=true;if(message==WM_SYSKEYDOWN)return DefWindowProcW(hwnd,message,wp,lp);return 0;
     case WM_INPUT:if(app->focusedMouse){RAWINPUT input{};UINT size=sizeof(input);if(GetRawInputData(reinterpret_cast<HRAWINPUT>(lp),RID_INPUT,&input,&size,sizeof(RAWINPUTHEADER))==sizeof(RAWINPUT)&&input.header.dwType==RIM_TYPEMOUSE&&!(input.data.mouse.usFlags&MOUSE_MOVE_ABSOLUTE)){app->mouseX+=float(input.data.mouse.lLastX);app->mouseY+=float(input.data.mouse.lLastY);}}return DefWindowProcW(hwnd,message,wp,lp);
     case WM_SETCURSOR:if(app->focusedMouse){SetCursor(nullptr);return TRUE;}break;
@@ -119,7 +122,7 @@ void drawMenu(Ui& ui,const App& app,const Settings& settings,const Renderer& ren
     const char** items=app.showSettings?options:normal;int count=app.showSettings?6:4;
     for(int i=0;i<count;++i){float y=(344+i*48)*s;if(i==app.selected){ui.rect(46*s,y-12*s,panel-98*s,42*s,teal,.13f);ui.rect(46*s,y-12*s,3*s,42*s,teal);}ui.text(66*s,y,items[i],2*s,i==app.selected?Vec3{.94f,.98f,.95f}:muted);}
     if(app.showSettings&&!renderer.rayTracingAvailable())ui.text(56*s,658*s,"DXR UNAVAILABLE ON THIS ADAPTER",1.3f*s,{.98f,.68f,.38f});
-    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE    M ACCEPT CONTRACT",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    SPACE BRAKE / JUMP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
+    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE    M ACCEPT CONTRACT",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    TAB WORLD MAP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
     ui.text(56*s,ui.height-63*s,"ARROWS / DPAD SELECT   ENTER / A CONFIRM",1.25f*s,muted);
     ui.text(56*s,ui.height-37*s,"ORIGINAL WORLD. ORIGINAL SOUND.",1.25f*s,teal);
     if(ui.width>1100*s){float x=panel+45*s;ui.text(x,ui.height-142*s,"PORT SOLACE",2.2f*s);ui.text(x,ui.height-112*s,"THE COAST IS CALLING.",1.5f*s,teal);ui.wrapped(x,ui.height-83*s,"A stolen tide chart. A missing courier. One last job before the storm.",1.35f*s,ui.width-x-50*s,muted);}
@@ -152,7 +155,8 @@ int execute(HINSTANCE instance,const Options& options) {
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
-        auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;
+        auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;WorldMap worldMap;
+        if(options.smoke&&options.scene=="map"){app.mapOpen=true;worldMap.focus(game.player);}
         RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
@@ -183,18 +187,19 @@ int execute(HINSTANCE instance,const Options& options) {
             if(app.resized&&app.width&&app.height){if(!renderer.resize(app.width,app.height,error)){result=4;break;}app.resized=false;}
             const bool menuAtInput=app.menu;
             XINPUT_STATE state{};WORD padPressed=0;Input input=readInput(app,dt,state,padPressed);
+            if(!app.menu&&(app.pressed[VK_TAB]||(padPressed&XINPUT_GAMEPAD_BACK))){app.mapOpen=!app.mapOpen;if(app.mapOpen)worldMap.focus(game.player);}
             if(app.pressed[VK_F11]){settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);}
             if(app.pressed[VK_F3])app.diagnostics=!app.diagnostics;
-            if(app.pressed[VK_ESCAPE]||(padPressed&XINPUT_GAMEPAD_START)){if(app.showSettings){app.showSettings=false;app.selected=0;}else if(!app.title){app.menu=!app.menu;app.selected=0;}}
+            if(app.pressed[VK_ESCAPE]||(padPressed&XINPUT_GAMEPAD_START)){if(app.mapOpen)app.mapOpen=false;else if(app.showSettings){app.showSettings=false;app.selected=0;}else if(!app.title){app.menu=!app.menu;app.selected=0;}}
             if(app.menu){captureMouse(app,false);int count=app.showSettings?6:4;
                 if(app.pressed[VK_UP]||(padPressed&XINPUT_GAMEPAD_DPAD_UP))app.selected=(app.selected+count-1)%count;
                 if(app.pressed[VK_DOWN]||(padPressed&XINPUT_GAMEPAD_DPAD_DOWN))app.selected=(app.selected+1)%count;
                 bool confirm=app.pressed[VK_RETURN]||(padPressed&XINPUT_GAMEPAD_A);int direction=(app.pressed[VK_RIGHT]||(padPressed&XINPUT_GAMEPAD_DPAD_RIGHT)?1:0)-(app.pressed[VK_LEFT]||(padPressed&XINPUT_GAMEPAD_DPAD_LEFT)?1:0);
                 if(app.showSettings&&(confirm||direction)){switch(app.selected){case 0:settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);break;case 1:settings.vsync=!settings.vsync;break;case 2:settings.rayTracing=!settings.rayTracing;break;case 3:settings.volume=clamp(settings.volume+(direction?float(direction):1)*.05f,0,1);break;case 4:settings.exposure=clamp(settings.exposure+(direction?float(direction):1)*.1f,.5f,1.8f);break;case 5:app.showSettings=false;app.selected=0;break;}}
                 else if(!app.showSettings&&confirm){switch(app.selected){case 0:app.menu=app.title=false;break;case 1:app.showSettings=true;app.selected=0;break;case 2:game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=5;app.menu=app.title=false;break;case 3:app.running=false;break;}}
-            }else {captureMouse(app,!options.smoke);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
+            }else {captureMouse(app,!options.smoke&&!app.mapOpen);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
                 if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded){uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
-            if(!app.running)break;game.paused=app.menu||cinematic.active();
+            if(!app.running)break;game.paused=app.menu||app.mapOpen||cinematic.active();
             if(options.smoke){dt=1.f/60;input={};
                 if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
                 if(options.scene=="drive")input.moveY=.7f;
@@ -203,7 +208,16 @@ int execute(HINSTANCE instance,const Options& options) {
             }
             if(!app.menu){
                 presentationTime+=dt;
-                if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
+                if(app.mapOpen){
+                    const float zoom=app.wheel+float(app.pressed[VK_OEM_PLUS]||app.pressed[VK_ADD]||(padPressed&XINPUT_GAMEPAD_RIGHT_SHOULDER))-float(app.pressed[VK_OEM_MINUS]||app.pressed[VK_SUBTRACT]||(padPressed&XINPUT_GAMEPAD_LEFT_SHOULDER));
+                    worldMap.navigate(input.moveX,input.moveY,dt,zoom);
+                    if(app.pressed['F']||(padPressed&XINPUT_GAMEPAD_Y))worldMap.focus(game.player);
+                    if(app.pressed[VK_RETURN]||(padPressed&XINPUT_GAMEPAD_A))worldMap.placeCenter(game.world);
+                    if(app.mapClick){POINT point{};if(GetCursorPos(&point)&&ScreenToClient(app.window,&point))worldMap.place(float(point.x),float(point.y),float(app.width),float(app.height),std::max(.65f,app.height/900.f),game.world);}
+                    if(app.pressed[VK_DELETE]||(padPressed&XINPUT_GAMEPAD_X))worldMap.hasWaypoint=false;
+                    if(padPressed&XINPUT_GAMEPAD_B)app.mapOpen=false;
+                }
+                else if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
                 else {
                     int previousMission=game.activeMission;game.update(input,dt);
                     if(!options.smoke&&previousMission<0&&game.activeMission>=0){cinematic.start(game.activeMission,game.player,game.yaw);game.messageTime=0;}
@@ -213,17 +227,18 @@ int execute(HINSTANCE instance,const Options& options) {
             if(uploaded!=game.world.revision){Mesh world=game.world.combinedMesh();log<<"World revision "<<game.world.revision<<": "<<world.vertices.size()<<" vertices, "<<world.indices.size()/3<<" triangles\n";log.flush();if(!renderer.setWorld(world,error)){result=5;break;}uploaded=game.world.revision;}
             Mesh dynamic=game.dynamicMesh();std::vector<Light> lights=game.lightSources();ui.begin(float(app.width),float(app.height));
             if(app.menu)drawMenu(ui,app,settings,renderer);
+            else if(app.mapOpen)drawWorldMap(ui,game,worldMap);
             else if(cinematic.active())drawCinematic(ui,cinematic,game.missionInfo()?game.missionInfo()->title:nullptr);
-            else drawHud(ui,game,fps,app.diagnostics,renderer);
+            else drawHud(ui,game,fps,app.diagnostics,renderer,worldMap.hasWaypoint?&worldMap.waypoint:nullptr);
             RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.lights=&lights;frame.ui=&ui.vertices;
             if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(!renderer.render(frame,error)){result=6;break;}
-            AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu;
+            AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){audioState.engine=1;audioState.speed=game.vehicles[size_t(game.occupied)].speed;}audio.update(audioState);
             if(options.smoke&&renderer.frameCount()>=options.frames){if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
-            app.pressed.fill(false);
+            app.pressed.fill(false);app.wheel=0;app.mapClick=false;
         }
         captureMouse(app,false);
         if(result){log<<"ERROR "<<result<<": "<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast",MB_OK|MB_ICONERROR);}
