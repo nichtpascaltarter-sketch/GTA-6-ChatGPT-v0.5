@@ -333,7 +333,22 @@ void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 
         const float* a=strokes[*s-'a'];facadeLine(m,origin,along,a[0]*scale,a[1]*scale,a[2]*scale,a[3]*scale,.31f*scale,color,material);
     }
 }
-void shopfront(Chunk& chunk,Vec3 p,float width,float yaw,uint32_t seed,bool illuminated) {
+struct ShopfrontSpec {
+    Vec3 origin;float width=0,yaw=0;uint32_t seed=0;bool illuminated=false,residential=false;
+    Vec3 outward() const {return rotated({0,0,-1},yaw);}
+    Vec3 door() const {return origin+rotated({width*.65f,0,-.3f},yaw);}
+};
+ShopfrontSpec buildingShopfront(const worldGeometry::BuildingSpec& building,bool west) {
+    const auto p=building.position;const float hx=building.halfWidth,hz=building.halfDepth;
+    const int cx=int(std::floor(p.x/128)),cz=int(std::floor(p.z/128));
+    const bool home=west&&std::abs(cx)<=1&&std::abs(cz)<=1&&p.z-cz*128<64;
+    return {p+(west?Vec3{-hx-.04f,0,0}:Vec3{0,0,-hz-.04f}),
+        (west?hz:hx)*.86f,west?Pi*.5f:0,building.seed+(west?3u:0u),
+        building.seed%(west?5u:3u)==0,home};
+}
+void shopfront(Chunk& chunk,const ShopfrontSpec& spec) {
+    const Vec3 p=spec.origin;const float width=spec.width,yaw=spec.yaw;
+    const uint32_t seed=spec.seed;const bool illuminated=spec.illuminated;
     Mesh& m=chunk.mesh;
     static const char* names[]={"LOW TIDE","CITRUS","GULL CAFE","ORBIT VINYL","SUN MART","RELAY","MESA DELI","TIDAL TEA"};
     Vec3 along=rotated({1,0,0},yaw),out=rotated({0,0,-1},yaw);
@@ -346,14 +361,14 @@ void shopfront(Chunk& chunk,Vec3 p,float width,float yaw,uint32_t seed,bool illu
         addBox(m,q+along*(width*.18f),{.045f,1.6f,.10f},{.60f,.63f,.56f},yaw,1);
     }
     addBox(m,p+Vec3{0,3.92f,0}+out*.22f,{width,.61f,.12f},awning,yaw);
-    signText(m,p+Vec3{0,3.46f,0}+out*.37f,along,names[seed%8],std::min(.15f,width*.033f),{.95f,.85f,.59f});
+    signText(m,p+Vec3{0,3.46f,0}+out*.37f,along,spec.residential?"RESIDENTS":names[seed%8],std::min(.15f,width*.033f),{.95f,.85f,.59f});
     for(int k=0;k<12;++k) {
         float a=-width+k*width/6,b=a+width/6;
         Vec3 color=k%2?awning:Vec3{.81f,.76f,.59f};
         addQuad(m,p+along*a+Vec3{0,3.2f,0}+out*.25f,p+along*b+Vec3{0,3.2f,0}+out*.25f,p+along*b+Vec3{0,2.85f,0}+out*1.8f,p+along*a+Vec3{0,2.85f,0}+out*1.8f,color);
         addQuad(m,p+along*a+Vec3{0,2.85f,0}+out*1.8f,p+along*b+Vec3{0,2.85f,0}+out*1.8f,p+along*b+Vec3{0,2.63f,0}+out*1.8f,p+along*a+Vec3{0,2.63f,0}+out*1.8f,color);
     }
-    addBox(m,p+along*(width*.65f)+Vec3{0,1.38f,0}+out*.3f,{.83f,1.38f,.06f},{.09f,.17f,.18f},yaw,2);
+    addBox(m,spec.door()+Vec3{0,1.38f,0},{.83f,1.38f,.06f},{.09f,.17f,.18f},yaw,2);
     addBox(m,p+along*(width*.65f+.54f)+Vec3{0,1.15f,0}+out*.4f,{.035f,.26f,.045f},{.74f,.71f,.58f},yaw,1);
     if(illuminated) {
         Vec3 light=p+Vec3{0,3.07f,0}+out*.65f,across=along*std::min(1.4f,width*.23f),depth=out*.08f;
@@ -461,8 +476,8 @@ void building(Chunk& chunk,const worldGeometry::BuildingSpec& spec,WorldLod lod=
             }
         }
         if(detail) {
-        shopfront(chunk,p+Vec3{0,0,-hz-.04f},hx*.86f,0,seed,seed%3==0);
-        shopfront(chunk,p+Vec3{-hx-.04f,0,0},hz*.86f,Pi*.5f,seed+3,seed%5==0);
+        shopfront(chunk,buildingShopfront(spec,false));
+        shopfront(chunk,buildingShopfront(spec,true));
         }
         box(p+Vec3{-hx*.32f,h+1.0f,hz*.2f},{2.3f,.8f,1.45f},{.45f,.48f,.47f},0,1);
     }
@@ -520,10 +535,33 @@ void planter(Mesh& m,Vec3 p,float scale,uint32_t seed) {
     addBox(m,p+Vec3{0,.35f,0},{2.2f,.35f,2.2f},{.58f,.55f,.45f});
     addBox(m,p+Vec3{0,.73f,0},{1.9f,.04f,1.9f},{.20f,.28f,.10f});p.y+=.76f;palm(m,p,scale,seed);
 }
-void bench(Mesh& m,Vec3 p,float yaw) {
-    addBox(m,p+Vec3{0,.58f,0},{1.3f,.10f,.40f},{.49f,.29f,.13f},yaw);
-    addBox(m,p+rotated({0,.98f,.34f},yaw),{1.3f,.32f,.07f},{.49f,.29f,.13f},yaw);
-    for(float a:{-.92f,.92f})addBox(m,p+rotated({a,.25f,0},yaw),{.08f,.25f,.32f},{.18f,.22f,.23f},yaw,1);
+void solidBox(Chunk& chunk,Vec3 center,Vec3 half,float yaw=0) {
+    const float c=std::abs(std::cos(yaw)),s=std::abs(std::sin(yaw));
+    const Vec3 extent{half.x*c+half.z*s,half.y,half.x*s+half.z*c};
+    chunk.solids.push_back({center-extent,center+extent});
+}
+constexpr float BenchSeatTop=.40f;
+struct BenchSpec {Vec3 origin;float yaw=0;};
+BenchSpec plazaBench(float x,float z,float height,int index) {
+    // The fourth original bench overlapped the market building. Its usable home is the south court.
+    return {{x+26+index*25,height+.08f,z+((x==0&&z==0&&index==3)?88.0f:41.0f)},0};
+}
+struct ShelterSpec {
+    Vec3 origin;float yaw=0;
+    Vec3 along() const {return rotated({0,0,1},yaw);}
+    Vec3 across() const {return rotated({1,0,0},yaw);}
+    BenchSpec bench() const {return {origin-across()*.1f+Vec3{0,.02f,0},yaw+Pi*.5f};}
+};
+ShelterSpec furnitureShelter(Vec3 p,float yaw) {
+    return {p+rotated({4,0,21},yaw),yaw};
+}
+Vec3 marketStall(Vec3 arcade,int index) {return arcade+Vec3{0,0,index*19.0f};}
+void bench(Chunk& chunk,const BenchSpec& spec) {
+    Mesh& m=chunk.mesh;const Vec3 p=spec.origin;const float yaw=spec.yaw;
+    addBox(m,p+Vec3{0,BenchSeatTop-.06f,0},{1.3f,.06f,.40f},{.49f,.29f,.13f},yaw);
+    addBox(m,p+rotated({0,.70f,.34f},yaw),{1.3f,.30f,.07f},{.49f,.29f,.13f},yaw);
+    for(float a:{-.92f,.92f})addBox(m,p+rotated({a,.16f,0},yaw),{.08f,.16f,.32f},{.18f,.22f,.23f},yaw,1);
+    solidBox(chunk,p+Vec3{0,.50f,0},{1.3f,.50f,.41f},yaw);
 }
 void streetFurniture(Chunk& chunk,Vec3 p,float yaw,uint32_t seed) {
     Mesh& m=chunk.mesh;Vec3 along=rotated({0,0,1},yaw),across=rotated({1,0,0},yaw);
@@ -539,11 +577,17 @@ void streetFurniture(Chunk& chunk,Vec3 p,float yaw,uint32_t seed) {
     addCylinder(m,hydrant+Vec3{0,.62f,0},.24f,.12f,{.83f,.59f,.24f},8);
     addBox(m,hydrant+Vec3{0,.42f,0},{.34f,.08f,.08f},{.75f,.40f,.19f},yaw,1);
     if(seed%3==0) {
-        Vec3 shelter=p+across*4+along*21;
-        for(float a:{-2.8f,2.8f})for(float b:{-.85f,.85f})addBox(m,shelter+along*a+across*b+Vec3{0,1.5f,0},{.065f,1.5f,.065f},{.23f,.32f,.33f},yaw,1);
+        const auto shelterSpec=furnitureShelter(p,yaw);const Vec3 shelter=shelterSpec.origin;
+        for(float a:{-2.8f,2.8f})for(float b:{-.85f,.85f}) {
+            const Vec3 post=shelter+along*a+across*b+Vec3{0,1.5f,0};
+            addBox(m,post,{.065f,1.5f,.065f},{.23f,.32f,.33f},yaw,1);
+            solidBox(chunk,post,{.065f,1.5f,.065f},yaw);
+        }
         addBox(m,shelter+Vec3{0,3.0f,0},{1.2f,.14f,3.25f},{.18f,.29f,.30f},yaw);
         addBox(m,shelter+across*.90f+Vec3{0,1.65f,0},{.04f,1.12f,2.75f},{.20f,.36f,.39f},yaw,2);
-        bench(m,shelter-across*.1f+Vec3{0,.02f,0},yaw+Pi*.5f);
+        solidBox(chunk,shelter+Vec3{0,3.0f,0},{1.2f,.14f,3.25f},yaw);
+        solidBox(chunk,shelter+across*.90f+Vec3{0,1.65f,0},{.04f,1.12f,2.75f},yaw);
+        bench(chunk,shelterSpec.bench());
         Vec3 stop=p+along*16;
         addCylinder(m,stop,.05f,3.45f,{.49f,.56f,.54f},5,1);
         addBox(m,stop+Vec3{0,3.10f,0},{.34f,.34f,.05f},{.08f,.36f,.39f},yaw,1);
@@ -585,9 +629,9 @@ void clockPavilion(Chunk& chunk,Vec3 p,WorldLod lod=WorldLod::Detail) {
 void marketArcade(Chunk& chunk,Vec3 p,WorldLod lod=WorldLod::Detail) {
     Mesh& m=chunk.mesh;
     for(int shop=0;shop<3;++shop) {
-        Vec3 q=p+Vec3{0,0,shop*19.0f};
+        Vec3 q=marketStall(p,shop);
         addBox(m,q+Vec3{0,2.5f,0},{7,2.5f,7.7f},{.73f,.63f,.43f});
-        if(lod==WorldLod::Detail)shopfront(chunk,q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2),true);
+        if(lod==WorldLod::Detail)shopfront(chunk,{q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2),true});
         roofGable(m,q+Vec3{0,5,0},7.6f,8.3f,2.6f,{.48f,.24f,.13f});
         if(lod==WorldLod::Detail) {
         addBox(m,q+Vec3{-8.1f,1.0f,8.2f},{1.7f,1,1.4f},{.22f,.34f,.20f});
@@ -614,7 +658,16 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,const worldGeometry::
         addCylinder(m,{x+64,h+.85f,z+64},2.0f,1.2f,{.67f,.63f,.51f},12);
         addBox(m,{x+64,h+4.5f,z+64},{.7f,3.0f,.7f},{.54f,.68f,.63f},.7f,1);
         addBox(m,{x+64,h+6.9f,z+64},{3.5f,.55f,.55f},{.54f,.68f,.63f},-.45f,1);
-        if(lod==WorldLod::Detail)c.solids.push_back({{x+62,h,z+62},{x+66,h+8,z+66}});
+        if(lod==WorldLod::Detail) {
+            c.solids.push_back({{x+62,h,z+62},{x+66,h+8,z+66}});
+            // Thin circumscribed bands cover the entire basin, including its shallow water.
+            for(int band=0;band<24;++band) {
+                const float low=-12.0f+band,high=low+1;
+                const float nearest=low>0?low:high<0?-high:0;
+                const float radius=std::sqrt(144-nearest*nearest);
+                c.solids.push_back({{x+64-radius,h,z+64+low},{x+64+radius,h+.86f,z+64+high}});
+            }
+        }
     }
     if(c.x==0 && c.z==0) {
         clockPavilion(c,{x+44,h,z+98},lod);
@@ -629,7 +682,7 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,const worldGeometry::
         if(lod==WorldLod::Detail)planter(m,{px,w.height(px,pz),pz},1.05f,seedAt(k,j,42));
         else coarseTree(m,{{px,w.height(px,pz)+.76f,pz},1.05f,seedAt(k,j,42),worldGeometry::TreeKind::Palm},lod);
     }
-    if(lod==WorldLod::Detail)for(int i=0;i<4;++i) bench(m,{x+26+i*25,h+.08f,z+41},0);
+    if(lod==WorldLod::Detail)for(int i=0;i<4;++i)bench(c,plazaBench(x,z,h,i));
 }
 void clinicLaunch(Chunk& c,WorldLod lod=WorldLod::Detail) {
     Mesh& m=c.mesh;const Vec3 origin=ClinicLaunch.origin;
@@ -846,6 +899,67 @@ BlockSpec describeBlock(const World& world,int cx,int cz) {
         if(!world.road(px,pz)&&!siteReserve(px,pz))block.buildings.push_back(describeBuilding({px,world.height(px,pz),pz},12,19,6.5f,block.seed,true));
     }
     return block;
+}
+std::vector<PedestrianPlace> describePedestrianPlaces(const World& world,int cx,int cz) {
+    std::vector<PedestrianPlace> places;
+    // This authored neighborhood has complete markings and known exterior destinations.
+    if(std::abs(cx)>1||std::abs(cz)>1)return places;
+    const auto block=describeBlock(world,cx,cz);if(!block.urban)return places;
+    const float x=cx*128.0f,z=cz*128.0f;
+    const uint32_t prefix=(uint32_t(cx+64)<<16)|(uint32_t(cz+64)<<8);
+    auto ground=[&](Vec3 p){p.y=world.height(p.x,p.z);return p;};
+    auto add=[&](int slot,int site,PedestrianPlaceKind kind,Vec3 position,Vec3 approach,float yaw,bool sheltered,Vec3 seat=Vec3{}) {
+        PedestrianPlace place;place.id=prefix|uint32_t(128+slot);place.siteId=prefix|uint32_t(128+site);
+        place.kind=kind;place.position=ground(position);place.approach=ground(approach);
+        place.seatPosition=kind==PedestrianPlaceKind::Seat?seat:place.position;
+        place.yaw=yaw;place.sheltered=sheltered;places.push_back(place);
+    };
+    for(const auto& building:block.buildings) {
+        if(building.suburban)continue;
+        const bool front=building.position.z-z<64;
+        const int lot=(front?0:2)+(building.position.x-x<64?0:1);
+        const auto facade=buildingShopfront(building,front);
+        const Vec3 position=facade.door()+facade.outward()*1.0f;
+        // Exterior entrances join the clear inter-building alleys, not a line through the facade.
+        Vec3 approach=position;
+        if(front)approach.x=x+(lot==0?13.2f:64.0f);
+        else approach.z=z+64;
+        add(lot,lot,front?PedestrianPlaceKind::Home:PedestrianPlaceKind::Work,
+            position,approach,facade.yaw,true);
+    }
+    if(block.garage) {
+        const auto garage=World::garageSite();const Vec3 position=garage.pedestrianDoor+Vec3{0,0,1.5f};
+        add(8,8,PedestrianPlaceKind::Work,position,position+Vec3{0,0,2},Pi,false);
+    }
+    for(int edge:{0,2}) {
+        const uint32_t seed=block.seed+uint32_t(edge)*13;if(seed%3!=0)continue;
+        const Vec3 p=ground(edge==0?Vec3{x+12,0,z+64}:Vec3{x+64,0,z+12})+Vec3{0,.14f,0};
+        const auto shelter=furnitureShelter(p,edge==0?0:-Pi*.5f);
+        const Vec3 position=shelter.origin-shelter.across()*.8f+shelter.along()*2;
+        add(40+edge/2,40+edge/2,PedestrianPlaceKind::Shelter,position,position-shelter.across()*2,shelter.yaw-Pi*.5f,true);
+    }
+    if(cx==0&&cz==0) {
+        const float h=world.height(64,64);
+        for(int stall=0;stall<3;++stall) {
+            const Vec3 counter=marketStall({96,h,35},stall),position=counter+Vec3{-10.5f,0,0};
+            add(16+stall,16+stall,PedestrianPlaceKind::Market,position,position+Vec3{-2,0,0},Pi*.5f,false);
+        }
+        for(int index=0;index<4;++index) {
+            const auto seat=plazaBench(0,0,h,index);
+            for(int side=0;side<2;++side) {
+                const float offset=side?.65f:-.65f;
+                const Vec3 position=seat.origin+rotated({offset,0,-1.05f},seat.yaw);
+                const Vec3 pelvis=seat.origin+rotated({offset,BenchSeatTop+.11f,0},seat.yaw);
+                add(24+index*2+side,24+index*2,PedestrianPlaceKind::Seat,position,
+                    position+rotated({0,0,-2},seat.yaw),seat.yaw+Pi,false,pelvis);
+            }
+        }
+        add(48,48,PedestrianPlaceKind::Conversation,{49.5f,h,63},{47.5f,h,63},0,false);
+        add(49,48,PedestrianPlaceKind::Conversation,{49.5f,h,65},{47.5f,h,65},Pi,false);
+        add(50,50,PedestrianPlaceKind::Conversation,{54,h,98},{54,h,96},Pi*.5f,false);
+        add(51,50,PedestrianPlaceKind::Conversation,{56,h,98},{56,h,96},-Pi*.5f,false);
+    }
+    return places;
 }
 std::vector<TreeSpec> describeNaturalTrees(const World& world,int cx,int cz) {
     const float x=cx*World::ChunkSize,z=cz*World::ChunkSize;
@@ -1279,7 +1393,14 @@ Chunk World::generate(int cx,int cz,WorldLod lod) const {
             }
         }
         // Zebra crossings are set back from every central city intersection.
-        if(localRoadStep(x+64,z+64)==128)for(int i=0;i<6;++i) {
+        if(std::abs(cx)<=1&&std::abs(cz)<=1) {
+            // Each chunk owns its half of every crossing; adjacent halves meet at the road centre.
+            for(float corner:{16.5f,111.5f})for(int side=0;side<2;++side)for(int i=0;i<6;++i) {
+                const float lo=side?128-i*1.5f-.8f:i*1.5f,hi=lo+.8f;
+                groundPatch(m,*this,x+lo,z+corner-1.5f,x+hi,z+corner+1.5f,{.82f,.81f,.70f},.06f);
+                groundPatch(m,*this,x+corner-1.5f,z+lo,x+corner+1.5f,z+hi,{.82f,.81f,.70f},.06f);
+            }
+        } else if(localRoadStep(x+64,z+64)==128)for(int i=0;i<6;++i) {
             groundPatch(m,*this,x+15,z+i*1.5f,x+18,z+i*1.5f+.8f,{.82f,.81f,.70f},.06f);
             groundPatch(m,*this,x+i*1.5f,z+15,x+i*1.5f+.8f,z+18,{.82f,.81f,.70f},.06f);
         }

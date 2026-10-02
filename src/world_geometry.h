@@ -2,6 +2,8 @@
 #include "world.h"
 
 namespace mc::worldGeometry {
+// Pure authored exterior destinations; navigation validates routes against resident collision.
+std::vector<PedestrianPlace> describePedestrianPlaces(const World&,int x,int z);
 // Resolved once before either emitter: height is the actual style-limited body height.
 struct BuildingSpec {
     Vec3 position;
