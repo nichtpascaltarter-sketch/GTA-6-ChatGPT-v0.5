@@ -10,6 +10,7 @@ struct RenderFrame {
     Vec3 eye,target;float time=0,dayTime=17,rain=0;
     bool rayTracing=true,vsync=true;float exposure=1;
     const Mesh* dynamic=nullptr;
+    const std::vector<Light>* lights=nullptr;
     const std::vector<UiVertex>* ui=nullptr;
 };
 class Renderer {

@@ -140,7 +140,7 @@ int execute(HINSTANCE instance,const Options& options) {
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
         Game game;game.initialize();if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         if(options.smoke){
-            if(options.scene=="coast"){game.player={2380,0,260};game.yaw=1.4f;game.pitch=.10f;}
+            if(options.scene=="coast"){game.player={2510,0,260};game.yaw=1.4f;game.pitch=.10f;}
             else if(options.scene=="wetland"){game.player={1024,0,-2560};game.yaw=.5f;game.pitch=.13f;}
             else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
             else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
@@ -158,6 +158,11 @@ int execute(HINSTANCE instance,const Options& options) {
             auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);fps=lerp(fps,1/std::max(elapsed,.0001f),.04f);
             if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(IsIconic(app.window)){WaitMessage();last=std::chrono::steady_clock::now();continue;}
+            if(options.smoke&&options.scene=="lifecycle"){
+                if(renderer.frameCount()==30){SetWindowPos(app.window,nullptr,0,0,1280,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);log<<"Lifecycle: resize at frame 30\n";}
+                if(renderer.frameCount()==60){fullscreen(app,true);log<<"Lifecycle: fullscreen at frame 60\n";}
+                if(renderer.frameCount()==90){fullscreen(app,false);log<<"Lifecycle: windowed at frame 90\n";}
+            }
             if(app.resized&&app.width&&app.height){if(!renderer.resize(app.width,app.height,error)){result=4;break;}app.resized=false;}
             const bool menuAtInput=app.menu;
             XINPUT_STATE state{};WORD padPressed=0;Input input=readInput(app,dt,state,padPressed);
@@ -189,12 +194,14 @@ int execute(HINSTANCE instance,const Options& options) {
             }
             game.world.stream(game.player);
             if(uploaded!=game.world.revision){Mesh world=game.world.combinedMesh();log<<"World revision "<<game.world.revision<<": "<<world.vertices.size()<<" vertices, "<<world.indices.size()/3<<" triangles\n";log.flush();if(!renderer.setWorld(world,error)){result=5;break;}uploaded=game.world.revision;}
-            Mesh dynamic=game.dynamicMesh();ui.begin(float(app.width),float(app.height));
+            Mesh dynamic=game.dynamicMesh();std::vector<Light> lights=game.lightSources();ui.begin(float(app.width),float(app.height));
             if(app.menu)drawMenu(ui,app,settings,renderer);
             else if(cinematic.active())drawCinematic(ui,cinematic,game.missionInfo()?game.missionInfo()->title:nullptr);
             else drawHud(ui,game,fps,app.diagnostics,renderer);
-            RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.ui=&ui.vertices;
+            RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.lights=&lights;frame.ui=&ui.vertices;
             if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
+            if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
+            if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(!renderer.render(frame,error)){result=6;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu;
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){audioState.engine=1;audioState.speed=game.vehicles[size_t(game.occupied)].speed;}audio.update(audioState);

@@ -27,6 +27,7 @@ struct Game {
     void initialize();
     void update(const Input&,float dt);
     Mesh dynamicMesh() const;
+    std::vector<Light> lightSources() const;
     Vec3 cameraEye() const; Vec3 cameraTarget() const;
     Vec3 missionTarget() const;
     const Mission* missionInfo() const;

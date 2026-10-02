@@ -7,9 +7,10 @@ namespace mc {
 struct Vertex { Vec3 position; Vec3 normal; Vec3 color; float material=0; };
 struct Mesh { std::vector<Vertex> vertices; std::vector<uint32_t> indices; void clear(){vertices.clear();indices.clear();} };
 struct Box {Vec3 min,max;};
+struct Light {Vec3 position;float radius=24;Vec3 color{1,.72f,.4f};float intensity=70;Vec3 direction{0,-1,0};float cone=-1;};
 enum class Biome { Downtown, Residential, Countryside, Wetland, Beach, Island, Ocean };
 struct Landmark { Vec3 position; const char* name; };
-struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;};
+struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights;};
 // Material: 0 matte, 1 metal, 2 window/emissive, 3 water, 4 road.
 void addBox(Mesh&,Vec3 center,Vec3 half,Vec3 color,float yaw=0,float material=0);
 void addCylinder(Mesh&,Vec3 bottom,float radius,float height,Vec3 color,int sides=8,float material=0);
