@@ -1089,7 +1089,7 @@ void legacySaveMigration() {
     std::ifstream input(save.path, std::ios::binary);
     const std::vector<char> current((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(current, 8) == 3, "new saves do not use version 3");
+    require(littleEndian(current, 8) == 4, "new saves do not use version 4");
     require(littleEndian(current, 112) == legacyVehicleCount,
             "migration fixture has an unexpected vehicle count");
     constexpr size_t vehicleStart = 116, currentStride = 76, legacyStride = 64;
@@ -1100,7 +1100,7 @@ void legacySaveMigration() {
         const size_t start = vehicleStart + i * currentStride;
         legacy.insert(legacy.end(), current.begin() + start, current.begin() + start + legacyStride);
     }
-    legacy.insert(legacy.end(), current.begin() + tail, current.end() - 4);
+    legacy.insert(legacy.end(), current.begin() + tail, current.end() - 16);
     setLittleEndian(legacy, 8, 1);
     setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
     refreshSaveChecksum(legacy);
@@ -1122,7 +1122,7 @@ void legacySaveMigration() {
     require(countKind(mc::VehicleKind::Boat) == 1 && countKind(mc::VehicleKind::Aircraft) == 1,
             "legacy migration duplicated or omitted a starter craft");
     require(game.save(save.path.string()) && game.load(save.path.string()),
-            "migrated save could not be saved and reloaded as version 3");
+            "migrated save could not be saved and reloaded as version 4");
     require(game.vehicles.size() == legacyVehicleCount + 2,
             "reloading a migrated save duplicated starter craft");
 }
@@ -1141,8 +1141,8 @@ void versionTwoSaveMigration() {
     std::ifstream input(save.path, std::ios::binary);
     std::vector<char> legacy((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(legacy, 8) == 3, "version 2 fixture requires a version 3 source save");
-    legacy.resize(legacy.size() - 4);
+    require(littleEndian(legacy, 8) == 4, "version 2 fixture requires a version 4 source save");
+    legacy.resize(legacy.size() - 16);
     setLittleEndian(legacy, 8, 2);
     setLittleEndian(legacy, 12, static_cast<uint32_t>(legacy.size() - 20));
     refreshSaveChecksum(legacy);
@@ -1157,7 +1157,7 @@ void versionTwoSaveMigration() {
     require(game.save(save.path.string()), "migrated version 2 save could not be upgraded");
     std::ifstream upgradedInput(save.path, std::ios::binary);
     const std::vector<char> upgraded((std::istreambuf_iterator<char>(upgradedInput)), {});
-    require(littleEndian(upgraded, 8) == 3 && littleEndian(upgraded, upgraded.size() - 4) == 0,
+    require(littleEndian(upgraded, 8) == 4 && littleEndian(upgraded, upgraded.size() - 16) == 0,
             "version 2 migration did not initialize the rescue hold to zero");
 }
 
@@ -1222,7 +1222,7 @@ void rescueContractAndHoldPersistence() {
     input.close();
     for (uint32_t invalidHold : {0x7fc00000u, 0xbf800000u, 0x40800000u}) {
         std::vector<char> corrupted = original;
-        setLittleEndian(corrupted, corrupted.size() - 4, invalidHold);
+        setLittleEndian(corrupted, corrupted.size() - 16, invalidHold);
         refreshSaveChecksum(corrupted);
         writeBytes(save.path, corrupted);
         require(!game.load(save.path.string()) && game.activeMission == 4 && game.missionStage == 1,
@@ -1527,6 +1527,448 @@ void craftContractVisualsSurviveLoad() {
             "survey gate was flattened to the terrain instead of retaining its flight altitude");
 }
 
+void requestHarborSplit(mc::Game& game) {
+    game.occupied = -1;
+    game.player = mc::Game::harborSplitContact();
+    game.wanted = 0;
+    tick(game);
+    mc::Input request;
+    request.mission = true;
+    tick(game, request);
+    require(game.harborSplit.phase == mc::TrialPhase::Boarding,
+            "Harbor Split did not offer a motorcycle at its contact");
+}
+
+size_t beginHarborSplit(mc::Game& game) {
+    requestHarborSplit(game);
+    // A replacement bay can sit farther along the curb when the old vehicle blocks it.
+    for (int frame = 0; frame < 300 && mc::length(game.objectiveTarget() - game.player) > 5.8f; ++frame) {
+        const mc::Vec3 direction = mc::normalized(game.objectiveTarget() - game.player);
+        mc::Input approach;
+        approach.moveY = mc::dot(direction, mc::forward(game.yaw));
+        approach.moveX = mc::dot(direction, mc::right(game.yaw));
+        tick(game, approach);
+    }
+    mc::Input board;
+    board.interact = true;
+    tick(game, board);
+    require(game.occupied >= 0 && game.harborSplit.phase == mc::TrialPhase::Countdown,
+            "boarding the loan bike did not begin the start countdown");
+    const size_t bike = size_t(game.occupied);
+    require(game.vehicles[bike].kind == mc::VehicleKind::Motorcycle,
+            "Harbor Split supplied the wrong vehicle kind");
+    tick(game, {}, 181);
+    require(game.harborSplit.phase == mc::TrialPhase::Running,
+            "Harbor Split countdown did not release the rider");
+    return bike;
+}
+
+void finishHarborSplit(mc::Game& game, size_t bike, float time) {
+    const auto& course = mc::Game::harborSplitCourse();
+    for (size_t i = size_t(game.harborSplit.checkpoint); i < course.size(); ++i) {
+        positionCraft(game, bike, course[i]);
+        if (i + 1 == course.size()) game.harborSplit.elapsed = time - 1.0f / 60.0f;
+        tick(game);
+        if (i + 1 < course.size())
+            require(game.harborSplit.checkpoint == int(i + 1),
+                    "an ordered motorcycle gate failed to advance exactly once");
+    }
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive,
+            "the final Harbor Split gate did not end the run");
+}
+
+void harborSplitStartAndObjectives() {
+    mc::Game game;
+    require(!game.objectiveIsTrial() && game.objectiveInfo() == game.missionInfo(),
+            "distant side activity displaced the early-game story objective");
+    mc::Input request;
+    request.mission = true;
+    game.player = mc::Game::harborSplitContact();
+    require(game.objectiveIsTrial(), "nearby trial contact was not identified as a trial objective");
+    game.activeMission = 0;
+    tick(game, request);
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive && game.activeMission == 0,
+            "Harbor Split replaced an active story mission");
+    require(!game.objectiveIsTrial() && game.objectiveInfo() == game.missionInfo() &&
+            mc::length(game.objectiveTarget() - game.missionTarget()) < .001f,
+            "inactive side activity changed the story objective");
+    game.activeMission = -1;
+    game.wanted = 3;
+    tick(game);
+    tick(game, request);
+    require(game.wanted > 0 && game.harborSplit.phase == mc::TrialPhase::Inactive,
+            "Harbor Split accepted a rider under pursuit");
+
+    requestHarborSplit(game);
+    require(game.activeMission == -1 && game.completedMissions == 0 &&
+            game.missionInfo() == &mc::Game::missions()[0],
+            "side activity changed campaign progress or mission API semantics");
+    require(game.objectiveIsTrial() && game.objectiveInfo() != game.missionInfo() && game.objectiveActive() &&
+            std::string(game.objectiveInfo()->title) == "HARBOR SPLIT",
+            "side activity was not presented as the current objective");
+    verifyDynamicMesh(game.dynamicMesh(), "Harbor Split staging");
+    tick(game, request, 5);
+    require(game.harborSplit.phase == mc::TrialPhase::Boarding,
+            "holding M repeatedly cancelled or restarted the side activity");
+    mc::Input board;
+    board.interact = true;
+    tick(game, board);
+    require(game.harborSplit.phase == mc::TrialPhase::Countdown,
+            "the accessible curbside loan bike did not reach countdown");
+    verifyDynamicMesh(game.dynamicMesh(), "Harbor Split countdown");
+    const mc::Vec3 start = game.player;
+    mc::Input accelerate;
+    accelerate.moveY = accelerate.moveX = 1;
+    tick(game, accelerate, 90);
+    require(mc::length(game.player - start) < .001f &&
+            close(game.vehicles[size_t(game.occupied)].speed, 0) &&
+            close(game.harborSplit.elapsed, 0),
+            "countdown allowed acceleration, steering, or a false start");
+    const float countdown = game.harborSplit.countdown;
+    game.paused = true;
+    tick(game, accelerate, 180);
+    require(close(game.harborSplit.countdown, countdown), "pause advanced the race countdown");
+    game.paused = false;
+    tick(game, {}, 92);
+    require(game.harborSplit.phase == mc::TrialPhase::Running &&
+            game.harborSplit.checkpoint == 0 && game.harborSplit.elapsed < .1f,
+            "countdown did not transition cleanly into the first gate");
+    require(mc::length(game.objectiveTarget() - mc::Game::harborSplitCourse()[0]) < .001f &&
+            game.objectiveTimeRemaining() > mc::Game::harborSplitLimit() - .1f &&
+            std::string(game.objectiveInstruction()).find("GATE 1") != std::string::npos,
+            "running objective omitted its gate or remaining time");
+    verifyDynamicMesh(game.dynamicMesh(), "Harbor Split first gate");
+}
+
+void harborSplitFailuresAndLoans() {
+    for (int failure = 0; failure < 7; ++failure) {
+        mc::Game game;
+        game.harborSplit.bestTime = 80;
+        game.harborSplit.medal = 3;
+        const size_t bike = beginHarborSplit(game);
+        const int money = game.money;
+        mc::Input action;
+        if (failure == 0) action.mission = true;
+        if (failure == 1) action.interact = true;
+        if (failure == 2) game.vehicles[bike].health = 0;
+        if (failure == 3) game.harborSplit.elapsed = mc::Game::harborSplitLimit();
+        if (failure == 4) game.vehicles[bike].kind = mc::VehicleKind::Car;
+        if (failure == 5) {
+            mc::Vehicle replacement = game.vehicles[bike];
+            replacement.position = mc::Game::harborSplitCourse()[0];
+            game.vehicles.push_back(replacement);
+            game.occupied = int(game.vehicles.size() - 1);
+            game.player = replacement.position;
+        }
+        if (failure == 6) game.health = 0;
+        tick(game, action);
+        const int expectedMoney = failure == 6 ? std::max(0, money - 100) : money;
+        require(game.harborSplit.phase == mc::TrialPhase::Inactive && game.money == expectedMoney &&
+                close(game.harborSplit.bestTime, 80) && game.harborSplit.medal == 3,
+                "withdrawal, dismount, vehicle loss, swap, or timeout awarded/reset a record");
+        require(game.activeMission == -1 && game.completedMissions == 0,
+                "failed side activity changed campaign progress");
+        const size_t replacement = beginHarborSplit(game);
+        require(game.vehicles[replacement].health > 0 &&
+                game.vehicles[replacement].kind == mc::VehicleKind::Motorcycle,
+                "a failed side activity could not provide a usable retry bike");
+    }
+    mc::Game expired;
+    requestHarborSplit(expired);
+    expired.harborSplit.countdown = .001f;
+    tick(expired);
+    require(expired.harborSplit.phase == mc::TrialPhase::Inactive,
+            "unattended boarding offer never expired");
+
+    mc::Game ownBike;
+    mc::Vehicle bike;
+    bike.kind = mc::VehicleKind::Motorcycle;
+    bike.position = mc::Game::harborSplitStart();
+    bike.health = 67;
+    ownBike.vehicles.push_back(bike);
+    ownBike.player = bike.position;
+    ownBike.occupied = 0;
+    mc::Input request;
+    request.mission = true;
+    tick(ownBike, request);
+    require(ownBike.harborSplit.phase == mc::TrialPhase::Countdown &&
+            ownBike.vehicles.size() == 1 && close(ownBike.vehicles[0].health, 67) &&
+            mc::length(ownBike.player - bike.position) < .001f,
+            "entering on an owned motorcycle repaired, replaced, or teleported it");
+}
+
+void harborSplitGatesAndRewards() {
+    mc::Game game;
+    size_t bike = beginHarborSplit(game);
+    const auto& course = mc::Game::harborSplitCourse();
+    require(course.size() >= 6 && course.size() <= 10, "time trial has an invalid gate count");
+    positionCraft(game, bike, course.back());
+    tick(game);
+    require(game.harborSplit.checkpoint == 0 && game.harborSplit.medal == 0,
+            "touching the finish early skipped the ordered course");
+    positionCraft(game, bike, course[0] + mc::Vec3{0, 0, -8});
+    tick(game);
+    require(game.harborSplit.checkpoint == 0, "gate accepted a rider outside its radius");
+    positionCraft(game, bike, course[0]);
+    tick(game, {}, 3);
+    require(game.harborSplit.checkpoint == 1, "lingering at a gate advanced several checkpoints");
+    const int initialMoney = game.money;
+    finishHarborSplit(game, bike, 120);
+    require(game.harborSplit.medal == 1 && close(game.harborSplit.bestTime, 120) &&
+            game.money == initialMoney + 150, "bronze finish did not save and pay its record");
+    bike = beginHarborSplit(game);
+    finishHarborSplit(game, bike, 110);
+    require(game.harborSplit.medal == 2 && close(game.harborSplit.bestTime, 110) &&
+            game.money == initialMoney + 350, "silver improvement did not pay only the medal difference");
+    bike = beginHarborSplit(game);
+    finishHarborSplit(game, bike, 85);
+    require(game.harborSplit.medal == 3 && close(game.harborSplit.bestTime, 85) &&
+            game.money == initialMoney + 650, "gold improvement did not pay only the medal difference");
+    bike = beginHarborSplit(game);
+    finishHarborSplit(game, bike, 84);
+    require(close(game.harborSplit.bestTime, 84) && game.money == initialMoney + 650,
+            "improving within the same medal tier duplicated its prize or lost the faster time");
+    bike = beginHarborSplit(game);
+    finishHarborSplit(game, bike, 90);
+    require(game.harborSplit.medal == 3 && close(game.harborSplit.bestTime, 84) &&
+            game.money == initialMoney + 650, "a slower repeat duplicated the prize or lost the best record");
+    mc::Game penalized;
+    bike = beginHarborSplit(penalized);
+    penalized.harborSplit.penalty = 5;
+    finishHarborSplit(penalized, bike, 82);
+    require(penalized.harborSplit.medal == 2 && close(penalized.harborSplit.bestTime, 87),
+            "penalty time was excluded from the medal and saved record");
+}
+
+void harborSplitDamagePenalties() {
+    mc::Game game;
+    const size_t bike = beginHarborSplit(game);
+    const mc::Vec3 impactSite = mc::Game::harborSplitStart();
+    const auto collide = [&]() {
+        positionCraft(game, bike, impactSite, 20);
+        game.world.chunks.front().solids.push_back(
+            {impactSite + mc::Vec3{-3, 0, .6f}, impactSite + mc::Vec3{3, 3, .85f}});
+        const float health = game.vehicles[bike].health;
+        game.update({}, .05f);
+        game.world.chunks.front().solids.pop_back();
+        require(game.vehicles[bike].health < health, "penalty fixture did not cause a real wall impact");
+    };
+    collide();
+    require(close(game.harborSplit.penalty, 5), "vehicle collision did not add five penalty seconds");
+    collide();
+    require(close(game.harborSplit.penalty, 5), "one impact sequence generated repeated penalties");
+    positionCraft(game, bike, impactSite);
+    tick(game, {}, 65);
+    collide();
+    require(close(game.harborSplit.penalty, 10), "a later impact did not add a new penalty");
+    game.harborSplit.elapsed = mc::Game::harborSplitLimit() - 9;
+    tick(game);
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive && game.harborSplit.medal == 0,
+            "penalty time did not count toward the overall race timeout");
+}
+
+void harborSplitSaveAndCorruption() {
+    mc::Game game;
+    const size_t bike = beginHarborSplit(game);
+    game.harborSplit.bestTime = 80;
+    game.harborSplit.medal = 3;
+    game.harborSplit.elapsed = 30;
+    game.harborSplit.penalty = 5;
+    positionCraft(game, bike, mc::Game::harborSplitCourse()[0]);
+    tick(game);
+    const mc::Vec3 savedPosition = game.player;
+    const int savedMoney = game.money;
+    TemporarySave save;
+    require(game.save(save.path.string()), "active Harbor Split run could not be saved");
+    std::ifstream input(save.path, std::ios::binary);
+    const std::vector<char> original((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    require(littleEndian(original, 8) == 4, "Harbor Split records did not use save version 4");
+    require(game.load(save.path.string()), "Harbor Split records could not be restored");
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive &&
+            game.harborSplit.checkpoint == 0 && close(game.harborSplit.elapsed, 0) &&
+            close(game.harborSplit.penalty, 0) && game.harborSplit.medal == 3 &&
+            close(game.harborSplit.bestTime, 80) && game.money == savedMoney &&
+            mc::length(game.player - savedPosition) < .001f &&
+            game.message.find("interrupted") != std::string::npos,
+            "loading resumed a timed attempt, lost its record, moved the rider, or awarded money");
+    const auto reject = [&](std::vector<char> bytes) {
+        refreshSaveChecksum(bytes);
+        writeBytes(save.path, bytes);
+        require(!game.load(save.path.string()), "invalid time-trial save data was accepted");
+        require(close(game.harborSplit.bestTime, 80) && game.harborSplit.medal == 3 &&
+                game.money == savedMoney && mc::length(game.player - savedPosition) < .001f,
+                "invalid time-trial save partially overwrote the current game");
+    };
+    for (uint32_t invalid : {0x7fc00000u, 0x7f800000u, 0xbf800000u, 0x43160000u, 0u}) {
+        auto bytes = original;
+        setLittleEndian(bytes, bytes.size() - 12, invalid);
+        reject(bytes);
+    }
+    for (uint32_t invalid : {0u, 1u, 2u, 4u, 0xffffffffu}) {
+        auto bytes = original;
+        setLittleEndian(bytes, bytes.size() - 8, invalid);
+        reject(bytes);
+    }
+    auto bytes = original;
+    setLittleEndian(bytes, bytes.size() - 4, 2);
+    reject(bytes);
+    bytes = original;
+    bytes.resize(bytes.size() - 1);
+    setLittleEndian(bytes, 12, uint32_t(bytes.size() - 20));
+    reject(bytes);
+    writeBytes(save.path, original);
+    require(game.load(save.path.string()), "valid records could not load after rejected corruption");
+    beginHarborSplit(game);
+    require(game.harborSplit.medal == 3 && close(game.harborSplit.bestTime, 80),
+            "retry after loading discarded the saved best record");
+}
+
+void versionThreeSaveMigration() {
+    mc::Game game;
+    game.completedMissions = game.activeMission = 4;
+    game.missionStage = 1;
+    game.missionTimer = 180;
+    mc::Vehicle boat;
+    boat.kind = mc::VehicleKind::Boat;
+    boat.position = {3080, mc::World::WaterLevel, 1080};
+    game.vehicles.push_back(boat);
+    positionCraft(game, 0, boat.position);
+    tick(game, {}, 95);
+    game.harborSplit.bestTime = 80;
+    game.harborSplit.medal = 3;
+    TemporarySave save;
+    require(game.save(save.path.string()), "could not create version 3 migration fixture");
+    std::ifstream input(save.path, std::ios::binary);
+    std::vector<char> legacy((std::istreambuf_iterator<char>(input)), {});
+    input.close();
+    require(littleEndian(legacy, 8) == 4, "version 3 fixture requires a version 4 source save");
+    legacy.resize(legacy.size() - 12);
+    setLittleEndian(legacy, 8, 3);
+    setLittleEndian(legacy, 12, uint32_t(legacy.size() - 20));
+    refreshSaveChecksum(legacy);
+    writeBytes(save.path, legacy);
+    require(game.load(save.path.string()), "valid version 3 save was rejected");
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive &&
+            game.harborSplit.medal == 0 && close(game.harborSplit.bestTime, 0) &&
+            game.activeMission == 4 && game.missionStage == 1,
+            "version 3 migration did not preserve the campaign and initialize empty trial records");
+    tick(game, {}, 90);
+    require(game.missionStage == 2, "version 3 migration lost the in-progress rescue transfer hold");
+}
+
+void harborSplitDrivenCourse() {
+    std::vector<mc::Vec3> corners{mc::Game::harborSplitStart()};
+    const auto& gates = mc::Game::harborSplitCourse();
+    corners.insert(corners.end(), gates.begin(), gates.end());
+    std::vector<mc::Vec3> path{corners.front()};
+    const auto lineTo = [&](mc::Vec3 end) {
+        const mc::Vec3 start = path.back();
+        const int steps = std::max(1, int(std::ceil(mc::length(end - start))));
+        for (int i = 1; i <= steps; ++i) path.push_back(mc::lerp(start, end, float(i) / steps));
+    };
+    // Rounded approaches stay inside each intersection; the controller must steer them.
+    for (size_t i = 1; i + 1 < corners.size(); ++i) {
+        const mc::Vec3 incoming = mc::normalized(corners[i] - corners[i - 1]);
+        const mc::Vec3 outgoing = mc::normalized(corners[i + 1] - corners[i]);
+        const mc::Vec3 entry = corners[i] - incoming * 8;
+        const mc::Vec3 exit = corners[i] + outgoing * 8;
+        lineTo(entry);
+        for (int step = 1; step <= 24; ++step) {
+            const float t = float(step) / 24;
+            path.push_back(entry * ((1 - t) * (1 - t)) + corners[i] * (2 * t * (1 - t)) +
+                           exit * (t * t));
+        }
+    }
+    lineTo(corners.back());
+    std::vector<float> arc(path.size());
+    for (size_t i = 1; i < path.size(); ++i) arc[i] = arc[i - 1] + mc::length(path[i] - path[i - 1]);
+    require(arc.back() > 1200 && arc.back() < 1800, "time trial is outside its intended road distance");
+
+    mc::Game game;
+    game.initialize();
+    const size_t population = game.pedestrians.size(), fleet = game.vehicles.size();
+    const size_t bikeIndex = beginHarborSplit(game);
+    const int startingMoney = game.money;
+    size_t progress = 0;
+    float maxDeviation = 0, peakPenalty = 0, steeringTravel = 0, passingOffset = 0;
+    for (int frame = 0; frame < 60 * 155 && game.harborSplit.phase == mc::TrialPhase::Running; ++frame) {
+        const mc::Vehicle& bike = game.vehicles[bikeIndex];
+        size_t closest = progress;
+        float deviation = mc::length(bike.position - path[progress]);
+        for (size_t i = progress; i < std::min(path.size(), progress + 80); ++i) {
+            const float distance = mc::length(bike.position - path[i]);
+            if (distance < deviation) { closest = i; deviation = distance; }
+        }
+        progress = closest;
+        maxDeviation = std::max(maxDeviation, deviation);
+        const float lookahead = mc::clamp(3 + std::abs(bike.speed) * .27f, 4, 11);
+        size_t aim = progress;
+        while (aim + 1 < path.size() && arc[aim] < arc[progress] + lookahead) ++aim;
+        float desiredOffset = 0;
+        for (size_t i = 0; i < game.vehicles.size(); ++i) {
+            if (i == bikeIndex || std::abs(game.vehicles[i].speed) > 2) continue;
+            for (size_t j = progress; j < path.size() && arc[j] < arc[progress] + 30; ++j)
+                if (mc::length(game.vehicles[i].position - path[j]) < 2.3f) {
+                    desiredOffset = 3.2f;
+                    break;
+                }
+        }
+        // Use the clear road shoulder to pass stationary traffic without cutting the corner gate.
+        passingOffset = mc::lerp(passingOffset, desiredOffset, 1.0f / 12.0f);
+        const mc::Vec3 tangent = mc::normalized(path[std::min(path.size() - 1, aim + 2)] -
+                                               path[aim > 2 ? aim - 2 : 0]);
+        const mc::Vec3 goal = path[aim] + mc::Vec3{tangent.z, 0, -tangent.x} * passingOffset;
+        const mc::Vec3 delta = goal - bike.position;
+        const float error = mc::wrapAngle(std::atan2(delta.x, delta.z) - bike.yaw);
+        mc::Input input;
+        input.moveX = mc::clamp(2 * 1.85f * (1 + .03f * std::abs(bike.speed)) * std::sin(error) /
+                               (.61f * std::max(1.0f, mc::length(delta))), -1, 1);
+        float targetSpeed = std::abs(passingOffset) > .3f ? 16.0f : 28.0f;
+        const float brakingDistance = std::max(16.0f, (bike.speed * bike.speed - 144) / 35 + 8);
+        for (size_t i = progress + 2; i + 2 < path.size() && arc[i] < arc[progress] + brakingDistance; ++i) {
+            const mc::Vec3 a = mc::normalized(path[i] - path[i - 2]);
+            const mc::Vec3 b = mc::normalized(path[i + 2] - path[i]);
+            if (mc::dot(a, b) < .995f) { targetSpeed = 12; break; }
+        }
+        for (size_t i = 0; i < game.vehicles.size(); ++i) {
+            if (i == bikeIndex) continue;
+            mc::Vec3 separation = game.vehicles[i].position - bike.position;
+            separation.y = 0;
+            const float ahead = mc::dot(separation, mc::forward(bike.yaw));
+            if (ahead > 0 && ahead < 45 && std::abs(mc::dot(separation, mc::right(bike.yaw))) < 2.1f)
+                targetSpeed = std::min(targetSpeed, std::max(0.0f, (ahead - 5) * .8f));
+        }
+        input.brake = bike.speed > targetSpeed + 1;
+        input.moveY = input.brake ? 0 : mc::clamp((targetSpeed - bike.speed) * .45f +
+            bike.speed * (.12f + .0055f * std::abs(bike.speed)) / 15.5f, 0, 1);
+        const mc::Vec3 previousPosition = bike.position;
+        const float previousYaw = bike.yaw;
+        tick(game, input);
+        const mc::Vehicle& driven = game.vehicles[bikeIndex];
+        steeringTravel += std::abs(mc::wrapAngle(driven.yaw - previousYaw));
+        peakPenalty = std::max(peakPenalty, game.harborSplit.penalty);
+        require(finite(driven.position) && finite(driven.velocity) &&
+                mc::length(driven.position - previousPosition) < 2,
+                "control-driven trial produced invalid motion or a teleport");
+        require(game.world.road(driven.position.x, driven.position.z),
+                "control-driven trial left the city roads");
+    }
+    require(game.harborSplit.phase == mc::TrialPhase::Inactive && game.harborSplit.medal > 0 &&
+            game.harborSplit.bestTime > 0 && game.harborSplit.bestTime < mc::Game::harborSplitLimit(),
+            "actual throttle, brake, and steering inputs could not complete the timed course");
+    require(game.occupied == int(bikeIndex) && game.vehicles[bikeIndex].health > 0 && game.health > 0 &&
+            game.money > startingMoney && game.completedMissions == 0 && game.activeMission == -1,
+            "control-driven finish lost its rider, reward, or campaign isolation");
+    require(game.pedestrians.size() == population && game.vehicles.size() >= fleet &&
+            population > 0 && fleet > 0, "control-driven trial removed the initialized living world");
+    require(maxDeviation < 6 && steeringTravel > 10 && progress + 25 > path.size(),
+            "control-driven trial skipped its road path or genuine turns");
+    std::cout << "Harbor Split driven: " << game.harborSplit.bestTime << " s, peak penalty "
+              << peakPenalty << " s, path deviation " << maxDeviation << " m, bike health "
+              << game.vehicles[bikeIndex].health << '\n';
+}
+
 void unoccupiedAircraftMotionAndPersistence() {
     mc::Game game;
     const float ground = game.world.height(-3200, -1000);
@@ -1649,11 +2091,18 @@ int main() {
         {"save round trip and corruption", saveRoundTripAndCorruption},
         {"version 1 save migration", legacySaveMigration},
         {"version 2 save migration", versionTwoSaveMigration},
+        {"version 3 save migration", versionThreeSaveMigration},
         {"rescue contract and hold persistence", rescueContractAndHoldPersistence},
         {"survey contract flight and landing", surveyContractFlightAndLanding},
         {"craft contract failure and recovery", craftContractFailureAndRecovery},
         {"craft loans preserve occupied vehicles", craftLoansPreserveOccupiedVehicles},
         {"craft contract visuals survive load", craftContractVisualsSurviveLoad},
+        {"Harbor Split start and objectives", harborSplitStartAndObjectives},
+        {"Harbor Split failure and loan recovery", harborSplitFailuresAndLoans},
+        {"Harbor Split ordered gates and medal rewards", harborSplitGatesAndRewards},
+        {"Harbor Split collision penalties", harborSplitDamagePenalties},
+        {"Harbor Split save interruption and corruption", harborSplitSaveAndCorruption},
+        {"Harbor Split populated control-driven course", harborSplitDrivenCourse},
         {"unoccupied aircraft motion and persistence", unoccupiedAircraftMotionAndPersistence},
         {"thirty second simulation smoke", simulationSmoke},
     };

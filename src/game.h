@@ -18,6 +18,12 @@ struct Vehicle {
 };
 struct Pedestrian {Vec3 position;float yaw=0,phase=0,panic=0,health=100;};
 struct Mission { const char* title;const char* briefing;Vec3 start,target;int reward;};
+enum class TrialPhase {Inactive,Boarding,Countdown,Running};
+struct HarborSplitState {
+    TrialPhase phase=TrialPhase::Inactive;
+    int checkpoint=0,medal=0;
+    float elapsed=0,penalty=0,countdown=0,bestTime=0;
+};
 struct Game {
     World world;
     Vec3 player{8,0,8}; float yaw=0,pitch=.20f,health=100; int money=250,ammo=30,reserveAmmo=120,wanted=0;
@@ -25,6 +31,7 @@ struct Game {
     float time=0,dayTime=17.2f,rain=0,missionTimer=0,shotFlash=0;
     Vec3 shotEnd; bool paused=false;std::string message;float messageTime=0;
     std::vector<Vehicle> vehicles;std::vector<Pedestrian> pedestrians;
+    HarborSplitState harborSplit;
     void initialize();
     void update(const Input&,float dt,bool streamWorld=true);
     Mesh dynamicMesh() const;
@@ -34,6 +41,16 @@ struct Game {
     const Mission* missionInfo() const;
     const char* missionInstruction() const;
     static const std::vector<Mission>& missions();
+    const Mission* objectiveInfo() const;
+    Vec3 objectiveTarget() const;
+    const char* objectiveInstruction() const;
+    bool objectiveActive() const;
+    bool objectiveIsTrial() const;
+    float objectiveTimeRemaining() const;
+    static Vec3 harborSplitContact();
+    static Vec3 harborSplitStart();
+    static const std::vector<Vec3>& harborSplitCourse();
+    static float harborSplitLimit();
     bool save(const std::string& path) const;
     bool load(const std::string& path);
 private:
@@ -44,5 +61,10 @@ private:
     std::vector<Vec3> trafficTargets,pedestrianTargets;
     uint32_t simulationTick=0;
     Vec3 shotOrigin;
+    int splitVehicle=-1;
+    float splitDamageCooldown=0;
+    mutable std::string objectiveDescription;
+    void endHarborSplit(const char* reason);
+    void updateHarborSplit(float dt,float damage);
 };
 }

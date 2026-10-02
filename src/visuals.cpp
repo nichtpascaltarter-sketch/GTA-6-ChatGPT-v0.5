@@ -513,7 +513,7 @@ Mesh Game::dynamicMesh() const {
         }
     }
     if(shotFlash>0&&occupied<0){ellipsoid(mesh,shotOrigin,{.055f,.055f,.12f},yaw,{1,.73f,.22f},6,3,2);tube(mesh,shotOrigin,shotEnd,.012f,.007f,{1,.68f,.23f},4,2);}
-    if(missionInfo()){
+    if(missionInfo()&&harborSplit.phase==TrialPhase::Inactive){
         Vec3 target=missionTarget();
         if(activeMission==5&&missionStage<3&&planarDistance(target,player)<1400){
             const Vec3 previous=missionStage==0?Vec3{-3200,0,-1190}:(missionStage==1?Vec3{-3200,0,-500}:Vec3{-2600,0,0});
@@ -539,6 +539,68 @@ Mesh Game::dynamicMesh() const {
         }
     }
     for(Vec3 marker:{Garage,Outfitter}){if(planarDistance(marker,player)>160)continue;marker.y=world.height(marker.x,marker.z);ellipsoid(mesh,marker+Vec3{0,2.4f,0},{.20f,.28f,.20f},time*.35f,{.13f,.46f,1},6,3,2);}
+    const Vec3 violet{.62f,.12f,.93f},mint{.13f,.94f,.69f};
+    Vec3 pit=harborSplitContact();pit.y=world.height(pit.x,pit.z);
+    if(planarDistance(pit,player)<220){
+        const Vec3 stand=pit+Vec3{0,0,6};
+        for(float side:{-1.0f,1.0f}){
+            tube(mesh,stand+Vec3{side*.82f,.04f,0},stand+Vec3{side*.82f,2.65f,0},.035f,.025f,{.32f,.36f,.39f},6,1);
+            addBox(mesh,stand+Vec3{side*.82f,.055f,0},{.24f,.055f,.24f},{.08f,.095f,.11f});
+        }
+        addBox(mesh,stand+Vec3{0,2.17f,0},{.84f,.40f,.035f},violet);
+        for(int row=0;row<2;++row)for(int column=0;column<8;++column){
+            const Vec3 color=(row+column)%2?Vec3{.94f,.92f,.81f}:Vec3{.075f,.07f,.11f};
+            addBox(mesh,stand+Vec3{-.735f+float(column)*.21f,2.02f+float(row)*.21f,-.042f},{.103f,.103f,.009f},color);
+        }
+        const int countdown=int(std::ceil(harborSplit.countdown));
+        for(int i=0;i<3;++i){
+            bool lit=harborSplit.phase==TrialPhase::Running||(harborSplit.phase==TrialPhase::Countdown&&countdown<=3-i);
+            const Vec3 color=harborSplit.phase==TrialPhase::Running?mint:(i>0?Vec3{1,.55f,.04f}:Vec3{.98f,.07f,.045f});
+            ellipsoid(mesh,stand+Vec3{float(i-1)*.34f,2.78f,-.04f},{.095f,.095f,.07f},0,lit?color:Vec3{.065f,.065f,.07f},8,4,lit?2.0f:0.0f);
+        }
+        const Vec3 marshal=pit+Vec3{1.6f,0,4.8f};
+        personMesh(mesh,marshal,-Pi*.55f,time*.45f,.03f,{.36f,.10f,.53f},{.56f,.35f,.24f},false,false,63,planarDistance(marshal,player)<32);
+        for(int i=0;i<harborSplit.medal;++i)ellipsoid(mesh,stand+Vec3{float(i-1)*.28f,1.52f,-.06f},{.075f,.075f,.025f},0,i==2?Vec3{.94f,.63f,.08f}:i==1?Vec3{.72f,.77f,.80f}:Vec3{.63f,.32f,.13f},8,4,1);
+        if(harborSplit.phase==TrialPhase::Inactive)ellipsoid(mesh,pit+Vec3{0,2.65f+std::sin(time*2)*.12f,0},{.25f,.38f,.25f},time*.45f,violet,6,3,2);
+    }
+    Vec3 start=harborSplitStart();start.y=world.height(start.x,start.z)+.025f;
+    if(planarDistance(start,player)<200){
+        for(int row=0;row<2;++row)for(int column=0;column<12;++column){
+            const float x=-4.2f+float(column)*.70f,z=float(row)*.38f;
+            const Vec3 color=(row+column)%2?Vec3{.84f,.83f,.75f}:Vec3{.075f,.045f,.095f};
+            addQuad(mesh,start+Vec3{x,0,z},start+Vec3{x,0,z+.36f},start+Vec3{x+.68f,0,z+.36f},start+Vec3{x+.68f,0,z},color,0);
+        }
+    }
+    if(harborSplit.phase==TrialPhase::Boarding||harborSplit.phase==TrialPhase::Countdown){
+        const Vec3 target=objectiveTarget();
+        if(planarDistance(target,player)<240)ellipsoid(mesh,target+Vec3{0,3.0f,0},{.22f,.40f,.22f},time*.5f,violet,6,3,2);
+    }
+    if(harborSplit.phase==TrialPhase::Running){
+        const auto& course=harborSplitCourse();
+        for(int hint=0;hint<2;++hint){
+            const size_t gateIndex=size_t(harborSplit.checkpoint+hint);if(gateIndex>=course.size())break;
+            Vec3 gate=course[gateIndex];gate.y=world.height(gate.x,gate.z);
+            if(planarDistance(gate,player)>650)continue;
+            Vec3 approach=gate-(gateIndex?course[gateIndex-1]:harborSplitStart());approach.y=0;approach=normalized(approach);
+            const Vec3 crossbar{approach.z,0,-approach.x};
+            const Vec3 color=hint?violet*.42f:mint;const float height=hint?2.2f:3.35f;
+            for(float side:{-1.0f,1.0f}){
+                const Vec3 foot=gate+crossbar*(side*5.5f)+Vec3{0,.07f,0};
+                tube(mesh,foot,foot+Vec3{0,height,0},hint?.035f:.065f,hint?.035f:.065f,color,5,2);
+            }
+            tube(mesh,gate-crossbar*5.5f+Vec3{0,height+.07f,0},gate+crossbar*5.5f+Vec3{0,height+.07f,0},hint?.035f:.065f,hint?.035f:.065f,color,5,2);
+            if(!hint){
+                ellipsoid(mesh,gate+Vec3{0,height+.75f,0},{.30f,.42f,.30f},time*.4f,color,6,3,2);
+                if(gateIndex+1<course.size()){
+                    Vec3 next=course[gateIndex+1]-gate;next.y=0;next=normalized(next);Vec3 side{next.z,0,-next.x};
+                    const Vec3 tip=gate+next*4.5f+Vec3{0,.075f,0};
+                    tube(mesh,tip-next*3,tip,.10f,.10f,mint,4,2);
+                    tube(mesh,tip,tip-next*1.2f+side*.85f,.10f,.07f,mint,4,2);
+                    tube(mesh,tip,tip-next*1.2f-side*.85f,.10f,.07f,mint,4,2);
+                }
+            }
+        }
+    }
     return mesh;
 }
 

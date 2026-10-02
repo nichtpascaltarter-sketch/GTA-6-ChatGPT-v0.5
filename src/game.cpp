@@ -30,6 +30,15 @@ constexpr Vec3 AirfieldStop{-3200,4,-1000};
 // Survey point Y values are target heights above the terrain, not world elevations.
 constexpr Vec3 SurveyPoints[]={{-3200,90,-500},{-2600,140,0},{-2700,110,800}};
 constexpr float SurveyMinimum[]={50,90,60},SurveyMaximum[]={130,190,160};
+constexpr Vec3 SplitContact{268,0,-172};
+constexpr Vec3 SplitStart{259.2f,0,-180};
+constexpr float SplitLimit=150;
+constexpr int SplitPayout[]={0,150,350,650};
+int splitMedal(float seconds){return seconds<=85?3:(seconds<=110?2:1);}
+const Mission& splitDescription(){
+    static const Mission activity{"HARBOR SPLIT","Rafi: Nine gates, one motorcycle. The city stays open. Damage costs five seconds; a medal pays once. Beat your own line on the next run.",SplitContact,SplitStart,0};
+    return activity;
+}
 float planarDistance(Vec3 a,Vec3 b) {a.y=b.y=0;return length(a-b);}
 float roadGrid(Vec3 p) {
     if(p.x>=-1664&&p.x<=1536&&p.z>=-1792&&p.z<=2048)return 128;
@@ -73,6 +82,23 @@ bool provideLoan(World& world,std::vector<Vehicle>& vehicles,int occupied,Vehicl
     craft.color=kind==VehicleKind::Boat?Vec3{.10f,.38f,.72f}:Vec3{.86f,.81f,.54f};
     if(loan>=0)vehicles[size_t(loan)]=craft;else vehicles.push_back(craft);
     return true;
+}
+int provideTrialBike(World& world,std::vector<Vehicle>& vehicles,int occupied){
+    if(occupied>=0&&vehicles[size_t(occupied)].kind==VehicleKind::Motorcycle&&vehicles[size_t(occupied)].health>0)return occupied;
+    int loan=-1;
+    for(size_t i=0;i<vehicles.size();++i)if(int(i)!=occupied&&vehicles[i].kind==VehicleKind::Motorcycle){loan=int(i);break;}
+    if(loan<0&&vehicles.size()>=256)return -1;
+    for(float offset:{0.0f,-9.0f,9.0f,-18.0f,18.0f}){
+        const Vec3 location=atGround(world,{263,0,-174+offset});
+        if(world.blocked(location,.55f))continue;
+        bool blocked=false;
+        for(size_t i=0;i<vehicles.size();++i)if(int(i)!=loan&&planarDistance(location,vehicles[i].position)<3.2f&&std::abs(location.y-vehicles[i].position.y)<2){blocked=true;break;}
+        if(blocked)continue;
+        Vehicle bike;bike.kind=VehicleKind::Motorcycle;bike.position=location;bike.parked=true;bike.color={.49f,.12f,.69f};
+        if(loan<0){vehicles.push_back(bike);return int(vehicles.size()-1);}
+        vehicles[size_t(loan)]=bike;return loan;
+    }
+    return -1;
 }
 float rayBox(Vec3 origin,Vec3 direction,const Box& box,float maximum){
     float nearT=0,farT=maximum;
@@ -274,6 +300,90 @@ Vec3 Game::missionTarget() const {
     if(activeMission==5){if(missionStage>=3)return AirfieldStop;Vec3 point=SurveyPoints[std::max(0,missionStage)];point.y+=world.height(point.x,point.z);return point;}
     return mission->target;
 }
+Vec3 Game::harborSplitContact(){return SplitContact;}
+Vec3 Game::harborSplitStart(){return SplitStart;}
+float Game::harborSplitLimit(){return SplitLimit;}
+const std::vector<Vec3>& Game::harborSplitCourse(){
+    static const std::vector<Vec3> gates{{259.2f,0,-131.2f},{508.8f,0,-131.2f},{508.8f,0,-380.8f},
+        {252.8f,0,-380.8f},{252.8f,0,-508.8f},{131.2f,0,-508.8f},{131.2f,0,-259.2f},
+        {259.2f,0,-259.2f},SplitStart};
+    return gates;
+}
+const Mission* Game::objectiveInfo() const {
+    return objectiveIsTrial()?&splitDescription():missionInfo();
+}
+bool Game::objectiveIsTrial() const {
+    return harborSplit.phase!=TrialPhase::Inactive||
+        (activeMission<0&&(planarDistance(player,SplitContact)<50||!missionInfo()));
+}
+Vec3 Game::objectiveTarget() const {
+    if(harborSplit.phase==TrialPhase::Boarding&&splitVehicle>=0&&size_t(splitVehicle)<vehicles.size())
+        return occupied==splitVehicle?atGround(world,SplitStart):vehicles[size_t(splitVehicle)].position;
+    if(harborSplit.phase==TrialPhase::Countdown)return atGround(world,SplitStart);
+    if(harborSplit.phase==TrialPhase::Running)return atGround(world,harborSplitCourse()[size_t(harborSplit.checkpoint)]);
+    return objectiveIsTrial()?atGround(world,SplitContact):missionTarget();
+}
+bool Game::objectiveActive() const {return activeMission>=0||harborSplit.phase!=TrialPhase::Inactive;}
+float Game::objectiveTimeRemaining() const {
+    if(harborSplit.phase==TrialPhase::Running)return std::max(0.0f,SplitLimit-harborSplit.elapsed-harborSplit.penalty);
+    if(harborSplit.phase!=TrialPhase::Inactive)return std::max(0.0f,harborSplit.countdown);
+    return activeMission>=0?missionTimer:0;
+}
+const char* Game::objectiveInstruction() const {
+    char line[160];
+    if(harborSplit.phase==TrialPhase::Boarding)return "BOARD YOUR BIKE; STOP AT THE START LINE";
+    if(harborSplit.phase==TrialPhase::Countdown){std::snprintf(line,sizeof(line),"HOLD POSITION / START IN %d",int(std::ceil(harborSplit.countdown)));objectiveDescription=line;return objectiveDescription.c_str();}
+    if(harborSplit.phase==TrialPhase::Running){
+        std::snprintf(line,sizeof(line),"GATE %d / %d  /  %.1f S  /  PENALTY +%.0f S",harborSplit.checkpoint+1,int(harborSplitCourse().size()),harborSplit.elapsed,harborSplit.penalty);
+        objectiveDescription=line;return objectiveDescription.c_str();
+    }
+    if(objectiveIsTrial()){
+        if(harborSplit.bestTime>0){std::snprintf(line,sizeof(line),"M TO RIDE / BEST %.1f S / %s",harborSplit.bestTime,harborSplit.medal==3?"GOLD":harborSplit.medal==2?"SILVER":"BRONZE");objectiveDescription=line;return objectiveDescription.c_str();}
+        return "M TO RIDE / GOLD 85 / SILVER 110 / BRONZE 150 S";
+    }
+    return missionInstruction();
+}
+void Game::endHarborSplit(const char* reason){
+    const float best=harborSplit.bestTime;const int medal=harborSplit.medal;
+    harborSplit={};harborSplit.bestTime=best;harborSplit.medal=medal;splitVehicle=-1;splitDamageCooldown=0;
+    message=std::string("HARBOR SPLIT / ")+reason+" Return to Rafi's violet flag and press M to ride again.";messageTime=12;
+}
+void Game::updateHarborSplit(float dt,float damage){
+    if(harborSplit.phase==TrialPhase::Inactive)return;
+    if(health<=0||player.y< -25){endHarborSplit("Run ended: rider injured.");return;}
+    if(splitVehicle<0||size_t(splitVehicle)>=vehicles.size()||vehicles[size_t(splitVehicle)].kind!=VehicleKind::Motorcycle||vehicles[size_t(splitVehicle)].health<=0){endHarborSplit("Run ended: motorcycle lost.");return;}
+    const Vehicle& bike=vehicles[size_t(splitVehicle)];
+    if(harborSplit.phase==TrialPhase::Boarding){
+        harborSplit.countdown=std::max(0.0f,harborSplit.countdown-dt);
+        if(occupied==splitVehicle&&planarDistance(player,SplitStart)<9&&std::abs(bike.speed)<.5f){
+            harborSplit.phase=TrialPhase::Countdown;harborSplit.countdown=3;
+            message="Rafi: Three seconds. Hold steady, then follow the green gate. Violet previews the next turn. M withdraws.";messageTime=5;
+        }else if(harborSplit.countdown==0)endHarborSplit("Run ended: start window expired.");
+        return;
+    }
+    if(occupied!=splitVehicle){endHarborSplit("Run ended: stay on the same motorcycle.");return;}
+    if(harborSplit.phase==TrialPhase::Countdown){
+        if(planarDistance(player,SplitStart)>12){endHarborSplit("Run ended: start line obstructed.");return;}
+        harborSplit.countdown=std::max(0.0f,harborSplit.countdown-dt);
+        if(harborSplit.countdown==0){harborSplit.phase=TrialPhase::Running;message="GO! Nine gates. A clean line beats a reckless shortcut.";messageTime=5;}
+        return;
+    }
+    harborSplit.elapsed+=dt;splitDamageCooldown=std::max(0.0f,splitDamageCooldown-dt);
+    if(damage>.15f&&splitDamageCooldown==0){harborSplit.penalty+=5;splitDamageCooldown=1;message="Rafi: Contact! Five seconds added. Keep the next corner clean.";messageTime=4;}
+    const float score=harborSplit.elapsed+harborSplit.penalty;
+    if(score>=SplitLimit){endHarborSplit("Run ended: time limit reached.");return;}
+    const Vec3 gate=harborSplitCourse()[size_t(harborSplit.checkpoint)];
+    if(planarDistance(player,gate)>=6||std::abs(player.y-world.height(gate.x,gate.z))>2)return;
+    ++harborSplit.checkpoint;
+    if(harborSplit.checkpoint<int(harborSplitCourse().size()))return;
+    const int earned=splitMedal(score),newMedal=std::max(harborSplit.medal,earned);
+    const int reward=SplitPayout[newMedal]-SplitPayout[harborSplit.medal];
+    harborSplit.medal=newMedal;harborSplit.bestTime=harborSplit.bestTime==0?score:std::min(harborSplit.bestTime,score);
+    money=std::min(100000000,money+reward);
+    char result[180];std::snprintf(result,sizeof(result),"%s / %.1f S including %.0f S penalties. %s",earned==3?"GOLD":earned==2?"SILVER":"BRONZE",score,harborSplit.penalty,reward>0?"New medal prize":"Practice finish; medal prize already earned");
+    std::string finish=result;if(reward>0)finish+=" +$"+std::to_string(reward)+".";else finish+=".";
+    endHarborSplit(finish.c_str());
+}
 Vec3 Game::cameraEye() const {
     const Vec3 anchor=player+Vec3{0,occupied>=0?1.65f:1.45f,0};
     const Vec3 direction=forward(yaw)*std::cos(pitch)+Vec3{0,-std::sin(pitch),0};
@@ -296,6 +406,8 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
     Input in=input;
     in.moveX=finite(in.moveX)?clamp(in.moveX,-1,1):0;in.moveY=finite(in.moveY)?clamp(in.moveY,-1,1):0;
     in.lookX=finite(in.lookX)?clamp(in.lookX,-1,1):0;in.lookY=finite(in.lookY)?clamp(in.lookY,-1,1):0;
+    const float splitHealthBefore=splitVehicle>=0&&size_t(splitVehicle)<vehicles.size()?vehicles[size_t(splitVehicle)].health:100.0f;
+    if(harborSplit.phase==TrialPhase::Countdown){in.moveX=0;in.moveY=0;in.brake=true;}
     const bool interact=in.interact&&!wasInteract,reload=in.reload&&!wasReload,missionAction=in.mission&&!wasMission,radio=in.radio&&!wasRadio,jump=in.jump&&!wasJump;
     wasInteract=in.interact;wasReload=in.reload;wasMission=in.mission;wasRadio=in.radio;wasJump=in.jump;
     ++simulationTick;time+=dt;dayTime=std::fmod(dayTime+dt/75.0f,24.0f);
@@ -507,7 +619,21 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{12,0,12};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
     }
     if(missionAction){
-        if(activeMission<0&&completedMissions<int(missions().size())&&planarDistance(player,missions()[size_t(completedMissions)].start)<14){
+        if(harborSplit.phase!=TrialPhase::Inactive)endHarborSplit("Run withdrawn.");
+        else if(planarDistance(player,SplitContact)<14){
+            if(activeMission>=0){message="Rafi: Finish your current contract before we time a run.";messageTime=6;}
+            else if(wanted>0){message="Rafi: Lose the patrol first. We cannot start under pursuit.";messageTime=6;}
+            else {
+                splitVehicle=provideTrialBike(world,vehicles,occupied);
+                if(splitVehicle<0){message="Rafi: The staging lane is blocked. Clear some space beside the violet flag.";messageTime=6;}
+                else {
+                    const float best=harborSplit.bestTime;const int medal=harborSplit.medal;
+                    harborSplit={};harborSplit.bestTime=best;harborSplit.medal=medal;harborSplit.phase=TrialPhase::Boarding;harborSplit.countdown=60;splitDamageCooldown=0;
+                    message=std::string(splitDescription().briefing)+" Board the violet loan bike, or use the motorcycle you brought. Stop at the start marker.";messageTime=14;
+                }
+            }
+        }
+        else if(activeMission<0&&completedMissions<int(missions().size())&&planarDistance(player,missions()[size_t(completedMissions)].start)<14){
             const int chapter=completedMissions;
             const bool supplied=chapter<4||provideLoan(world,vehicles,occupied,chapter==4?VehicleKind::Boat:VehicleKind::Aircraft);
             if(supplied){activeMission=chapter;missionStage=0;missionHold=0;missionTimer=chapter==1?180.0f:(chapter==2||chapter==4?240.0f:(chapter==5?360.0f:0.0f));message=missions()[size_t(chapter)].briefing;if(chapter>=4)message+=chapter==4?" A serviced blue loan runabout is ready at the berth.":" A serviced cream survey plane is ready on the runway.";messageTime=14;}
@@ -570,6 +696,8 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         if(complete&&!failed){const Mission& m=missions()[size_t(activeMission)];money=std::min(100000000,money+m.reward);message=std::string("JOB COMPLETE  /  ")+m.title+"  +$"+std::to_string(m.reward);if(activeMission==3)message+="  /  Mara: The recordings are on the air. Meet the clinic crew at Glasswater Landing.";messageTime=12;++completedMissions;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;health=std::min(100.0f,health+20);}
         else if(failed){message=activeMission>=4?"Contract interrupted. Return to the contact; the crew will service a replacement loan craft.":"Job expired. Return to your contact to try again.";messageTime=7;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;}
     }
+    const float splitDamage=splitVehicle>=0&&size_t(splitVehicle)<vehicles.size()?std::max(0.0f,splitHealthBefore-vehicles[size_t(splitVehicle)].health):0;
+    updateHarborSplit(dt,splitDamage);
     if(health<=0||player.y< -25){
         health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
@@ -588,7 +716,8 @@ bool Game::save(const std::string& path) const {
         payload.u32(uint32_t(pedestrians.size()));
         for(const Pedestrian& p:pedestrians){payload.vector(p.position);payload.real(p.yaw);payload.real(p.phase);payload.real(p.panic);payload.real(p.health);}
         payload.real(missionHold);
-        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(3);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
+        payload.real(harborSplit.bestTime);payload.integer(harborSplit.medal);payload.u32(harborSplit.phase!=TrialPhase::Inactive?1u:0u);
+        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(4);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
         const std::filesystem::path destination=utf8Path(path);
         std::filesystem::path temporary=destination;temporary+=".tmp";
         if(!destination.parent_path().empty())std::filesystem::create_directories(destination.parent_path());
@@ -608,7 +737,7 @@ bool Game::load(const std::string& path){
         std::vector<uint8_t> bytes(static_cast<size_t>(size));file.seekg(0);file.read(reinterpret_cast<char*>(bytes.data()),size);if(!file)return false;
         const uint8_t magic[8]={'M','C','S','T','S','A','V','E'};
         if(std::memcmp(bytes.data(),magic,8)!=0)return false;
-        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>3)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
+        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>4)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
         Game state;SaveReader reader{bytes,20};
         state.player=reader.vector();state.yaw=reader.real();state.pitch=reader.real();state.health=reader.real();state.money=reader.integer();state.ammo=reader.integer();state.reserveAmmo=reader.integer();state.wanted=reader.integer();
         state.occupied=reader.integer();state.activeMission=reader.integer();state.missionStage=reader.integer();state.completedMissions=reader.integer();state.radioStation=reader.integer();
@@ -626,13 +755,18 @@ bool Game::load(const std::string& path){
         uint32_t pedestrianCount=reader.u32();if(pedestrianCount>512)return false;state.pedestrians.reserve(pedestrianCount);
         for(uint32_t i=0;i<pedestrianCount;++i){Pedestrian p;p.position=reader.vector();p.yaw=reader.real();p.phase=reader.real();p.panic=reader.real();p.health=reader.real();if(!reader.good||!validPosition(p.position)||std::abs(p.yaw)>Pi*2||std::abs(p.phase)>1e9f||p.panic<0||p.panic>10000||p.health<0||p.health>100)return false;state.pedestrians.push_back(p);}
         if(version>=3)state.missionHold=reader.real();
+        uint32_t interruptedTrial=0;
+        if(version>=4){state.harborSplit.bestTime=reader.real();state.harborSplit.medal=reader.integer();interruptedTrial=reader.u32();}
+        if(state.harborSplit.bestTime<0||state.harborSplit.bestTime>=SplitLimit||state.harborSplit.medal<0||state.harborSplit.medal>3||interruptedTrial>1)return false;
+        if((state.harborSplit.bestTime==0)!=(state.harborSplit.medal==0)||(state.harborSplit.bestTime>0&&splitMedal(state.harborSplit.bestTime)!=state.harborSplit.medal))return false;
+        if(interruptedTrial&&state.activeMission>=0)return false;
         if(!reader.good||reader.offset!=bytes.size()||state.missionHold<0||state.missionHold>3||(state.missionHold>0&&(state.activeMission!=4||state.missionStage!=1)))return false;
         if(state.occupied>=0&&planarDistance(state.player,state.vehicles[size_t(state.occupied)].position)>3)return false;
         if(version==1){if(state.vehicles.size()>254)return false;appendStarterCraft(state.vehicles,state.world);}
         state.world.stream(state.player);
         for(size_t i=0;i<state.vehicles.size();++i)state.trafficTargets.push_back(nextTrafficTarget(state.world,state.vehicles[i],uint32_t(i)*719));
         for(size_t i=0;i<state.pedestrians.size();++i)state.pedestrianTargets.push_back(pedestrianCorner(state.world,state.pedestrians[i].position,uint32_t(i)*37));
-        state.message="Save restored. Welcome back to Meridian Coast.";state.messageTime=5;
+        state.message=interruptedTrial?"Save restored. Harbor Split's interrupted run was cancelled; your records are safe. Return to Rafi's violet flag to retry.":"Save restored. Welcome back to Meridian Coast.";state.messageTime=interruptedTrial?10.0f:5.0f;
         *this=std::move(state);return true;
     }catch(...){return false;}
 }
