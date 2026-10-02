@@ -1,5 +1,5 @@
 #pragma once
-#include "math.h"
+#include "mc_math.h"
 #include <vector>
 #include <string>
 
