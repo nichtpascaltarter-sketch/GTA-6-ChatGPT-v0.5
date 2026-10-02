@@ -103,6 +103,7 @@ try {
     if (-not $SkipTests) {
         $testSets = @(
             @{ Name = 'world'; Sources = @('world', 'world_geometry') },
+            @{ Name = 'market'; Sources = @('world', 'world_geometry') },
             @{ Name = 'world_streamer'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'world_lod_geometry'; Sources = @('world', 'world_geometry') },
             @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
