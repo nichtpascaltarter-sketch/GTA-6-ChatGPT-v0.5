@@ -181,6 +181,12 @@ no validation check was removed.
 
 ### Next candidate: neighborhood routines and spatial world audio
 
+- Combined native workflow `36952950031` is validating exact integrated source
+  `6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045`: repaired resident views, bounded
+  spatial audio, device-format fixes, 16 test targets and 34 additional scenes.
+  Every native launch now verifies one valid spatial publication per frame;
+  its report explicitly records that the audio device remains unopened.
+  The source is frozen until Release/Debug and visual inspection pass.
 - Native workflow `36952070205` validates exact source
   `c90828a6794afa309f1783b9352df75a3f2c52c9`. Release passes all 37 launches /
   832 frames, and Debug passes compilation/tests while its launches continue.
@@ -252,7 +258,8 @@ no validation check was removed.
   scheduling outliers remain recorded and these are not hardware frame rates.
   Combined native compile and launch validation is next. Physical listening and actual device recovery remain
   unverified. Evidence is under the audio worktree's `validation/spatial-audio/`
-  and `validation/audio-output/`; source is not yet promoted to main.
+  and `validation/audio-output/`; source is integrated on main and awaiting native
+  acceptance before replacing the verified executable.
 - The following gameplay milestone will separate police severity from observed
   location knowledge, add bounded last-known-position pursuit/search, and replace
   continuous close-range damage with visible aimed shots and reloads. Preserve
