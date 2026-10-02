@@ -21,9 +21,9 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `b0c0c4c4096316d6bd007cafcd01099cbbed2728`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 07 below.
-- Native Release/Debug, system-import audits, 44 gameplay suites, 28 additional
+- Latest verified executable: `6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 08 below.
+- Native Release/Debug, system-import audits, 49 gameplay suites, 34 additional
   scene captures, timing fallback and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
 - This remains a very early game, far below the full target. No claim of AAA
@@ -45,17 +45,21 @@ part of the game distribution.
   occlusion and reflected surface hits. Dynamic actors are not in the ray scene.
 - WASAPI output with original code-generated stereo radio stations, engine,
   wind/rain, sirens, and gunfire. No recordings or imported assets.
+- Sixteen persistent residents follow authored outdoor routes and daily work,
+  market, seating and social routines; shared danger produces startle and flight.
+  Runtime vehicle identities and actual foot contacts feed bounded spatial audio
+  snapshots, with pause/load/device-reopen priming and no real-time allocation.
 - MSVC/SDK one-command build, embedded DXIL, system-import audit, checksums,
   portable simulation tests, and Windows software-rendering smoke test.
 
 ## Current validation
 
 - Before the workshop addition the central 49 chunks contained 726,020 vertices and
-  342,248 triangles; the current authored workshop brings the origin to 346,731
+  342,248 triangles; the workshop and resident places bring the origin to 347,741
   triangles. The prior regional checks measured countryside: 221,134 triangles; wetland: 294,430; island:
   130,916; coast: 140,226. Tests cover deterministic regeneration, collision,
   seams, 8,199 regional road samples, 14,014 road sweeps, lights, dock and runway.
-- Native 44/44 gameplay suites pass, including runway takeoff, banking, stall,
+- Native 49/49 gameplay suites pass, including runway takeoff, banking, stall,
   hard-landing damage across frame offsets, boat handling/swimming, save migration,
   passive aircraft motion, altitude-aware police visibility and dry exit preference.
   The six-contract campaign, conversations and persistent guidance are captured
@@ -135,12 +139,10 @@ part of the game distribution.
    ASan/UBSan/leak detection pass. Review's 1.65 vs 1.70 m boarding-headroom
    mismatch is repaired with a regression that fails the old source. Six native
    workshop captures passed and were inspected in the combined native run.
-10. Civilian routines are integrated on main from `development/neighborhood-routines`.
-    Native source `c90828a` passes Release build/tests and all launches, but its
-    Work camera is hidden by noncolliding market props. Repair `408490e` adds
-    rendered-geometry visibility checks and passes all six portable natural
-    captures. Validate the repaired camera in the next combined audio candidate
-    before promoting any executable; all story and trial tests remain required.
+10. Civilian routines and spatial world audio are verified in Milestone 08.
+    The original Work view at `c90828a` was hidden by noncolliding market props.
+    Repair `408490e` adds rendered-geometry visibility checks; the combined
+    `6faf9dc` native run passes all 44 launches and independent visual review.
 11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
@@ -182,14 +184,16 @@ no validation check was removed.
   day/night energy, bounded selection and geometry validity. Six capture setups
   have clear player/camera positions, and the service setup verifies its charge.
 
-### Next candidate: neighborhood routines and spatial world audio
+### Neighborhood routines and spatial world audio (verified in Milestone 08)
 
-- Combined native workflow `36952950031` is validating exact integrated source
+- Combined native workflow `36952950031` passed for exact integrated source
   `6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045`: repaired resident views, bounded
   spatial audio, device-format fixes, 16 test targets and 34 additional scenes.
   Every native launch now verifies one valid spatial publication per frame;
   its report explicitly records that the audio device remains unopened.
-  The source is frozen until Release/Debug and visual inspection pass.
+  Release/Debug and independent visual inspection pass. The verified executable
+  has replaced the Milestone 07 output; hardware performance and device listening
+  are still unverified.
 - Native workflow `36952070205` validates exact source
   `c90828a6794afa309f1783b9352df75a3f2c52c9`. Release passes all 37 launches /
   832 frames, and Debug passes all seven launches / 1,040 frames, including the
@@ -215,7 +219,7 @@ no validation check was removed.
   Its canonical network has 54 places, 252 nodes, 369 edges and 24 crossings.
   Standing benches now use actual seat/back/leg collision instead of a solid
   box over empty space above the seat; all eight seat positions are checked.
-- Six future native scenes wait for actual carrying, work, sitting, conversation,
+- Six native scenes wait for actual carrying, work, sitting, conversation,
   startle and fleeing. They preserve the full population, advance the real clock,
   require movement where relevant, and bind the gunshot response to the same
   previously calm civilian. Static and dynamic visibility tests cover each
@@ -235,12 +239,12 @@ no validation check was removed.
   Three build-tool conflicts were resolved by retaining the complete tested
   union of workshop and resident targets and all 34 capture scenes. The workshop
   integer-list warning is repaired with explicit float literals.
-- Run the complete native Release/Debug suite and inspect all six resident views
+- The complete native Release/Debug suite and all six resident views passed
   before replacing the verified executable. The exact-source natural capture,
   frame-rate and UI checks pass, with unchanged capture compiler inputs. Routine poses
   include carrying, stock checking, sitting, conversation, startle and flight;
-  no native quality or stability claim is made before Windows validation passes.
-- Spatial audio implementation has started separately in
+  the scorecard below retains the large quality gap against the actual benchmark.
+- Spatial audio was implemented separately in
   `/workspace/GTA-6-ChatGPT-v0.5-audio`, branch `development/spatial-world-audio`,
   now based on the integrated routines source. Fixed-capacity snapshots and
   authored DSP pass strict/sanitizer tests, deterministic lifecycle checks and
@@ -260,10 +264,10 @@ no validation check was removed.
   hashes stable and no compiler warnings. Tracker-only medians are 60.283/54.771
   microseconds in natural morning/evening traces on this shared Linux host;
   scheduling outliers remain recorded and these are not hardware frame rates.
-  Combined native compile and launch validation is next. Physical listening and actual device recovery remain
+  Combined native compile and launch validation passes. Physical listening and actual device recovery remain
   unverified. Evidence is under the audio worktree's `validation/spatial-audio/`
-  and `validation/audio-output/`; source is integrated on main and awaiting native
-  acceptance before replacing the verified executable.
+  and `validation/audio-output/`; source is integrated on main and included in the
+  verified executable.
 - The following gameplay milestone will separate police severity from observed
   location knowledge, add bounded last-known-position pursuit/search, and replace
   continuous close-range damage with visible aimed shots and reloads. Preserve
@@ -289,8 +293,8 @@ no validation check was removed.
   and validation-only pushes while preserving source, PR and manual checks.
 
 Captures for the verified checkpoint are in
-`/workspace/scratch/combined-b0c0c4c-release/`; original evidence and selected
-captures are under `validation/milestone-07/final/`. The full original target
+`/workspace/scratch/combined-6faf9dc-release/`; original evidence and selected
+captures are under `validation/milestone-08/final/`. The full original target
 remains unchanged.
 
 ## Initial scorecard — before native validation
@@ -687,3 +691,54 @@ physical controllers, clean Windows 10 and long native soaks remain unverified.
 | Missions and story | 0.5/10 | Six contracts and a repeatable trial have tested objectives and persistence, while story scope, performances and cinematic presentation remain small. |
 | Audio | 0.5/10 | Original synthesized radio, engines, ambience and movement sounds work in tests; spatial world sources and native listening remain incomplete or unverified. |
 | Performance and stability | 0.5/10 | Thirty-eight native launches and timestamp fallback pass, but WARP timings do not establish target hardware performance or extended crash-free operation. |
+
+## Milestone 08 — resident routines and spatial world audio, 2026-10-02
+
+Exact source `6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045` passed Windows workflow
+`36952950031`. The promoted `/workspace/outputs/MeridianCoast.exe` is 1,111,040
+bytes with SHA256 `6a120fbb49d7dc6b05b6f81779e256e29c712ff32f1a910c6d937d1eab44597c`.
+Ten embedded shaders and all sixteen native test targets pass, including 49
+gameplay and nine resident suites. The only imports are the seven audited inbox
+Windows libraries; the player directory contains one executable and no assets
+or adjacent runtime libraries.
+
+Release passed 37 launches / 832 frames; Debug passed seven launches / 1,040
+frames with the actual validation layer and no reported corruption or errors.
+The total is 44 launches / 1,872 frames. Both streaming routes pass. Debug 4x,
+1x and 2x resize/fullscreen paths pass; disabled GPU timestamps retain 120 CPU
+samples and zero GPU samples. Every launch reports exactly one spatial-audio
+publication per rendered frame, bounded history counts, and zero malformed,
+duplicate or capacity-dropped sources. The audio device is deliberately unopened
+in these graphics tests, so this does not establish native playback quality.
+The only native warnings are two occurrences of the same integer-to-float
+pedestrian-test fixture conversion; the next market source already repairs it.
+
+The initial `c90828a` build passed code checks but failed visual acceptance because
+stock boxes hid the Work subject. The repaired camera now exposes the worker's
+head, downward gaze, arms, hands and grounded legs without visible penetration.
+Its clipboard remains nearly edge-on, making this a weak prop-detail angle.
+Root and renderer independently accepted the correction. Thirty-five of the 37
+Release BMPs are byte-identical to the initial run; only Work and the live timing
+text in trial-run differ. All other resident, portrait and passenger views remain
+unchanged. Raw initial/final evidence and the camera regression are retained under
+`validation/milestone-08/`.
+
+Release city / legacy streaming / LOD runs took 34.512 / 29.153 / 53.598 seconds
+on WARP; the city's measured GPU mean was 278.292 ms. These are software-renderer
+checks, not measurements of RTX 4070 or 1440p performance. Native audio listening,
+device switching/recovery, controller hardware, clean Windows 10, hardware DXR,
+and long crash-free soaks remain unverified. Next: natively validate the authored
+market, then the separate observed-police/physical-shot implementation. Follow
+that with improved authored faces and stable character material response.
+
+| Category | Score | Evidence |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | The 12.288 km world now includes authored resident destinations, but repeated buildings and sparse interiors remain far below the benchmark. |
+| Visual fidelity | 0.5/10 | Native resident poses and corrected inspection views work, while facial geometry, materials, lighting and animation remain visibly rudimentary. |
+| World density and life | 0.5/10 | Sixteen persistent residents carry out work, seating, social and danger routines within an 84-person population, far short of a rich city simulation. |
+| Vehicles and driving | 1/10 | Four vehicle classes, the motorcycle trial and workshop remain validated, with limited handling depth, damage and traffic interaction. |
+| On-foot and combat | 0.5/10 | Existing movement and weapon actions remain functional; the more physical police encounters are still a separate unverified candidate. |
+| NPC and police AI | 0.5/10 | Resident navigation, crossings and reactions now pass native tests; broad police tactics and complex emergent behavior remain missing. |
+| Missions and story | 0.5/10 | Six contracts and a repeatable trial persist correctly, but campaign scale, characterization and cinematic production remain small. |
+| Audio | 0.5/10 | Bounded spatial engines and actual pedestrian contacts pass native publication and synthesis tests; voices, rich acoustics and native listening remain absent or unverified. |
+| Performance and stability | 0.5/10 | Forty-four native launches and all graphics lifecycle checks pass, but hardware target performance and extended crash-free play are not established. |
