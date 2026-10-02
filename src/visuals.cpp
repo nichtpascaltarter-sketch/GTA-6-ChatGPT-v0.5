@@ -315,4 +315,60 @@ Mesh Game::dynamicMesh() const {
     for(Vec3 marker:{Garage,Outfitter}){if(planarDistance(marker,player)>160)continue;marker.y=world.height(marker.x,marker.z);ellipsoid(mesh,marker+Vec3{0,2.4f,0},{.20f,.28f,.20f},time*.35f,{.13f,.46f,1},6,3,2);}
     return mesh;
 }
+
+std::vector<Light> Game::lightSources() const {
+    struct Candidate {Light light;float priority;size_t order;};
+    std::vector<Candidate> candidates;
+    candidates.reserve(world.chunks.size()*12+vehicles.size()*2+1);
+    const float sunAngle=(dayTime-6.0f)*Pi/12.0f;
+    const float sunHeight=std::sin(sunAngle)/std::sqrt(1.0f+.27f*.27f);
+    float daylight=clamp((sunHeight+.10f)/.30f,0,1);
+    daylight=daylight*daylight*(3-2*daylight);
+    const float night=1-daylight;
+    const Vec3 observer=player+Vec3{0,1.2f,0};
+    auto collect=[&](Light light){
+        if(!std::isfinite(light.position.x)||!std::isfinite(light.position.y)||!std::isfinite(light.position.z)||
+           !std::isfinite(light.radius)||!std::isfinite(light.intensity)||light.radius<=0||light.intensity<=.001f||
+           !std::isfinite(light.color.x)||!std::isfinite(light.color.y)||!std::isfinite(light.color.z)||
+           light.color.x<0||light.color.y<0||light.color.z<0||dot(light.color,light.color)<1e-8f||
+           !std::isfinite(light.direction.x)||!std::isfinite(light.direction.y)||!std::isfinite(light.direction.z)||
+           !std::isfinite(light.cone)||light.cone< -1||light.cone>=1)return;
+        const float distance=length(light.position-observer);
+        if(distance>light.radius+70)return;
+        light.direction=length(light.direction)>.0001f?normalized(light.direction):Vec3{0,-1,0};
+        const float outsideReach=std::max(0.0f,distance-light.radius);
+        // Prefer nearby emitters whose illumination can actually reach the camera's neighbourhood.
+        candidates.push_back({light,distance+outsideReach*4,candidates.size()});
+    };
+    if(night>.00001f)for(const Chunk& chunk:world.chunks)for(Light light:chunk.lights){light.intensity*=night;collect(light);}
+    for(const Vehicle& vehicle:vehicles){
+        if(vehicle.health<=0)continue;
+        auto point=[&](Vec3 local){return vehicle.position+rotate(local,vehicle.yaw);};
+        if(night>.00001f){
+            Light headlight;headlight.color={1,.92f,.75f};headlight.cone=.85f;
+            const bool bike=vehicle.kind==VehicleKind::Motorcycle;
+            headlight.direction=normalized(forward(vehicle.yaw)+Vec3{0,bike?-.055f:-.035f,0});
+            headlight.radius=bike?38.0f:45.0f;headlight.intensity=(bike?185.0f:220.0f)*night;
+            if(bike){headlight.position=point({0,1.0f,.755f});collect(headlight);}
+            else for(float side:{-1.0f,1.0f}){headlight.position=point({side*.535f,.635f,2.10f});collect(headlight);}
+        }
+        if(vehicle.police&&(night>.00001f||wanted>0)){
+            const bool blue=std::sin(time*17)>0;
+            Light flasher;flasher.position=point({blue?-.35f:.35f,1.66f,-.18f});
+            flasher.color=blue?Vec3{.06f,.22f,1}:Vec3{1,.035f,.02f};flasher.direction={0,1,0};
+            flasher.radius=18;flasher.intensity=wanted>0?90+60*daylight:90*night;flasher.cone=-1;collect(flasher);
+        }
+    }
+    if(shotFlash>0&&occupied<0){
+        Light muzzle;muzzle.position=shotOrigin;muzzle.radius=8;muzzle.color={1,.73f,.22f};
+        muzzle.intensity=45*clamp(shotFlash/.07f,0,1);muzzle.direction={0,1,0};muzzle.cone=-1;collect(muzzle);
+    }
+    std::sort(candidates.begin(),candidates.end(),[](const Candidate& a,const Candidate& b){
+        return a.priority<b.priority||(a.priority==b.priority&&a.order<b.order);
+    });
+    std::vector<Light> result;result.reserve(std::min(size_t(64),candidates.size()));
+    for(size_t i=0;i<candidates.size()&&i<64;++i)result.push_back(candidates[i].light);
+    return result;
+}
+
 }
