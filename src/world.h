@@ -11,6 +11,9 @@ struct Light {Vec3 position;float radius=24;Vec3 color{1,.72f,.4f};float intensi
 enum class Biome { Downtown, Residential, Countryside, Wetland, Beach, Island, Ocean };
 struct Landmark { Vec3 position; const char* name; };
 struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights;};
+// Value-only jobs: workers never retain a World, Game, or resident-chunk reference.
+struct ChunkBuildRequest {int x=0,z=0;uint64_t epoch=0,ticket=0;};
+struct ChunkBuildResult {ChunkBuildRequest request;Chunk chunk;};
 // Material: 0 matte, 1 metal, 2 window/emissive, 3 water, 4 road.
 void addBox(Mesh&,Vec3 center,Vec3 half,Vec3 color,float yaw=0,float material=0);
 void addCylinder(Mesh&,Vec3 bottom,float radius,float height,Vec3 color,int sides=8,float material=0);
@@ -25,6 +28,15 @@ public:
     std::vector<Chunk> chunks;
     uint64_t revision=0;
     bool stream(Vec3 position);
+    std::vector<ChunkBuildRequest> requestStream(Vec3 position,uint64_t epoch);
+    static ChunkBuildResult buildChunk(const ChunkBuildRequest& request);
+    bool installChunk(ChunkBuildResult&& result);
+    bool publishReady();
+    bool collisionReady(Vec3 position) const;
+    size_t pendingChunkCount() const {return pending.size();}
+    size_t stagedChunkCount() const;
+    size_t stagedChunkBytes() const;
+    static size_t chunkBytes(const Chunk& chunk);
     float height(float x,float z) const;
     float waterDepth(float x,float z) const;
     Biome biome(float x,float z) const;
@@ -37,7 +49,12 @@ public:
     // Position along the complete winding coastal road; fraction is in [0,1].
     static Vec3 coastalRoadPoint(float fraction);
 private:
+    struct PendingChunk {ChunkBuildRequest request;Chunk chunk;bool ready=false;};
     int centerX=0x7fffffff,centerZ=0x7fffffff;
+    int requestedX=0x7fffffff,requestedZ=0x7fffffff;
+    uint64_t requestEpoch=0,nextTicket=0;
+    bool hasRequest=false;
+    std::vector<PendingChunk> pending;
     Chunk generate(int x,int z) const;
 };
 }

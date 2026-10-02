@@ -1,6 +1,7 @@
 #include "world.h"
 #include <array>
 #include <limits>
+#include <stdexcept>
 #include <utility>
 
 namespace mc {
@@ -818,16 +819,94 @@ Chunk World::generate(int cx,int cz) const {
 }
 
 bool World::stream(Vec3 position) {
+    if(!std::isfinite(position.x)||!std::isfinite(position.z))return false;
+    pending.clear();hasRequest=false;
     int x=int(std::floor(clamp(position.x,-Extent,Extent)/ChunkSize));
     int z=int(std::floor(clamp(position.z,-Extent,Extent)/ChunkSize));
-    if(x==centerX && z==centerZ)return false;
-    std::vector<Chunk> next;next.reserve((StreamRadius*2+1)*(StreamRadius*2+1));
-    for(int iz=z-StreamRadius;iz<=z+StreamRadius;++iz)for(int ix=x-StreamRadius;ix<=x+StreamRadius;++ix) {
-        bool found=false;
-        for(auto& c:chunks)if(c.x==ix && c.z==iz) {next.push_back(std::move(c));c.x=0x7fffffff;found=true;break;}
-        if(!found)next.push_back(generate(ix,iz));
+    if(x==centerX && z==centerZ&&chunks.size()==49)return false;
+    const auto requests=requestStream(position,requestEpoch);
+    for(const auto& request:requests)installChunk(buildChunk(request));
+    return publishReady();
+}
+size_t World::chunkBytes(const Chunk& chunk) {
+    return chunk.mesh.vertices.capacity()*sizeof(Vertex)+chunk.mesh.indices.capacity()*sizeof(uint32_t)+
+        chunk.solids.capacity()*sizeof(Box)+chunk.lights.capacity()*sizeof(Light);
+}
+size_t World::stagedChunkCount() const {
+    size_t count=0;for(const auto& entry:pending)if(entry.ready)++count;return count;
+}
+size_t World::stagedChunkBytes() const {
+    size_t bytes=0;for(const auto& entry:pending)if(entry.ready)bytes+=chunkBytes(entry.chunk);return bytes;
+}
+std::vector<ChunkBuildRequest> World::requestStream(Vec3 position,uint64_t epoch) {
+    if(!std::isfinite(position.x)||!std::isfinite(position.z))throw std::invalid_argument("Streaming position is not finite");
+    const int x=int(std::floor(clamp(position.x,-Extent,Extent)/ChunkSize));
+    const int z=int(std::floor(clamp(position.z,-Extent,Extent)/ChunkSize));
+    if(hasRequest&&requestedX==x&&requestedZ==z&&requestEpoch==epoch) {
+        std::vector<ChunkBuildRequest> requests;requests.reserve(pending.size());
+        for(const auto& entry:pending)if(!entry.ready)requests.push_back(entry.request);
+        return requests;
     }
-    chunks=std::move(next);centerX=x;centerZ=z;++revision;return true;
+    if(epoch!=requestEpoch){pending.clear();requestEpoch=epoch;}
+    std::vector<PendingChunk> next;next.reserve(49);
+    std::vector<ChunkBuildRequest> requests;requests.reserve(49);
+    for(int iz=z-StreamRadius;iz<=z+StreamRadius;++iz)for(int ix=x-StreamRadius;ix<=x+StreamRadius;++ix) {
+        bool resident=false;for(const auto& chunk:chunks)if(chunk.x==ix&&chunk.z==iz){resident=true;break;}
+        if(resident)continue;
+        PendingChunk entry;bool found=false;
+        for(auto& old:pending)if(old.request.x==ix&&old.request.z==iz) {entry=std::move(old);found=true;break;}
+        if(!found) {
+            if(nextTicket==std::numeric_limits<uint64_t>::max())throw std::overflow_error("Streaming ticket space exhausted");
+            entry.request={ix,iz,epoch,++nextTicket};
+        }
+        if(!entry.ready)requests.push_back(entry.request);
+        next.push_back(std::move(entry));
+    }
+    pending=std::move(next);requestedX=x;requestedZ=z;hasRequest=true;
+    return requests;
+}
+ChunkBuildResult World::buildChunk(const ChunkBuildRequest& request) {
+    constexpr int limit=int(Extent/ChunkSize)+StreamRadius;
+    if(request.x< -limit||request.x>limit||request.z< -limit||request.z>limit)
+        throw std::out_of_range("Chunk request is outside world streaming bounds");
+    World generator;
+    return {request,generator.generate(request.x,request.z)};
+}
+bool World::installChunk(ChunkBuildResult&& result) {
+    if(!hasRequest||result.request.epoch!=requestEpoch||result.chunk.x!=result.request.x||result.chunk.z!=result.request.z)return false;
+    for(auto& entry:pending)if(entry.request.x==result.request.x&&entry.request.z==result.request.z&&entry.request.ticket==result.request.ticket) {
+        if(entry.ready)return false;
+        entry.chunk=std::move(result.chunk);entry.ready=true;return true;
+    }
+    return false;
+}
+bool World::publishReady() {
+    if(!hasRequest||(requestedX==centerX&&requestedZ==centerZ&&pending.empty()&&chunks.size()==49))return false;
+    for(const auto& entry:pending)if(!entry.ready)return false;
+    // Validate the complete neighborhood before moving a single live collision or mesh allocation.
+    for(int z=requestedZ-StreamRadius;z<=requestedZ+StreamRadius;++z)for(int x=requestedX-StreamRadius;x<=requestedX+StreamRadius;++x) {
+        bool present=false;
+        for(const auto& chunk:chunks)if(chunk.x==x&&chunk.z==z){present=true;break;}
+        if(!present)for(const auto& entry:pending)if(entry.ready&&entry.chunk.x==x&&entry.chunk.z==z){present=true;break;}
+        if(!present)return false;
+    }
+    std::vector<Chunk> next;next.reserve(49);
+    for(int z=requestedZ-StreamRadius;z<=requestedZ+StreamRadius;++z)for(int x=requestedX-StreamRadius;x<=requestedX+StreamRadius;++x) {
+        bool moved=false;
+        for(auto& chunk:chunks)if(chunk.x==x&&chunk.z==z){next.push_back(std::move(chunk));moved=true;break;}
+        if(!moved)for(auto& entry:pending)if(entry.chunk.x==x&&entry.chunk.z==z){next.push_back(std::move(entry.chunk));break;}
+    }
+    chunks=std::move(next);centerX=requestedX;centerZ=requestedZ;pending.clear();hasRequest=false;++revision;return true;
+}
+bool World::collisionReady(Vec3 position) const {
+    if(chunks.size()!=49||!std::isfinite(position.x)||!std::isfinite(position.z))return false;
+    const int x=int(std::floor(clamp(position.x,-Extent,Extent)/ChunkSize));
+    const int z=int(std::floor(clamp(position.z,-Extent,Extent)/ChunkSize));
+    for(int iz=z-1;iz<=z+1;++iz)for(int ix=x-1;ix<=x+1;++ix) {
+        bool present=false;for(const auto& chunk:chunks)if(chunk.x==ix&&chunk.z==iz){present=true;break;}
+        if(!present)return false;
+    }
+    return true;
 }
 bool World::blocked(Vec3 p,float radius) const {
     radius=std::max(0.0f,radius);
