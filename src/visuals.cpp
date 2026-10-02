@@ -363,6 +363,21 @@ void vehicleMesh(Mesh& mesh,const Vehicle& v,float time,uint32_t seed,bool close
         box({.35f,roofY+.19f,-.18f},{.23f,.058f,.095f},flash?Vec3{.14f,.02f,.02f}:Vec3{1,.035f,.02f},flash?0.0f:2.0f);
     }
 }
+void medicalCase(Mesh& mesh,Vec3 base,float yaw){
+    const Vec3 shell{.87f,.86f,.77f},red{.76f,.075f,.045f},trim{.095f,.11f,.12f};
+    auto point=[&](Vec3 p){return base+rotate(p,yaw);};
+    addBox(mesh,point({0,.17f,0}),{.28f,.17f,.19f},shell,yaw);
+    addBox(mesh,point({0,.27f,0}),{.287f,.018f,.197f},trim,yaw);
+    for(float side:{-1.0f,1.0f}){
+        addBox(mesh,point({side*.18f,.26f,.20f}),{.026f,.058f,.015f},trim,yaw);
+        tube(mesh,point({side*.09f,.345f,0}),point({side*.09f,.405f,0}),.018f,.018f,trim,6);
+    }
+    tube(mesh,point({-.09f,.405f,0}),point({.09f,.405f,0}),.018f,.018f,trim,6);
+    addBox(mesh,point({0,.15f,.195f}),{.075f,.022f,.009f},red,yaw);
+    addBox(mesh,point({0,.15f,.195f}),{.023f,.072f,.010f},red,yaw);
+    addBox(mesh,point({0,.345f,0}),{.09f,.007f,.028f},red,yaw);
+    addBox(mesh,point({0,.345f,0}),{.028f,.008f,.09f},red,yaw);
+}
 }
 
 Mesh Game::dynamicMesh() const {
@@ -392,13 +407,56 @@ Mesh Game::dynamicMesh() const {
             for(float side:{-1.0f,1.0f}){Vec3 a=aft+right(boat.yaw)*(side*.7f),b=aft-forward(boat.yaw)*trail+right(boat.yaw)*(side*(1.3f+trail*.12f));Vec3 c=b+right(boat.yaw)*(side*.2f);a.y=b.y=c.y=World::WaterLevel+.035f;vehicleTriangle(mesh,a,b,c,{0,1,0},{.59f,.77f,.76f},0);}
         }
     }
+    if(activeMission==4){
+        const Vec3 clinic{3090,World::WaterLevel,1080};
+        const Vec3 coat{.79f,.27f,.065f},skin{.59f,.36f,.23f};
+        if(missionStage<2&&planarDistance(player,clinic)<230){
+            const Vec3 survivor=clinic+Vec3{0,.58f,-1.20f};
+            const float facing=std::atan2(player.x-survivor.x,player.z-survivor.z);
+            personMesh(mesh,survivor,facing,time*.8f,.04f,coat,skin,false,false,47,planarDistance(player,clinic)<45);
+            medicalCase(mesh,clinic+Vec3{-.70f,.58f,-.15f},-.20f);
+            if(missionHold>0){
+                const float progress=clamp(missionHold/3,0,1);
+                for(int i=0;i<32&&float(i)/32<progress;++i){const float a=float(i)*2*Pi/32,b=float(i+1)*2*Pi/32;
+                    tube(mesh,survivor+Vec3{std::sin(a)*.6f,2.15f,std::cos(a)*.6f},survivor+Vec3{std::sin(b)*.6f,2.15f,std::cos(b)*.6f},.025f,.025f,{.12f,1,.58f},4,2);}
+            }
+        }else if(missionStage>=2){
+            if(occupied>=0&&size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Boat){
+                const Vehicle& boat=vehicles[size_t(occupied)];const size_t first=mesh.vertices.size();
+                personMesh(mesh,{-.54f,.04f,-1.31f},0,0,0,coat,skin,false,false,47,true,true);
+                medicalCase(mesh,{.56f,.64f,.67f},0);
+                for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=boat.position+craftRotation(vertex.position,boat);vertex.normal=normalized(craftRotation(vertex.normal,boat));}
+            }else if(occupied<0){
+                Vec3 companion=world.move(player,right(yaw)*.95f,.30f);companion.y=player.y;
+                personMesh(mesh,companion,yaw,playerPhase+.4f,playerMotion,coat,skin,false,false,47,true);
+                medicalCase(mesh,companion+rotate({-.42f,.57f,0},yaw),yaw);
+            }
+        }
+    }
     if(shotFlash>0&&occupied<0){ellipsoid(mesh,shotOrigin,{.055f,.055f,.12f},yaw,{1,.73f,.22f},6,3,2);tube(mesh,shotOrigin,shotEnd,.012f,.007f,{1,.68f,.23f},4,2);}
     if(missionInfo()){
-        Vec3 target=missionTarget();target.y=world.height(target.x,target.z);
-        if(planarDistance(target,player)<420){
+        Vec3 target=missionTarget();
+        if(activeMission==5&&missionStage<3&&planarDistance(target,player)<1400){
+            const Vec3 previous=missionStage==0?Vec3{-3200,0,-1190}:(missionStage==1?Vec3{-3200,0,-500}:Vec3{-2600,0,0});
+            Vec3 approach=target-previous;approach.y=0;approach=normalized(approach);
+            const Vec3 crossbar{approach.z,0,-approach.x};const float halfHeight=missionStage==0?40.0f:50.0f;
+            const Vec3 gateColor{.12f,.87f,.71f};
+            for(int i=0;i<48;++i){const float a=float(i)*2*Pi/48,b=float(i+1)*2*Pi/48;
+                tube(mesh,target+crossbar*(std::sin(a)*70)+Vec3{0,std::cos(a)*halfHeight,0},target+crossbar*(std::sin(b)*70)+Vec3{0,std::cos(b)*halfHeight,0},.42f,.42f,gateColor,5,2);}
+            for(int i=0;i<3;++i){const Vec3 pip=target+Vec3{0,halfHeight+4,0}+crossbar*(float(i-1)*3.2f);
+                ellipsoid(mesh,pip,{.82f,.82f,.82f},0,i<=missionStage?Vec3{1,.65f,.13f}:Vec3{.18f,.25f,.28f},6,3,i<=missionStage?2.0f:0.0f);}
+        }else{
+            target.y=std::max(world.height(target.x,target.z),World::WaterLevel);
+            if(activeMission==5&&missionStage>=3&&planarDistance(target,player)<900){
+                const Vec3 color{.10f,.88f,.63f};
+                for(float x:{-3214.0f,-3186.0f})tube(mesh,{x,4.08f,-1220},{x,4.08f,-780},.10f,.10f,color,4,2);
+                for(float z:{-1220.0f,-780.0f})tube(mesh,{-3214,4.08f,z},{-3186,4.08f,z},.10f,.10f,color,4,2);
+            }
+            if(planarDistance(target,player)<420){
             const Vec3 color=activeMission<0?Vec3{1,.58f,.08f}:Vec3{.1f,.88f,.68f};const float radius=activeMission<0?2.5f:3.8f;
             for(int i=0;i<32;++i){float a=float(i)*2*Pi/32,b=float(i+1)*2*Pi/32;Vec3 p=target+Vec3{std::sin(a)*radius,.08f,std::cos(a)*radius},q=target+Vec3{std::sin(b)*radius,.08f,std::cos(b)*radius};tube(mesh,p,q,.045f,.045f,color,4,2);}
             const float bob=std::sin(time*2)*.15f;ellipsoid(mesh,target+Vec3{0,3.2f+bob,0},{.25f,.42f,.25f},time*.6f,color,6,3,2);
+            }
         }
     }
     for(Vec3 marker:{Garage,Outfitter}){if(planarDistance(marker,player)>160)continue;marker.y=world.height(marker.x,marker.z);ellipsoid(mesh,marker+Vec3{0,2.4f,0},{.20f,.28f,.20f},time*.35f,{.13f,.46f,1},6,3,2);}

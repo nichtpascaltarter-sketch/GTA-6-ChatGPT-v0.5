@@ -32,11 +32,12 @@ struct Game {
     Vec3 cameraEye() const; Vec3 cameraTarget() const;
     Vec3 missionTarget() const;
     const Mission* missionInfo() const;
+    const char* missionInstruction() const;
     static const std::vector<Mission>& missions();
     bool save(const std::string& path) const;
     bool load(const std::string& path);
 private:
-    float fireCooldown=0,wantedTimer=0,verticalSpeed=0;
+    float fireCooldown=0,wantedTimer=0,verticalSpeed=0,missionHold=0;
     bool grounded=true;float populationTimer=0;
     float reloadTimer=0,invulnerabilityTimer=0,playerPhase=0,playerMotion=0,cameraFollowDelay=0;
     bool wasInteract=false,wasReload=false,wasMission=false,wasRadio=false,wasJump=false,aiming=false;

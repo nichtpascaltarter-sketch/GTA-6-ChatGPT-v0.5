@@ -23,6 +23,13 @@ constexpr Vec3 Garage{140,0,128};
 constexpr Vec3 Outfitter{-116,0,128};
 constexpr Vec3 DispatchDestination{-372,0,256};
 constexpr Vec3 SignalDestination{780,0,-384};
+constexpr Vec3 LandingPier{2674,.40f,768};
+constexpr Vec3 RescuePickup{3090,World::WaterLevel,1080};
+constexpr Vec3 AirfieldStart{-3200,4,-1190};
+constexpr Vec3 AirfieldStop{-3200,4,-1000};
+// Survey point Y values are target heights above the terrain, not world elevations.
+constexpr Vec3 SurveyPoints[]={{-3200,90,-500},{-2600,140,0},{-2700,110,800}};
+constexpr float SurveyMinimum[]={50,90,60},SurveyMaximum[]={130,190,160};
 float planarDistance(Vec3 a,Vec3 b) {a.y=b.y=0;return length(a-b);}
 float roadGrid(Vec3 p) {
     if(p.x>=-1664&&p.x<=1536&&p.z>=-1792&&p.z<=2048)return 128;
@@ -44,6 +51,27 @@ void appendStarterCraft(std::vector<Vehicle>& vehicles,const World& world){
 float boatSurface(Vec3 position,float time,float rain){return World::WaterLevel+(.035f+rain*.075f)*std::sin(time*1.8f+position.x*.06f)+.025f*std::sin(time*2.7f+position.z*.055f);}
 bool boatDepth(const World& world,Vec3 p,float yaw){
     for(Vec3 offset:std::array<Vec3,5>{{{0,0,0},{0,0,2.6f},{0,0,-2.4f},{.90f,0,0},{-.90f,0,0}}}){Vec3 sample=p+rotate(offset,yaw);if(world.waterDepth(sample.x,sample.z)<.42f)return false;}
+    return true;
+}
+bool provideLoan(World& world,std::vector<Vehicle>& vehicles,int occupied,VehicleKind kind){
+    int loan=-1;
+    for(size_t i=0;i<vehicles.size();++i)if(int(i)!=occupied&&vehicles[i].kind==kind){loan=int(i);break;}
+    if(loan<0&&vehicles.size()>=256)return false;
+    const Vec3 anchor=kind==VehicleKind::Boat?Vec3{2678,World::WaterLevel,768}:AirfieldStart;
+    Vec3 position;bool found=false;
+    for(Vec3 offset:std::array<Vec3,5>{{{0,0,0},{0,0,-18},{0,0,18},{0,0,-36},{0,0,36}}}){
+        Vec3 candidate=anchor+offset;
+        candidate.y=kind==VehicleKind::Boat?World::WaterLevel:world.height(candidate.x,candidate.z);
+        if(kind==VehicleKind::Boat&&!boatDepth(world,candidate,0))continue;
+        if(world.blocked(candidate,kind==VehicleKind::Boat?1.0f:4.8f))continue;
+        bool occupiedSpace=false;
+        for(size_t i=0;i<vehicles.size();++i)if(int(i)!=loan&&std::abs(vehicles[i].position.y-candidate.y)<2.0f&&planarDistance(vehicles[i].position,candidate)<(kind==VehicleKind::Boat?6.5f:9.0f)){occupiedSpace=true;break;}
+        if(!occupiedSpace){position=candidate;found=true;break;}
+    }
+    if(!found)return false;
+    Vehicle craft;craft.kind=kind;craft.position=position;craft.parked=true;
+    craft.color=kind==VehicleKind::Boat?Vec3{.10f,.38f,.72f}:Vec3{.86f,.81f,.54f};
+    if(loan>=0)vehicles[size_t(loan)]=craft;else vehicles.push_back(craft);
     return true;
 }
 float rayBox(Vec3 origin,Vec3 direction,const Box& box,float maximum){
@@ -184,7 +212,9 @@ const std::vector<Mission>& Game::missions(){
         {"A FAVOR IN LOW TIDE","Inez: My sedan is by the curb. Bring it to the harbor steps. Keep the paint on it.",{12,0,24},{268,0,128},400},
         {"LAST LIGHT DISPATCH","Inez: The clinic's battery shipment never arrived. Collect it at the north arcade, then find Mara in Westhaven.",{268,0,128},{12,0,512},850},
         {"THE LONG WAY HOME","Mara: These records expose the harbor extortion racket. Take a car, shake the patrol, and meet me south of town.",DispatchDestination,{12,0,-512},1200},
-        {"SIGNAL ON THE WATER","Mara: Our witness left two recordings along the eastern promenade. Find them on foot; let the city hear the truth.",{12,0,-512},{780,0,-512},1600}
+        {"SIGNAL ON THE WATER","Mara: Our witness left two recordings along the eastern promenade. Find them on foot; let the city hear the truth.",{12,0,-512},{780,0,-512},1600},
+        {"A LIGHT IN THE SOUND","Mara: Leena's clinic launch lost power. Take the blue loan boat, hold alongside her red beacon, then bring her and the medical supplies back to Glasswater Landing.",LandingPier,RescuePickup,1800},
+        {"LINES ABOVE THE COAST","Leena: My radio log points to three unlisted harbor transmitters. Fly the survey gates in the cream loan plane, then land with the recorder at Breaker Airfield.",AirfieldStart,SurveyPoints[0],2600}
     };
     return list;
 }
@@ -216,11 +246,32 @@ const Mission* Game::missionInfo() const {
     int index=activeMission>=0?activeMission:completedMissions;
     return index>=0&&index<int(missions().size())?&missions()[size_t(index)]:nullptr;
 }
+const char* Game::missionInstruction() const {
+    if(activeMission<0)return missionInfo()?"MEET THE CONTACT AT THE AMBER MARKER":"EXPLORE MERIDIAN COAST";
+    switch(activeMission){
+    case 0:return missionStage==0?"ENTER A CAR OR MOTORCYCLE":"DELIVER THE VEHICLE TO THE HARBOR STEPS";
+    case 1:return missionStage==0?"COLLECT THE CLINIC BATTERIES AT THE ARCADE":"DELIVER THE BATTERIES TO WESTHAVEN";
+    case 2:return missionStage==0?"ENTER A CAR OR MOTORCYCLE":"LOSE THE PATROL; RETURN TO MARA";
+    case 3:return missionStage==0?"FIND THE FIRST RECORDING ON FOOT":"FIND THE PROMENADE RECORDING ON FOOT";
+    case 4:
+        if(missionStage==0)return "BOARD THE BLUE LOAN BOAT AT THE PIER";
+        if(missionStage>=2)return "RETURN LEENA TO GLASSWATER; STOP AT PIER";
+        return missionHold>0?"HOLD BESIDE LEENA'S LAUNCH FOR 3 SECONDS":"REACH THE RED BEACON; SLOW BESIDE LEENA";
+    case 5:
+        if(missionStage==0)return "FLY GATE 1 OF 3 / 50-130 M ABOVE TERRAIN";
+        if(missionStage==1)return "FLY GATE 2 OF 3 / 90-190 M ABOVE TERRAIN";
+        if(missionStage==2)return "FLY GATE 3 OF 3 / 60-160 M ABOVE TERRAIN";
+        return "LAND AND STOP ON THE BREAKER RUNWAY";
+    default:return "FOLLOW THE CONTRACT MARKER";
+    }
+}
 Vec3 Game::missionTarget() const {
     const Mission* mission=missionInfo();if(!mission)return Garage;
     if(activeMission<0)return mission->start;
     if(activeMission==1&&missionStage>=1)return DispatchDestination;
     if(activeMission==3&&missionStage>=1)return SignalDestination;
+    if(activeMission==4)return missionStage>=2?LandingPier:RescuePickup;
+    if(activeMission==5){if(missionStage>=3)return AirfieldStop;Vec3 point=SurveyPoints[std::max(0,missionStage)];point.y+=world.height(point.x,point.z);return point;}
     return mission->target;
 }
 Vec3 Game::cameraEye() const {
@@ -456,14 +507,19 @@ void Game::update(const Input& input,float elapsed){
         for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{12,0,12};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
     }
     if(missionAction){
-        if(activeMission<0&&completedMissions<int(missions().size())&&planarDistance(player,missions()[size_t(completedMissions)].start)<14){activeMission=completedMissions;missionStage=0;missionTimer=activeMission==1?180.0f:(activeMission==2?240.0f:0.0f);message=missions()[size_t(activeMission)].briefing;messageTime=12;}
+        if(activeMission<0&&completedMissions<int(missions().size())&&planarDistance(player,missions()[size_t(completedMissions)].start)<14){
+            const int chapter=completedMissions;
+            const bool supplied=chapter<4||provideLoan(world,vehicles,occupied,chapter==4?VehicleKind::Boat:VehicleKind::Aircraft);
+            if(supplied){activeMission=chapter;missionStage=0;missionHold=0;missionTimer=chapter==1?180.0f:(chapter==2||chapter==4?240.0f:(chapter==5?360.0f:0.0f));message=missions()[size_t(chapter)].briefing;if(chapter>=4)message+=chapter==4?" A serviced blue loan runabout is ready at the berth.":" A serviced cream survey plane is ready on the runway.";messageTime=14;}
+            else {message="The loan craft needs a clear berth. Move your current vehicle aside and contact the crew again.";messageTime=6;}
+        }
         else if(planarDistance(player,Garage)<16){if(money>=75){money-=75;health=100;if(occupied>=0)vehicles[size_t(occupied)].health=100;message="Harbor garage  /  repaired and treated  -$75";}else message="Harbor garage  /  repairs cost $75";messageTime=5;}
         else if(planarDistance(player,Outfitter)<16){if(money>=60&&reserveAmmo<=9910){money-=60;reserveAmmo+=90;message="Outfitter  /  90 rounds  -$60";}else message="Outfitter  /  ammunition costs $60";messageTime=5;}
         else if(activeMission<0){message=completedMissions<int(missions().size())?"Meet your contact at the amber marker to begin the next job.":"The harbor story is complete. Explore the coast, ride the city, or visit the garage and outfitter.";messageTime=5;}
         else {message=missions()[size_t(activeMission)].briefing;messageTime=8;}
     }
     if(activeMission>=0){
-        bool complete=false,failed=false;const float distance=planarDistance(player,missionTarget());const float speed=occupied>=0?std::abs(vehicles[size_t(occupied)].speed):0;const bool roadRide=occupied>=0&&roadVehicle(vehicles[size_t(occupied)].kind);
+        bool complete=false,failed=health<=0;const float distance=planarDistance(player,missionTarget());const float speed=occupied>=0?std::abs(vehicles[size_t(occupied)].speed):0;const bool roadRide=occupied>=0&&roadVehicle(vehicles[size_t(occupied)].kind);
         if(missionTimer>0){missionTimer=std::max(0.0f,missionTimer-dt);if(missionTimer==0)failed=true;}
         switch(activeMission){
         case 0:
@@ -483,13 +539,39 @@ void Game::update(const Input& input,float elapsed){
             if(missionStage==0&&distance<10&&occupied<0){missionStage=1;message="Recording 1: The harbor fees paid for private patrols. The second recording is north on the promenade.";messageTime=10;}
             else if(missionStage==1&&distance<10&&occupied<0)complete=true;
             break;
+        case 4: {
+            const bool matching=occupied>=0&&vehicles[size_t(occupied)].kind==VehicleKind::Boat;
+            const bool boat=matching&&vehicles[size_t(occupied)].health>0;
+            if(matching&&!boat)failed=true;
+            if(missionStage==0&&boat){missionStage=1;message="Mara: Find the red beacon east of the landing. Slow alongside Leena's clinic launch for the transfer.";messageTime=9;}
+            if(missionStage==1){
+                if(boat&&distance<14&&speed<2){if(missionHold==0){message="Leena: Hold steady alongside. I need three seconds to cross with the supplies.";messageTime=5;}missionHold+=dt;
+                    if(missionHold>=3){missionHold=0;missionStage=2;message="Leena: I'm aboard, and the supplies are secure. Take us back to Glasswater Landing.";messageTime=10;}}
+                else missionHold=0;
+            }else if(missionStage==2&&boat&&distance<16&&speed<2)complete=true;
+            break;
+        }
+        case 5: {
+            const bool matching=occupied>=0&&vehicles[size_t(occupied)].kind==VehicleKind::Aircraft;
+            const bool aircraft=matching&&vehicles[size_t(occupied)].health>0;
+            if(matching&&!aircraft)failed=true;
+            const float altitude=player.y-world.height(player.x,player.z);
+            if(missionStage<3&&aircraft&&distance<75&&speed>24&&altitude>=SurveyMinimum[missionStage]&&altitude<=SurveyMaximum[missionStage]){
+                ++missionStage;
+                if(missionStage==1)message="Recorder: First transmitter logged. Next gate east; hold 90 to 190 metres above the terrain.";
+                else if(missionStage==2)message="Recorder: Second transmitter logged. Final gate north; hold 60 to 160 metres above the terrain.";
+                else message="Leena: All three transmitters are recorded. Land at Breaker Airfield and bring the plane to a stop.";
+                messageTime=10;
+            }else if(missionStage==3&&aircraft&&std::abs(player.x-AirfieldStop.x)<14&&player.z>-1220&&player.z<-780&&std::abs(altitude)<.35f&&speed<4.5f&&std::abs(vehicles[size_t(occupied)].velocity.y)<1)complete=true;
+            break;
+        }
         default:failed=true;break;
         }
-        if(complete){const Mission& m=missions()[size_t(activeMission)];money=std::min(100000000,money+m.reward);message=std::string("JOB COMPLETE  /  ")+m.title+"  +$"+std::to_string(m.reward);if(activeMission==3)message+="  /  Mara: The recordings are on the air. The city gets to decide what happens next.";messageTime=12;++completedMissions;activeMission=-1;missionStage=0;missionTimer=0;health=std::min(100.0f,health+20);}
-        else if(failed){message="Job expired. Return to your contact to try again.";messageTime=7;activeMission=-1;missionStage=0;missionTimer=0;}
+        if(complete&&!failed){const Mission& m=missions()[size_t(activeMission)];money=std::min(100000000,money+m.reward);message=std::string("JOB COMPLETE  /  ")+m.title+"  +$"+std::to_string(m.reward);if(activeMission==3)message+="  /  Mara: The recordings are on the air. Meet the clinic crew at Glasswater Landing.";messageTime=12;++completedMissions;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;health=std::min(100.0f,health+20);}
+        else if(failed){message=activeMission>=4?"Contract interrupted. Return to the contact; the crew will service a replacement loan craft.":"Job expired. Return to your contact to try again.";messageTime=7;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;}
     }
     if(health<=0||player.y< -25){
-        health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
+        health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
     }else if(wanted==0&&health<35)health=std::min(35.0f,health+dt*1.5f);
     world.stream(player);
@@ -505,7 +587,8 @@ bool Game::save(const std::string& path) const {
         for(const Vehicle& v:vehicles){payload.vector(v.position);payload.real(v.yaw);payload.real(v.speed);payload.real(v.steer);payload.vector(v.velocity);payload.vector(v.color);payload.integer(int(v.kind));payload.u32(v.police?1u:0u);payload.u32(v.parked?1u:0u);payload.real(v.health);payload.real(v.pitch);payload.real(v.roll);payload.real(v.throttle);}
         payload.u32(uint32_t(pedestrians.size()));
         for(const Pedestrian& p:pedestrians){payload.vector(p.position);payload.real(p.yaw);payload.real(p.phase);payload.real(p.panic);payload.real(p.health);}
-        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(2);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
+        payload.real(missionHold);
+        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(3);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
         const std::filesystem::path destination=utf8Path(path);
         std::filesystem::path temporary=destination;temporary+=".tmp";
         if(!destination.parent_path().empty())std::filesystem::create_directories(destination.parent_path());
@@ -525,14 +608,14 @@ bool Game::load(const std::string& path){
         std::vector<uint8_t> bytes(static_cast<size_t>(size));file.seekg(0);file.read(reinterpret_cast<char*>(bytes.data()),size);if(!file)return false;
         const uint8_t magic[8]={'M','C','S','T','S','A','V','E'};
         if(std::memcmp(bytes.data(),magic,8)!=0)return false;
-        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version!=1&&version!=2)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
+        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>3)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
         Game state;SaveReader reader{bytes,20};
         state.player=reader.vector();state.yaw=reader.real();state.pitch=reader.real();state.health=reader.real();state.money=reader.integer();state.ammo=reader.integer();state.reserveAmmo=reader.integer();state.wanted=reader.integer();
         state.occupied=reader.integer();state.activeMission=reader.integer();state.missionStage=reader.integer();state.completedMissions=reader.integer();state.radioStation=reader.integer();
         state.time=reader.real();state.dayTime=reader.real();state.rain=reader.real();state.missionTimer=reader.real();state.wantedTimer=reader.real();state.reloadTimer=reader.real();state.verticalSpeed=reader.real();uint32_t ground=reader.u32();state.grounded=ground==1;
         if(!reader.good||!validPosition(state.player)||std::abs(state.yaw)>Pi*2||state.pitch<-.85f||state.pitch>1.12f||state.health<0||state.health>100||state.money<0||state.money>100000000||state.ammo<0||state.ammo>Magazine||state.reserveAmmo<0||state.reserveAmmo>10000||state.wanted<0||state.wanted>5||state.radioStation<0||state.radioStation>3)return false;
-        if(state.completedMissions<0||state.completedMissions>int(missions().size())||state.activeMission< -1||state.activeMission>=int(missions().size())||state.missionStage<0||state.missionStage>2||(state.activeMission>=0&&state.activeMission!=state.completedMissions))return false;
-        if((state.activeMission<0&&state.missionStage!=0)||(state.activeMission!=2&&state.missionStage>1)||state.time<0||state.time>1e9f||state.dayTime<0||state.dayTime>=24||state.rain<0||state.rain>1||state.missionTimer<0||state.missionTimer>10000||state.wantedTimer<0||state.wantedTimer>10000||state.reloadTimer<0||state.reloadTimer>2||std::abs(state.verticalSpeed)>100||ground>1)return false;
+        if(state.completedMissions<0||state.completedMissions>int(missions().size())||state.activeMission< -1||state.activeMission>=int(missions().size())||state.missionStage<0||state.missionStage>3||(state.activeMission>=0&&state.activeMission!=state.completedMissions))return false;
+        if((state.activeMission<0&&state.missionStage!=0)||(state.activeMission!=2&&state.activeMission!=4&&state.activeMission!=5&&state.missionStage>1)||((state.activeMission==2||state.activeMission==4)&&state.missionStage>2)||state.time<0||state.time>1e9f||state.dayTime<0||state.dayTime>=24||state.rain<0||state.rain>1||state.missionTimer<0||state.missionTimer>10000||state.wantedTimer<0||state.wantedTimer>10000||state.reloadTimer<0||state.reloadTimer>2||std::abs(state.verticalSpeed)>100||ground>1)return false;
         uint32_t vehicleCount=reader.u32();if(vehicleCount>256)return false;state.vehicles.reserve(vehicleCount);
         for(uint32_t i=0;i<vehicleCount;++i){Vehicle v;v.position=reader.vector();v.yaw=reader.real();v.speed=reader.real();v.steer=reader.real();v.velocity=reader.vector();v.color=reader.vector();int kind=reader.integer();uint32_t police=reader.u32(),parked=reader.u32();v.police=police==1;v.parked=parked==1;v.kind=VehicleKind(kind);v.health=reader.real();
             if(version>=2){v.pitch=reader.real();v.roll=reader.real();v.throttle=reader.real();}
@@ -542,7 +625,8 @@ bool Game::load(const std::string& path){
         if(state.occupied< -1||state.occupied>=int(state.vehicles.size()))return false;
         uint32_t pedestrianCount=reader.u32();if(pedestrianCount>512)return false;state.pedestrians.reserve(pedestrianCount);
         for(uint32_t i=0;i<pedestrianCount;++i){Pedestrian p;p.position=reader.vector();p.yaw=reader.real();p.phase=reader.real();p.panic=reader.real();p.health=reader.real();if(!reader.good||!validPosition(p.position)||std::abs(p.yaw)>Pi*2||std::abs(p.phase)>1e9f||p.panic<0||p.panic>10000||p.health<0||p.health>100)return false;state.pedestrians.push_back(p);}
-        if(!reader.good||reader.offset!=bytes.size())return false;
+        if(version>=3)state.missionHold=reader.real();
+        if(!reader.good||reader.offset!=bytes.size()||state.missionHold<0||state.missionHold>3||(state.missionHold>0&&(state.activeMission!=4||state.missionStage!=1)))return false;
         if(state.occupied>=0&&planarDistance(state.player,state.vehicles[size_t(state.occupied)].position)>3)return false;
         if(version==1){if(state.vehicles.size()>254)return false;appendStarterCraft(state.vehicles,state.world);}
         state.world.stream(state.player);
