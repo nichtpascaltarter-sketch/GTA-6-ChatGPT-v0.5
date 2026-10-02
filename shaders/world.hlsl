@@ -109,6 +109,8 @@ RaytracingAccelerationStructure scene : register(t0);
 struct SceneVertex { float3 position; float3 normal; float3 color; float material; };
 StructuredBuffer<SceneVertex> sceneVertices : register(t1);
 StructuredBuffer<uint> sceneIndices : register(t2);
+struct InstanceMetadata { uint firstVertex; uint firstIndex; };
+StructuredBuffer<InstanceMetadata> sceneInstances : register(t6);
 float sunVisibility(float3 p,float3 n) {
     if(sunDay.y<.02) return 1;
     RayDesc ray; ray.Origin=p+n*.055; ray.Direction=sunDay.xyz; ray.TMin=.04; ray.TMax=520;
@@ -121,8 +123,9 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
     RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_SKIP_PROCEDURAL_PRIMITIVES> q;
     q.TraceRayInline(scene,RAY_FLAG_NONE,255,ray); while(q.Proceed()){}
     if(q.CommittedStatus()!=COMMITTED_TRIANGLE_HIT) return skyColor(direction);
-    uint base=q.CommittedPrimitiveIndex()*3;
-    SceneVertex a=sceneVertices[sceneIndices[base]],b=sceneVertices[sceneIndices[base+1]],c=sceneVertices[sceneIndices[base+2]];
+    InstanceMetadata instance=sceneInstances[q.CommittedInstanceID()];
+    uint base=instance.firstIndex+q.CommittedPrimitiveIndex()*3;
+    SceneVertex a=sceneVertices[instance.firstVertex+sceneIndices[base]],b=sceneVertices[instance.firstVertex+sceneIndices[base+1]],c=sceneVertices[instance.firstVertex+sceneIndices[base+2]];
     float2 uv=q.CommittedTriangleBarycentrics(); float3 bary=float3(1-uv.x-uv.y,uv.x,uv.y);
     float3 albedo=a.color*bary.x+b.color*bary.y+c.color*bary.z;
     float3 normal=normalize(a.normal*bary.x+b.normal*bary.y+c.normal*bary.z);

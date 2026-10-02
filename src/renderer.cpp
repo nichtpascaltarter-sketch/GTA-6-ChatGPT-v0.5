@@ -20,6 +20,8 @@
 #include <climits>
 #include <cstdio>
 #include <algorithm>
+#include <map>
+#include <deque>
 #include "world_vs.h"
 #include "shadow_vs.h"
 #include "world_ps.h"
@@ -36,6 +38,11 @@ namespace {
 constexpr UINT FrameCount=2;
 constexpr UINT ShadowSize=2048;
 constexpr UINT MaxLights=64;
+constexpr uint64_t MiB=1024*1024;
+constexpr uint64_t DefaultVertexBudget=64*MiB,DefaultIndexBudget=16*MiB;
+constexpr uint64_t MaxVertexBudget=256*MiB,MaxIndexBudget=64*MiB;
+constexpr uint64_t MaxStagingBytes=384*MiB;
+constexpr size_t MaxUploadBatches=4;
 constexpr float ShadowSpan=240.0f;
 constexpr DXGI_FORMAT ColorFormat=DXGI_FORMAT_R8G8B8A8_UNORM;
 constexpr DXGI_FORMAT SceneFormat=DXGI_FORMAT_R16G16B16A16_FLOAT;
@@ -67,6 +74,28 @@ void transition(ID3D12GraphicsCommandList* list,ID3D12Resource* resource,D3D12_R
     if(before==after)return;D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;b.Transition.pResource=resource;b.Transition.StateBefore=before;b.Transition.StateAfter=after;b.Transition.Subresource=D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;list->ResourceBarrier(1,&b);
 }
 void uavBarrier(ID3D12GraphicsCommandList* list,ID3D12Resource* resource){D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;b.UAV.pResource=resource;list->ResourceBarrier(1,&b);}
+// Element offsets avoid the invalid byte alignment produced by power-of-two
+// allocation for the 40-byte vertex stride. Released intervals are coalesced.
+struct ArenaRange {uint32_t first=0,count=0;};
+struct ArenaAllocator {
+    std::vector<ArenaRange> free;
+    void reset(uint32_t capacity){free={{0,capacity}};}
+    bool allocate(uint32_t count,ArenaRange& result){
+        result={0,count};if(!count)return true;
+        size_t best=free.size();
+        for(size_t i=0;i<free.size();++i)if(free[i].count>=count&&(best==free.size()||free[i].count<free[best].count))best=i;
+        if(best==free.size())return false;
+        result.first=free[best].first;free[best].first+=count;free[best].count-=count;
+        if(!free[best].count)free.erase(free.begin()+best);return true;
+    }
+    void release(ArenaRange range){
+        if(!range.count)return;
+        auto at=std::lower_bound(free.begin(),free.end(),range.first,[](ArenaRange a,uint32_t first){return a.first<first;});
+        size_t index=size_t(at-free.begin());free.insert(at,range);
+        if(index&&free[index-1].first+free[index-1].count==free[index].first){free[index-1].count+=free[index].count;free.erase(free.begin()+index);--index;}
+        if(index+1<free.size()&&free[index].first+free[index].count==free[index+1].first){free[index].count+=free[index+1].count;free.erase(free.begin()+index+1);}
+    }
+};
 }
 struct Renderer::Impl {
     struct Frame {
@@ -88,8 +117,36 @@ struct Renderer::Impl {
     std::array<ComPtr<ID3D12Resource>,FrameCount> backBuffers;ComPtr<ID3D12Resource> depth,shadowDepth,sceneColor,resolvedColor;
     ComPtr<ID3D12RootSignature> rootSignature;
     ComPtr<ID3D12PipelineState> worldPipeline,rayPipeline,skyPipeline,uiPipeline,shadowPipeline,postPipeline;
-    ComPtr<ID3D12Resource> worldVertices,worldIndices,blas,tlas;
-    D3D12_VERTEX_BUFFER_VIEW worldVB{};D3D12_INDEX_BUFFER_VIEW worldIB{};UINT worldIndexCount=0;
+    struct ResidentChunk {
+        ArenaRange vertices,indices;
+        ComPtr<ID3D12Resource> blas;
+        uint64_t blasBytes=0;
+        uint64_t geometryBytes()const{return uint64_t(vertices.count)*sizeof(Vertex)+uint64_t(indices.count)*sizeof(uint32_t);}
+    };
+    using ChunkKey=std::pair<int,int>;
+    using ChunkMap=std::map<ChunkKey,std::shared_ptr<ResidentChunk>>;
+    struct RetiredChunk {uint64_t fence=0;std::shared_ptr<ResidentChunk> chunk;};
+    struct RetiredScene {uint64_t fence=0;ComPtr<ID3D12Resource> tlas,metadata;};
+    struct UploadBatch {
+        uint64_t fence=0,stagingBytes=0;
+        ComPtr<ID3D12CommandAllocator> allocator;
+        ComPtr<ID3D12GraphicsCommandList> commands;
+        ComPtr<ID3D12GraphicsCommandList4> rayCommands;
+        ComPtr<ID3D12Resource> vertices,indices,instances,scratch;
+        // These references also protect a submitted batch if queue Signal fails.
+        ComPtr<ID3D12Resource> arenaVertices,arenaIndices,tlas,metadata;
+        std::vector<std::shared_ptr<ResidentChunk>> chunks;
+    };
+    ComPtr<ID3D12Resource> worldVertices,worldIndices,tlas,instanceMetadata;
+    D3D12_VERTEX_BUFFER_VIEW worldVB{};D3D12_INDEX_BUFFER_VIEW worldIB{};
+    ArenaAllocator vertexAllocator,indexAllocator;
+    ChunkMap resident;
+    std::vector<std::shared_ptr<ResidentChunk>> activeChunks;
+    std::deque<RetiredChunk> retiredChunks;
+    std::deque<RetiredScene> retiredScenes;
+    std::deque<UploadBatch> uploadBatches;
+    StreamStats streaming;
+    uint64_t worldRevision=0;bool worldPublished=false;
     UINT width=0,height=0,rtvStride=0,srvStride=0,sceneSamples=1,lastPresented=0;bool tearing=false,raySupported=false,hasPresented=false;
     std::string gpuName="Unavailable";
     ~Impl(){std::string ignored;if(queue&&fence&&fenceEvent)flush(ignored);for(auto& f:frames)if(f.constants&&f.mappedConstants)f.constants->Unmap(0,nullptr);if(fenceEvent)CloseHandle(fenceEvent);}
@@ -209,7 +266,7 @@ struct Renderer::Impl {
         device->CreateShaderResourceView(shadowDepth.Get(),&readView,resourceHeap->GetCPUDescriptorHandleForHeapStart());return true;
     }
     bool createPipelines(std::string& error){
-        D3D12_ROOT_PARAMETER parameters[7]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
+        D3D12_ROOT_PARAMETER parameters[8]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
         for(UINT i=1;i<4;++i){parameters[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[i].Descriptor.ShaderRegister=i-1;parameters[i].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;}
         D3D12_DESCRIPTOR_RANGE shadowRange{};shadowRange.RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;shadowRange.NumDescriptors=1;shadowRange.BaseShaderRegister=3;
         parameters[4].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameters[4].DescriptorTable.NumDescriptorRanges=1;parameters[4].DescriptorTable.pDescriptorRanges=&shadowRange;parameters[4].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
@@ -218,8 +275,9 @@ struct Renderer::Impl {
         shadowSampler.ComparisonFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;shadowSampler.BorderColor=D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;shadowSampler.MaxAnisotropy=1;shadowSampler.MaxLOD=D3D12_FLOAT32_MAX;shadowSampler.ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
         D3D12_DESCRIPTOR_RANGE sceneRange{};sceneRange.RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;sceneRange.NumDescriptors=1;sceneRange.BaseShaderRegister=5;
         parameters[6].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameters[6].DescriptorTable.NumDescriptorRanges=1;parameters[6].DescriptorTable.pDescriptorRanges=&sceneRange;parameters[6].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
+        parameters[7].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[7].Descriptor.ShaderRegister=6;parameters[7].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
         D3D12_STATIC_SAMPLER_DESC samplers[2]={shadowSampler,shadowSampler};samplers[1].Filter=D3D12_FILTER_MIN_MAG_MIP_LINEAR;samplers[1].AddressU=samplers[1].AddressV=samplers[1].AddressW=D3D12_TEXTURE_ADDRESS_MODE_CLAMP;samplers[1].ComparisonFunc=D3D12_COMPARISON_FUNC_ALWAYS;samplers[1].ShaderRegister=1;
-        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=7;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=2;root.pStaticSamplers=samplers;
+        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=8;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=2;root.pStaticSamplers=samplers;
         ComPtr<ID3DBlob> serialized,diagnostics;
         HRESULT result=D3D12SerializeRootSignature(&root,D3D_ROOT_SIGNATURE_VERSION_1,&serialized,&diagnostics);
         if(!checked(result,"Serialize root signature",error)){if(diagnostics)error.append(static_cast<const char*>(diagnostics->GetBufferPointer()),diagnostics->GetBufferSize());return false;}
@@ -254,27 +312,123 @@ struct Renderer::Impl {
         p.BlendState.RenderTarget[0].BlendEnable=TRUE;p.BlendState.RenderTarget[0].SrcBlend=D3D12_BLEND_SRC_ALPHA;p.BlendState.RenderTarget[0].DestBlend=D3D12_BLEND_INV_SRC_ALPHA;p.BlendState.RenderTarget[0].DestBlendAlpha=D3D12_BLEND_INV_SRC_ALPHA;
         return checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&uiPipeline)),"Create interface pipeline",error);
     }
-    bool buildRayScene(std::string& error){
-        blas.Reset();tlas.Reset();if(!raySupported||!worldIndexCount)return true;
-        D3D12_RAYTRACING_GEOMETRY_DESC geometry{};geometry.Type=D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;geometry.Flags=D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
-        geometry.Triangles.VertexBuffer.StartAddress=worldVB.BufferLocation;geometry.Triangles.VertexBuffer.StrideInBytes=sizeof(Vertex);geometry.Triangles.VertexCount=worldVB.SizeInBytes/sizeof(Vertex);geometry.Triangles.VertexFormat=DXGI_FORMAT_R32G32B32_FLOAT;
-        geometry.Triangles.IndexBuffer=worldIB.BufferLocation;geometry.Triangles.IndexCount=worldIndexCount;geometry.Triangles.IndexFormat=DXGI_FORMAT_R32_UINT;
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottom{};bottom.Type=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;bottom.DescsLayout=D3D12_ELEMENTS_LAYOUT_ARRAY;bottom.NumDescs=1;bottom.pGeometryDescs=&geometry;bottom.Flags=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO bottomSize{};device5->GetRaytracingAccelerationStructurePrebuildInfo(&bottom,&bottomSize);
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS top{};top.Type=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;top.DescsLayout=D3D12_ELEMENTS_LAYOUT_ARRAY;top.NumDescs=1;top.Flags=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
-        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topSize{};device5->GetRaytracingAccelerationStructurePrebuildInfo(&top,&topSize);
-        if(!bottomSize.ResultDataMaxSizeInBytes||!topSize.ResultDataMaxSizeInBytes){error="Ray-tracing acceleration structure sizing failed";return false;}
-        ComPtr<ID3D12Resource> scratch,instances;
-        if(!createBuffer(bottomSize.ResultDataMaxSizeInBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,blas,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)||
-           !createBuffer(topSize.ResultDataMaxSizeInBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,tlas,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)||
-           !createBuffer(std::max(bottomSize.ScratchDataSizeInBytes,topSize.ScratchDataSizeInBytes),D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,scratch,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)||
-           !createBuffer(sizeof(D3D12_RAYTRACING_INSTANCE_DESC),D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,instances,error))return false;
-        D3D12_RAYTRACING_INSTANCE_DESC instance{};instance.Transform[0][0]=1;instance.Transform[1][1]=1;instance.Transform[2][2]=1;instance.InstanceMask=255;instance.Flags=D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;instance.AccelerationStructure=blas->GetGPUVirtualAddress();
-        if(!writeUpload(instances.Get(),&instance,sizeof(instance),error)||!beginImmediate(error))return false;
-        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};build.Inputs=bottom;build.DestAccelerationStructureData=blas->GetGPUVirtualAddress();build.ScratchAccelerationStructureData=scratch->GetGPUVirtualAddress();commands4->BuildRaytracingAccelerationStructure(&build,0,nullptr);uavBarrier(commands.Get(),blas.Get());uavBarrier(commands.Get(),scratch.Get());
-        top.InstanceDescs=instances->GetGPUVirtualAddress();build.Inputs=top;build.DestAccelerationStructureData=tlas->GetGPUVirtualAddress();commands4->BuildRaytracingAccelerationStructure(&build,0,nullptr);uavBarrier(commands.Get(),tlas.Get());
-        return endImmediate(error);
+    bool collectRetired(std::string& error){
+        uint64_t completed=fence->GetCompletedValue();
+        if(completed==UINT64_MAX){checked(device->GetDeviceRemovedReason(),"Device removed during stream retirement",error);return false;}
+        while(!uploadBatches.empty()&&uploadBatches.front().fence<=completed)uploadBatches.pop_front();
+        while(!retiredChunks.empty()&&retiredChunks.front().fence<=completed){
+            const auto& chunk=*retiredChunks.front().chunk;
+            vertexAllocator.release(chunk.vertices);indexAllocator.release(chunk.indices);retiredChunks.pop_front();
+        }
+        while(!retiredScenes.empty()&&retiredScenes.front().fence<=completed)retiredScenes.pop_front();
+        return true;
     }
+    StreamStats stats()const{
+        StreamStats result=streaming;result.residentChunks=uint32_t(resident.size());
+        result.pendingBatches=uint32_t(uploadBatches.size());
+        for(const auto& chunk:activeChunks)result.residentBytes+=chunk->geometryBytes();
+        for(const auto& batch:uploadBatches)result.pendingUploadBytes+=batch.stagingBytes;
+        for(const auto& item:retiredChunks)result.retiredBytes+=item.chunk->geometryBytes()+item.chunk->blasBytes;
+        for(const auto& item:retiredScenes){if(item.tlas)result.retiredBytes+=item.tlas->GetDesc().Width;if(item.metadata)result.retiredBytes+=item.metadata->GetDesc().Width;}
+        return result;
+    }
+    bool stagingRoom(uint64_t bytes,std::string& error){
+        if(bytes>MaxStagingBytes){error="World stream staging exceeds the 384 MiB hard limit";return false;}
+        while(!uploadBatches.empty()&&(uploadBatches.size()>=MaxUploadBatches||stats().pendingUploadBytes+bytes>MaxStagingBytes)){
+            ++streaming.pressureWaits;
+            if(!wait(uploadBatches.front().fence,error)||!collectRetired(error))return false;
+        }
+        return true;
+    }
+    bool createArenas(uint64_t requiredVertices,uint64_t requiredIndices,std::string& error){
+        uint64_t vertexBytes=DefaultVertexBudget;
+        while(vertexBytes<streaming.vertexArenaBytes)vertexBytes*=2;
+        uint64_t indexBytes=std::max(DefaultIndexBudget,streaming.indexArenaBytes);
+        // Two visible sets provide room for a teleport as well as ordinary
+        // seven-chunk boundaries. Hard caps are never exceeded or truncated.
+        const uint64_t vertexTarget=std::min(MaxVertexBudget,requiredVertices*2);
+        const uint64_t indexTarget=std::min(MaxIndexBudget,requiredIndices*2);
+        while(vertexBytes<vertexTarget)vertexBytes=std::min(MaxVertexBudget,vertexBytes*2);
+        while(indexBytes<indexTarget)indexBytes=std::min(MaxIndexBudget,indexBytes*2);
+        vertexBytes=(vertexBytes/sizeof(Vertex))*sizeof(Vertex);
+        // Allocate replacements before publishing. An allocation failure keeps
+        // the old coherent scene available; the temporary overlap exists only
+        // during this rare, explicitly synchronized arena replacement.
+        ComPtr<ID3D12Resource> vertices,indices;
+        if(!createBuffer(vertexBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_GENERIC_READ,vertices,error)||
+           !createBuffer(indexBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_GENERIC_READ,indices,error))return false;
+        streaming.retiredChunks+=resident.size();resident.clear();activeChunks.clear();
+        retiredChunks.clear();retiredScenes.clear();tlas.Reset();instanceMetadata.Reset();
+        worldVertices=std::move(vertices);worldIndices=std::move(indices);
+        streaming.vertexArenaBytes=vertexBytes;streaming.indexArenaBytes=indexBytes;
+        vertexAllocator.reset(uint32_t(vertexBytes/sizeof(Vertex)));indexAllocator.reset(uint32_t(indexBytes/sizeof(uint32_t)));
+        worldVB={worldVertices->GetGPUVirtualAddress(),UINT(vertexBytes),sizeof(Vertex)};
+        worldIB={worldIndices->GetGPUVirtualAddress(),UINT(indexBytes),DXGI_FORMAT_R32_UINT};
+        worldPublished=false;
+        std::fprintf(stderr,"World stream arenas: vertex=%llu index=%llu bytes; limits=256/64 MiB, staging=384 MiB/4 batches.\n",static_cast<unsigned long long>(vertexBytes),static_cast<unsigned long long>(indexBytes));
+        return true;
+    }
+    D3D12_RAYTRACING_GEOMETRY_DESC rayGeometry(const ResidentChunk& chunk)const{
+        D3D12_RAYTRACING_GEOMETRY_DESC geometry{};geometry.Type=D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;geometry.Flags=D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
+        geometry.Triangles.VertexBuffer.StartAddress=worldVB.BufferLocation+uint64_t(chunk.vertices.first)*sizeof(Vertex);
+        geometry.Triangles.VertexBuffer.StrideInBytes=sizeof(Vertex);geometry.Triangles.VertexCount=chunk.vertices.count;geometry.Triangles.VertexFormat=DXGI_FORMAT_R32G32B32_FLOAT;
+        geometry.Triangles.IndexBuffer=worldIB.BufferLocation+uint64_t(chunk.indices.first)*sizeof(uint32_t);
+        geometry.Triangles.IndexCount=chunk.indices.count;geometry.Triangles.IndexFormat=DXGI_FORMAT_R32_UINT;return geometry;
+    }
+    bool prepareRayScene(UploadBatch& batch,const std::vector<std::shared_ptr<ResidentChunk>>& ordered,
+                         const std::vector<std::shared_ptr<ResidentChunk>>& added,std::string& error){
+        if(!checked(batch.commands.As(&batch.rayCommands),"Get stream ray-tracing command interface",error))return false;
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS bottom{};bottom.Type=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+        bottom.DescsLayout=D3D12_ELEMENTS_LAYOUT_ARRAY;bottom.NumDescs=1;bottom.Flags=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+        uint64_t scratchBytes=0;
+        for(const auto& chunk:added){
+            if(!chunk->indices.count)continue;
+            auto geometry=rayGeometry(*chunk);bottom.pGeometryDescs=&geometry;
+            D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO size{};device5->GetRaytracingAccelerationStructurePrebuildInfo(&bottom,&size);
+            if(!size.ResultDataMaxSizeInBytes||!size.ScratchDataSizeInBytes){error="Chunk BLAS sizing failed";return false;}
+            if(!createBuffer(size.ResultDataMaxSizeInBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,chunk->blas,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))return false;
+            chunk->blasBytes=size.ResultDataMaxSizeInBytes;scratchBytes=std::max(scratchBytes,size.ScratchDataSizeInBytes);
+        }
+        struct InstanceMetadata {uint32_t firstVertex,firstIndex;};
+        std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instances;
+        std::vector<InstanceMetadata> metadata;
+        for(const auto& chunk:ordered){
+            if(!chunk->indices.count)continue;
+            if(!chunk->blas){error="A resident chunk is missing its ray-tracing geometry";return false;}
+            D3D12_RAYTRACING_INSTANCE_DESC instance{};instance.Transform[0][0]=instance.Transform[1][1]=instance.Transform[2][2]=1;
+            instance.InstanceID=UINT(metadata.size());instance.InstanceMask=255;instance.Flags=D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
+            instance.AccelerationStructure=chunk->blas->GetGPUVirtualAddress();instances.push_back(instance);metadata.push_back({chunk->vertices.first,chunk->indices.first});
+        }
+        if(instances.empty())return true;
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS top{};top.Type=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+        top.DescsLayout=D3D12_ELEMENTS_LAYOUT_ARRAY;top.NumDescs=UINT(instances.size());top.Flags=D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
+        D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO topSize{};device5->GetRaytracingAccelerationStructurePrebuildInfo(&top,&topSize);
+        if(!topSize.ResultDataMaxSizeInBytes||!topSize.ScratchDataSizeInBytes){error="World TLAS sizing failed";return false;}
+        scratchBytes=std::max(scratchBytes,topSize.ScratchDataSizeInBytes);
+        if(!createBuffer(topSize.ResultDataMaxSizeInBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,batch.tlas,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)||
+           !createBuffer(scratchBytes,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS,batch.scratch,error,D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)||
+           !createBuffer(instances.size()*sizeof(instances[0]),D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.instances,error)||
+           !createBuffer(metadata.size()*sizeof(metadata[0]),D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.metadata,error)||
+           !writeUpload(batch.instances.Get(),instances.data(),instances.size()*sizeof(instances[0]),error)||
+           !writeUpload(batch.metadata.Get(),metadata.data(),metadata.size()*sizeof(metadata[0]),error))return false;
+        // No fallible operations after the first AS build is recorded: a
+        // preparation failure can safely continue through the raster path.
+        for(const auto& chunk:added){
+            if(!chunk->indices.count)continue;
+            auto geometry=rayGeometry(*chunk);bottom.pGeometryDescs=&geometry;
+            D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};build.Inputs=bottom;build.DestAccelerationStructureData=chunk->blas->GetGPUVirtualAddress();build.ScratchAccelerationStructureData=batch.scratch->GetGPUVirtualAddress();
+            batch.rayCommands->BuildRaytracingAccelerationStructure(&build,0,nullptr);uavBarrier(batch.commands.Get(),chunk->blas.Get());uavBarrier(batch.commands.Get(),batch.scratch.Get());
+        }
+        top.InstanceDescs=batch.instances->GetGPUVirtualAddress();
+        D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC build{};build.Inputs=top;build.DestAccelerationStructureData=batch.tlas->GetGPUVirtualAddress();build.ScratchAccelerationStructureData=batch.scratch->GetGPUVirtualAddress();
+        batch.rayCommands->BuildRaytracingAccelerationStructure(&build,0,nullptr);uavBarrier(batch.commands.Get(),batch.tlas.Get());return true;
+    }
+    void drawWorld(){
+        if(activeChunks.empty())return;
+        commands->IASetVertexBuffers(0,1,&worldVB);commands->IASetIndexBuffer(&worldIB);
+        for(const auto& chunk:activeChunks)if(chunk->indices.count)commands->DrawIndexedInstanced(chunk->indices.count,1,chunk->indices.first,INT(chunk->vertices.first),0);
+    }
+
 };
 Renderer::Renderer():impl(new Impl){}
 Renderer::~Renderer()=default;
@@ -346,36 +500,160 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     p.srvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     return p.selectSceneSamples(error)&&p.createTargets(error)&&p.createShadowTarget(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
 }
-bool Renderer::setWorld(const Mesh& mesh,std::string& error){
+bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
     auto& p=*impl;if(!p.device){error="Renderer is not initialized";return false;}
-    if(mesh.vertices.size()>UINT_MAX/sizeof(Vertex)||mesh.indices.size()>UINT_MAX/sizeof(uint32_t)){error="World mesh exceeds Direct3D buffer view limits";return false;}
-    if(!p.flush(error))return false;
-    p.worldVertices.Reset();p.worldIndices.Reset();p.blas.Reset();p.tlas.Reset();p.worldIndexCount=0;
-    if(mesh.vertices.empty()||mesh.indices.empty())return true;
-    const uint64_t vertices=mesh.vertices.size()*sizeof(Vertex),indices=mesh.indices.size()*sizeof(uint32_t);
-    ComPtr<ID3D12Resource> vertexUpload,indexUpload;
-    if(!p.createBuffer(vertices,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_COPY_DEST,p.worldVertices,error)||!p.createBuffer(indices,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_COPY_DEST,p.worldIndices,error)||
-       !p.createBuffer(vertices,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,vertexUpload,error)||!p.createBuffer(indices,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,indexUpload,error)||
-       !p.writeUpload(vertexUpload.Get(),mesh.vertices.data(),size_t(vertices),error)||!p.writeUpload(indexUpload.Get(),mesh.indices.data(),size_t(indices),error)||!p.beginImmediate(error))return false;
-    p.commands->CopyBufferRegion(p.worldVertices.Get(),0,vertexUpload.Get(),0,vertices);p.commands->CopyBufferRegion(p.worldIndices.Get(),0,indexUpload.Get(),0,indices);
-    transition(p.commands.Get(),p.worldVertices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);transition(p.commands.Get(),p.worldIndices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);
-    if(!p.endImmediate(error))return false;
-    p.worldVB={p.worldVertices->GetGPUVirtualAddress(),UINT(vertices),sizeof(Vertex)};p.worldIB={p.worldIndices->GetGPUVirtualAddress(),UINT(indices),DXGI_FORMAT_R32_UINT};p.worldIndexCount=UINT(mesh.indices.size());
-    if(p.raySupported&&!p.buildRayScene(error)){
-        const std::string reason=error;
-        // Only release acceleration-structure storage after outstanding GPU work
-        // has completed. A removed or hung device remains a fatal rendering error.
-        if(!p.flush(error))return false;
-        p.raySupported=false;p.blas.Reset();p.tlas.Reset();
-        const std::string warning="DXR unavailable; continuing with raster rendering: "+reason+"\n";
-        OutputDebugStringA(warning.c_str());std::fputs(warning.c_str(),stderr);error.clear();
+    if(!p.collectRetired(error))return false;
+    if(p.worldPublished&&p.streaming.epoch==epoch&&p.worldRevision==world.revision)return true;
+    uint64_t requiredVertices=0,requiredIndices=0;
+    std::map<Impl::ChunkKey,const Chunk*> sources;
+    if(world.chunks.size()>0xffffff){error="World stream exceeds the DXR instance identifier limit";return false;}
+    for(const auto& chunk:world.chunks){
+        if(!sources.emplace(Impl::ChunkKey{chunk.x,chunk.z},&chunk).second){error="World stream contains duplicate chunk coordinates";return false;}
+        if(chunk.mesh.vertices.size()>MaxVertexBudget/sizeof(Vertex)||chunk.mesh.indices.size()>MaxIndexBudget/sizeof(uint32_t)){
+            error="A world chunk exceeds the 256 MiB vertex / 64 MiB index arena limits";return false;
+        }
+        requiredVertices+=chunk.mesh.vertices.size()*sizeof(Vertex);requiredIndices+=chunk.mesh.indices.size()*sizeof(uint32_t);
+        if(chunk.mesh.indices.size()%3){error="World chunk has an incomplete triangle";return false;}
     }
+    if(requiredVertices>MaxVertexBudget||requiredIndices>MaxIndexBudget){error="Visible world exceeds the 256 MiB vertex / 64 MiB index hard budget; no chunks were dropped";return false;}
+    // A repack has already waited for the queue. Keep the old coherent scene
+    // until the replacement submission succeeds, so allocation failure can
+    // restore it. Peak arena allocation during this rare transaction is 2x.
+    struct ArenaBackup {
+        Impl& p;bool committed=false;
+        ComPtr<ID3D12Resource> vertices,indices,tlas,metadata;
+        D3D12_VERTEX_BUFFER_VIEW vb;D3D12_INDEX_BUFFER_VIEW ib;
+        ArenaAllocator vertexAllocator,indexAllocator;
+        Impl::ChunkMap resident;std::vector<std::shared_ptr<Impl::ResidentChunk>> active;
+        StreamStats stats;bool published;
+        explicit ArenaBackup(Impl& owner):p(owner),vertices(p.worldVertices),indices(p.worldIndices),tlas(p.tlas),metadata(p.instanceMetadata),vb(p.worldVB),ib(p.worldIB),
+            vertexAllocator(p.vertexAllocator),indexAllocator(p.indexAllocator),resident(p.resident),active(p.activeChunks),stats(p.streaming),published(p.worldPublished){}
+        ~ArenaBackup(){if(committed)return;
+            p.worldVertices=std::move(vertices);p.worldIndices=std::move(indices);p.tlas=std::move(tlas);p.instanceMetadata=std::move(metadata);p.worldVB=vb;p.worldIB=ib;
+            p.vertexAllocator=std::move(vertexAllocator);p.indexAllocator=std::move(indexAllocator);p.resident=std::move(resident);p.activeChunks=std::move(active);
+            stats.pressureWaits=p.streaming.pressureWaits;stats.repackWaits=p.streaming.repackWaits;p.streaming=stats;p.worldPublished=published;
+        }
+    };
+    std::unique_ptr<ArenaBackup> backup;
+    if(!p.worldVertices){backup=std::make_unique<ArenaBackup>(p);if(!p.createArenas(requiredVertices,requiredIndices,error))return false;}
+    ArenaAllocator plannedVertices,plannedIndices;
+    Impl::ChunkMap nextResident;
+    std::vector<std::shared_ptr<Impl::ResidentChunk>> ordered,added;
+    std::vector<const Chunk*> addedSources;
+    uint64_t retained=0,uploadVertexBytes=0,uploadIndexBytes=0;
+    auto plan=[&](){
+        plannedVertices=p.vertexAllocator;plannedIndices=p.indexAllocator;nextResident.clear();ordered.clear();added.clear();addedSources.clear();
+        retained=uploadVertexBytes=uploadIndexBytes=0;
+        for(const auto& source:world.chunks){
+            Impl::ChunkKey key{source.x,source.z};auto old=p.resident.find(key);
+            std::shared_ptr<Impl::ResidentChunk> chunk;
+            if(p.worldPublished&&p.streaming.epoch==epoch&&old!=p.resident.end()){
+                chunk=old->second;++retained;
+            }else{
+                chunk=std::make_shared<Impl::ResidentChunk>();
+                if(!plannedVertices.allocate(uint32_t(source.mesh.vertices.size()),chunk->vertices)||
+                   !plannedIndices.allocate(uint32_t(source.mesh.indices.size()),chunk->indices))return false;
+                added.push_back(chunk);addedSources.push_back(&source);
+                uploadVertexBytes+=source.mesh.vertices.size()*sizeof(Vertex);uploadIndexBytes+=source.mesh.indices.size()*sizeof(uint32_t);
+            }
+            nextResident.emplace(key,chunk);ordered.push_back(std::move(chunk));
+        }
+        return true;
+    };
+    if(!plan()){
+        // Only memory pressure can wait here. Ordinary stream updates have
+        // enough unoccupied arena space and submit without a CPU fence wait.
+        while(!p.retiredChunks.empty()){
+            ++p.streaming.pressureWaits;
+            if(!p.wait(p.retiredChunks.front().fence,error)||!p.collectRetired(error))return false;
+            if(plan())break;
+        }
+        if(!plan()){
+            ++p.streaming.repackWaits;
+            std::fputs("World stream repack waiting for GPU; replacing fragmented or undersized arenas.\n",stderr);
+            if(!p.flush(error)||!p.collectRetired(error))return false;
+            backup=std::make_unique<ArenaBackup>(p);
+            if(!p.createArenas(requiredVertices,requiredIndices,error)||!plan()){
+                if(error.empty())error="World stream arena repack could not fit the complete visible set";return false;
+            }
+        }
+    }
+    for(const auto* source:addedSources)for(uint32_t index:source->mesh.indices)if(index>=source->mesh.vertices.size()){
+        error="World chunk triangle references a missing vertex";return false;
+    }
+    if(added.empty()&&nextResident.size()==p.resident.size()){
+        p.activeChunks=std::move(ordered);p.streaming.retainedChunks+=retained;p.streaming.epoch=epoch;p.worldRevision=world.revision;p.worldPublished=true;
+        if(backup)backup->committed=true;return true;
+    }
+    uint64_t instanceCount=0;for(const auto& chunk:ordered)if(chunk->indices.count)++instanceCount;
+    const uint64_t instanceBytes=p.raySupported?std::max<uint64_t>(256,instanceCount*sizeof(D3D12_RAYTRACING_INSTANCE_DESC)):0;
+    const uint64_t metadataBytes=p.raySupported?std::max<uint64_t>(256,instanceCount*8):0;
+    const uint64_t stagingBytes=(uploadVertexBytes?std::max<uint64_t>(256,uploadVertexBytes):0)+(uploadIndexBytes?std::max<uint64_t>(256,uploadIndexBytes):0)+instanceBytes+metadataBytes;
+    // Reclaiming old ranges during this pressure wait changes the allocator.
+    // Re-plan afterwards so the committed free list includes those releases.
+    if(!p.stagingRoom(stagingBytes,error))return false;
+    if(!plan()){error="World stream ranges could not be allocated after staging retirement";return false;}
+    Impl::UploadBatch batch;batch.stagingBytes=stagingBytes;batch.arenaVertices=p.worldVertices;batch.arenaIndices=p.worldIndices;batch.chunks=added;
+    if(!checked(p.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&batch.allocator)),"Create stream command allocator",error)||
+       !checked(p.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,batch.allocator.Get(),nullptr,IID_PPV_ARGS(&batch.commands)),"Create stream command list",error))return false;
+    if(uploadVertexBytes&&!p.createBuffer(uploadVertexBytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.vertices,error))return false;
+    if(uploadIndexBytes&&!p.createBuffer(uploadIndexBytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,batch.indices,error))return false;
+    // Copy source meshes while setWorld owns their lifetime. No worker or
+    // deferred upload stores pointers into World::chunks beyond this call.
+    auto fillStaging=[&](ID3D12Resource* resource,bool vertices){
+        if(!resource)return true;void* data=nullptr;D3D12_RANGE noRead{0,0};
+        if(!checked(resource->Map(0,&noRead,&data),"Map chunk staging buffer",error))return false;
+        size_t offset=0;
+        for(const auto* source:addedSources){
+            size_t bytes=vertices?source->mesh.vertices.size()*sizeof(Vertex):source->mesh.indices.size()*sizeof(uint32_t);
+            if(bytes)std::memcpy(static_cast<uint8_t*>(data)+offset,vertices?static_cast<const void*>(source->mesh.vertices.data()):static_cast<const void*>(source->mesh.indices.data()),bytes);
+            offset+=bytes;
+        }
+        D3D12_RANGE written{0,offset};resource->Unmap(0,&written);return true;
+    };
+    if(!fillStaging(batch.vertices.Get(),true)||!fillStaging(batch.indices.Get(),false))return false;
+    if(uploadVertexBytes)transition(batch.commands.Get(),p.worldVertices.Get(),D3D12_RESOURCE_STATE_GENERIC_READ,D3D12_RESOURCE_STATE_COPY_DEST);
+    if(uploadIndexBytes)transition(batch.commands.Get(),p.worldIndices.Get(),D3D12_RESOURCE_STATE_GENERIC_READ,D3D12_RESOURCE_STATE_COPY_DEST);
+    uint64_t vertexOffset=0,indexOffset=0;
+    for(const auto& chunk:added){
+        uint64_t vertices=uint64_t(chunk->vertices.count)*sizeof(Vertex),indices=uint64_t(chunk->indices.count)*sizeof(uint32_t);
+        if(vertices)batch.commands->CopyBufferRegion(p.worldVertices.Get(),uint64_t(chunk->vertices.first)*sizeof(Vertex),batch.vertices.Get(),vertexOffset,vertices);
+        if(indices)batch.commands->CopyBufferRegion(p.worldIndices.Get(),uint64_t(chunk->indices.first)*sizeof(uint32_t),batch.indices.Get(),indexOffset,indices);
+        vertexOffset+=vertices;indexOffset+=indices;
+    }
+    if(uploadVertexBytes)transition(batch.commands.Get(),p.worldVertices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);
+    if(uploadIndexBytes)transition(batch.commands.Get(),p.worldIndices.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_GENERIC_READ);
+    if(p.raySupported&&!p.prepareRayScene(batch,ordered,added,error)){
+        if(FAILED(p.device->GetDeviceRemovedReason()))return false;
+        std::fprintf(stderr,"DXR stream preparation unavailable; continuing with raster rendering: %s\n",error.c_str());
+        p.raySupported=false;batch.tlas.Reset();batch.metadata.Reset();batch.instances.Reset();batch.scratch.Reset();
+        for(auto& chunk:added){chunk->blas.Reset();chunk->blasBytes=0;}error.clear();
+    }
+    // Prepared AS resources and the metadata belong to exactly the same
+    // resident list. Queue order makes them ready before the next frame.
+    if(!checked(batch.commands->Close(),"Close chunk upload command list",error))return false;
+    const uint64_t priorTail=p.nextFence-1;batch.fence=p.nextFence++;
+    p.uploadBatches.push_back(std::move(batch));auto& submitted=p.uploadBatches.back();
+    ID3D12CommandList* lists[]={submitted.commands.Get()};p.queue->ExecuteCommandLists(1,lists);
+    if(!checked(p.queue->Signal(p.fence.Get(),submitted.fence),"Signal chunk upload completion",error))return false;
+    for(const auto& [key,chunk]:p.resident){auto replacement=nextResident.find(key);if(replacement==nextResident.end()||replacement->second!=chunk){
+        p.retiredChunks.push_back({priorTail,chunk});++p.streaming.retiredChunks;
+    }}
+    if(p.tlas||p.instanceMetadata)p.retiredScenes.push_back({priorTail,p.tlas,p.instanceMetadata});
+    p.vertexAllocator=std::move(plannedVertices);p.indexAllocator=std::move(plannedIndices);p.resident=std::move(nextResident);p.activeChunks=std::move(ordered);
+    p.tlas=submitted.tlas;p.instanceMetadata=submitted.metadata;
+    p.streaming.uploadedChunks+=added.size();p.streaming.retainedChunks+=retained;
+    if(p.raySupported)for(const auto& chunk:added)if(chunk->blas)++p.streaming.blasBuilds;
+    p.streaming.epoch=epoch;p.worldRevision=world.revision;p.worldPublished=true;
+    if(backup)backup->committed=true;
     return p.checkDebugMessages(error);
 }
+StreamStats Renderer::streamStats()const{return impl->stats();}
+
 bool Renderer::render(const RenderFrame& input,std::string& error){
     auto& p=*impl;if(!p.swapChain){error="Renderer is not initialized";return false;}
     const UINT current=p.swapChain->GetCurrentBackBufferIndex();auto& frame=p.frames[current];
-    if(!p.wait(frame.fence,error))return false;
+    if(!p.wait(frame.fence,error)||!p.collectRetired(error))return false;
     const Mesh* dynamic=input.dynamic;size_t dynamicVertexBytes=dynamic?dynamic->vertices.size()*sizeof(Vertex):0,dynamicIndexBytes=dynamic?dynamic->indices.size()*sizeof(uint32_t):0,uiBytes=input.ui?input.ui->size()*sizeof(UiVertex):0;
     if(dynamicVertexBytes>UINT_MAX||dynamicIndexBytes>UINT_MAX||uiBytes>UINT_MAX){error="Frame geometry exceeds Direct3D buffer view limits";return false;}
     if(!p.ensureUpload(frame.dynamicVertices,frame.dynamicVertexCapacity,dynamicVertexBytes,error)||!p.ensureUpload(frame.dynamicIndices,frame.dynamicIndexCapacity,dynamicIndexBytes,error)||!p.ensureUpload(frame.ui,frame.uiCapacity,uiBytes,error))return false;
@@ -422,7 +700,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     auto shadowDSV=p.shadowDSV();p.commands->ClearDepthStencilView(shadowDSV,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);p.commands->OMSetRenderTargets(0,nullptr,FALSE,&shadowDSV);
     D3D12_VIEWPORT lightViewport{0,0,float(ShadowSize),float(ShadowSize),0,1};D3D12_RECT lightScissor{0,0,LONG(ShadowSize),LONG(ShadowSize)};
     p.commands->RSSetViewports(1,&lightViewport);p.commands->RSSetScissorRects(1,&lightScissor);p.commands->SetPipelineState(p.shadowPipeline.Get());
-    if(p.worldIndexCount){p.commands->IASetVertexBuffers(0,1,&p.worldVB);p.commands->IASetIndexBuffer(&p.worldIB);p.commands->DrawIndexedInstanced(p.worldIndexCount,1,0,0,0);}
+    p.drawWorld();
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
     transition(p.commands.Get(),p.shadowDepth.Get(),D3D12_RESOURCE_STATE_DEPTH_WRITE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     ID3D12DescriptorHeap* heaps[]={p.resourceHeap.Get()};p.commands->SetDescriptorHeaps(1,heaps);p.commands->SetGraphicsRootDescriptorTable(4,p.resourceHeap->GetGPUDescriptorHandleForHeapStart());
@@ -430,10 +708,10 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     const float clear[]={0,0,0,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);
     p.commands->OMSetRenderTargets(1,&rtv,FALSE,&dsv);D3D12_VIEWPORT viewport{0,0,float(p.width),float(p.height),0,1};D3D12_RECT scissor{0,0,LONG(p.width),LONG(p.height)};p.commands->RSSetViewports(1,&viewport);p.commands->RSSetScissorRects(1,&scissor);
     p.commands->SetGraphicsRootShaderResourceView(5,frame.lights->GetGPUVirtualAddress());
-    if(ray){p.commands->SetGraphicsRootShaderResourceView(1,p.tlas->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(2,p.worldVertices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(3,p.worldIndices->GetGPUVirtualAddress());}
+    if(ray){p.commands->SetGraphicsRootShaderResourceView(1,p.tlas->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(2,p.worldVertices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(3,p.worldIndices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(7,p.instanceMetadata->GetGPUVirtualAddress());}
     p.commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);p.commands->SetPipelineState(p.skyPipeline.Get());p.commands->DrawInstanced(3,1,0,0);
     p.commands->SetPipelineState(ray?p.rayPipeline.Get():p.worldPipeline.Get());
-    if(p.worldIndexCount){p.commands->IASetVertexBuffers(0,1,&p.worldVB);p.commands->IASetIndexBuffer(&p.worldIB);p.commands->DrawIndexedInstanced(p.worldIndexCount,1,0,0,0);}
+    p.drawWorld();
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
     // Resolve in linear space before tone mapping. The 1x path aliases the
     // scene texture and uses a read/write transition instead of a resolve.

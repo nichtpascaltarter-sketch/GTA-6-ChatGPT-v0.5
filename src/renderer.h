@@ -13,11 +13,22 @@ struct RenderFrame {
     const std::vector<Light>* lights=nullptr;
     const std::vector<UiVertex>* ui=nullptr;
 };
+struct StreamStats {
+    uint64_t epoch=0;
+    uint32_t residentChunks=0,pendingBatches=0;
+    uint64_t residentBytes=0,vertexArenaBytes=0,indexArenaBytes=0;
+    uint64_t pendingUploadBytes=0,retiredBytes=0;
+    uint64_t uploadedChunks=0,retainedChunks=0,retiredChunks=0,blasBuilds=0;
+    uint64_t ordinaryWaits=0,pressureWaits=0,repackWaits=0;
+};
 class Renderer {
 public:
     Renderer();~Renderer();
     bool initialize(void* window,uint32_t width,uint32_t height,std::string& error,bool warp=false);
-    bool setWorld(const Mesh&,std::string& error);
+    // Chunk coordinates identify immutable geometry within an epoch. Advance
+    // epoch after reset/load. Mesh data is copied before this call returns.
+    bool setWorld(const World&,uint64_t epoch,std::string& error);
+    StreamStats streamStats() const;
     bool render(const RenderFrame&,std::string& error);
     bool resize(uint32_t width,uint32_t height,std::string& error);
     bool rayTracingAvailable() const;
