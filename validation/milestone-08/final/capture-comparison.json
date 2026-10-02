@@ -1,0 +1,228 @@
+{
+  "baselineSource": "c90828a6794afa309f1783b9352df75a3f2c52c9",
+  "candidateSource": "6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045",
+  "comparisons": [
+    {
+      "name": "smoke-aircraft.bmp",
+      "candidateSha256": "e22dab5a3bc67d4fb363d40b5f57813c70a6087089f48e6351df1cae17393fc6",
+      "initialSha256": "e22dab5a3bc67d4fb363d40b5f57813c70a6087089f48e6351df1cae17393fc6",
+      "identical": true
+    },
+    {
+      "name": "smoke-boat.bmp",
+      "candidateSha256": "6bebbdde8b903bd4a54363ba4ad106fba62b1c55f3950f86b36541b9da786c9f",
+      "initialSha256": "6bebbdde8b903bd4a54363ba4ad106fba62b1c55f3950f86b36541b9da786c9f",
+      "identical": true
+    },
+    {
+      "name": "smoke-cinematic.bmp",
+      "candidateSha256": "30a8050b02f14b30f561a3445669a2855ac357ae30ca2f04d29c2b773f5bf8fa",
+      "initialSha256": "30a8050b02f14b30f561a3445669a2855ac357ae30ca2f04d29c2b773f5bf8fa",
+      "identical": true
+    },
+    {
+      "name": "smoke-coast.bmp",
+      "candidateSha256": "0d1affe33c88549d8327130c10573de04a7341f10d368b0f495e4e50b90c6a33",
+      "initialSha256": "0d1affe33c88549d8327130c10573de04a7341f10d368b0f495e4e50b90c6a33",
+      "identical": true
+    },
+    {
+      "name": "smoke-drive.bmp",
+      "candidateSha256": "a36a5907df56a6997cbdaa30230ae30956c2930deaf80ad78ed1b0dc75df399a",
+      "initialSha256": "a36a5907df56a6997cbdaa30230ae30956c2930deaf80ad78ed1b0dc75df399a",
+      "identical": true
+    },
+    {
+      "name": "smoke-lod.bmp",
+      "candidateSha256": "1d49540e5f96814e23f3b411dcc6a3df534f75ea9d79feea85d9bc0405cb13ba",
+      "initialSha256": "1d49540e5f96814e23f3b411dcc6a3df534f75ea9d79feea85d9bc0405cb13ba",
+      "identical": true
+    },
+    {
+      "name": "smoke-map.bmp",
+      "candidateSha256": "5d72793421cb8992252b8c04bfacd01bb819229cb2a1408ba916b8645f2f3dbe",
+      "initialSha256": "5d72793421cb8992252b8c04bfacd01bb819229cb2a1408ba916b8645f2f3dbe",
+      "identical": true
+    },
+    {
+      "name": "smoke-night.bmp",
+      "candidateSha256": "a395e87d76076476d67b25192f2621f20108d46c317ad6e153081a1ec01e547c",
+      "initialSha256": "a395e87d76076476d67b25192f2621f20108d46c317ad6e153081a1ec01e547c",
+      "identical": true
+    },
+    {
+      "name": "smoke-passenger-bike.bmp",
+      "candidateSha256": "5779ef3de67ae8df307d9688f243544aa67439f4a1e58de4bfcc9f1fee299f5b",
+      "initialSha256": "5779ef3de67ae8df307d9688f243544aa67439f4a1e58de4bfcc9f1fee299f5b",
+      "identical": true
+    },
+    {
+      "name": "smoke-passenger-boat.bmp",
+      "candidateSha256": "d31e99dcb08292b16d8c641235ff79cbfc93f829fe58a11bb99495d20fbedd66",
+      "initialSha256": "d31e99dcb08292b16d8c641235ff79cbfc93f829fe58a11bb99495d20fbedd66",
+      "identical": true
+    },
+    {
+      "name": "smoke-passenger-car.bmp",
+      "candidateSha256": "91fc80d45572f5bdaf6464b82f485bd0f317cbe3c45333ab74116ca83361850a",
+      "initialSha256": "91fc80d45572f5bdaf6464b82f485bd0f317cbe3c45333ab74116ca83361850a",
+      "identical": true
+    },
+    {
+      "name": "smoke-passenger-plane.bmp",
+      "candidateSha256": "49dba46c675749f100a4c69b62f645245b649d38fa5fe73ee4bf665a0755bc25",
+      "initialSha256": "49dba46c675749f100a4c69b62f645245b649d38fa5fe73ee4bf665a0755bc25",
+      "identical": true
+    },
+    {
+      "name": "smoke-portrait.bmp",
+      "candidateSha256": "4ecd03883eb1588642f543afcdd7696cfa2d48cbda9b1fd570e1c4b007705cfb",
+      "initialSha256": "4ecd03883eb1588642f543afcdd7696cfa2d48cbda9b1fd570e1c4b007705cfb",
+      "identical": true
+    },
+    {
+      "name": "smoke-rescue.bmp",
+      "candidateSha256": "36838cd4693f0cde2ff40183d39e8bfcaf8312b241ffead33fe80865975b86d4",
+      "initialSha256": "36838cd4693f0cde2ff40183d39e8bfcaf8312b241ffead33fe80865975b86d4",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-bench.bmp",
+      "candidateSha256": "ad73e2a91e4aad543d764cdca61ab1fd03b3d53d8d261c18dcfc77ccfc51f169",
+      "initialSha256": "ad73e2a91e4aad543d764cdca61ab1fd03b3d53d8d261c18dcfc77ccfc51f169",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-carry.bmp",
+      "candidateSha256": "d937ec977659366d6d7f24e677b7cbacf2d2add9c158fb0e88d8110bebf0c0db",
+      "initialSha256": "d937ec977659366d6d7f24e677b7cbacf2d2add9c158fb0e88d8110bebf0c0db",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-flee.bmp",
+      "candidateSha256": "f324838ad3d1267298a3e5dcdb9048a84d08bf98fce7bc74bc906c8636fba7d5",
+      "initialSha256": "f324838ad3d1267298a3e5dcdb9048a84d08bf98fce7bc74bc906c8636fba7d5",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-startle.bmp",
+      "candidateSha256": "b63c7af7b798dc367e712e87f892d8145e0482d296be59755b234ff44fd13a13",
+      "initialSha256": "b63c7af7b798dc367e712e87f892d8145e0482d296be59755b234ff44fd13a13",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-talk.bmp",
+      "candidateSha256": "22e0bc3a5120f0721acdacf4b15112c9b4926234ea8df001a172a55b6fda1fb6",
+      "initialSha256": "22e0bc3a5120f0721acdacf4b15112c9b4926234ea8df001a172a55b6fda1fb6",
+      "identical": true
+    },
+    {
+      "name": "smoke-residents-work.bmp",
+      "candidateSha256": "e799d7cd8b95840d30fe81b7312aa50e4e0272b3ed9c2b0f0153e260a30b50df",
+      "initialSha256": "d92dd2be8c7f0fcb3afeb68752b216634b464268d0761c5372eea4a8bf2f0cc7",
+      "identical": false
+    },
+    {
+      "name": "smoke-rural.bmp",
+      "candidateSha256": "2f942b21a86a82d6ab5c526ff6f38e4173f5e478eae40c2a31333c1edbf60eda",
+      "initialSha256": "2f942b21a86a82d6ab5c526ff6f38e4173f5e478eae40c2a31333c1edbf60eda",
+      "identical": true
+    },
+    {
+      "name": "smoke-storm.bmp",
+      "candidateSha256": "b183cce2cad623b12baa37d73c02bebc9d0157ffd72f24ed16b0cae54ecb0033",
+      "initialSha256": "b183cce2cad623b12baa37d73c02bebc9d0157ffd72f24ed16b0cae54ecb0033",
+      "identical": true
+    },
+    {
+      "name": "smoke-streaming.bmp",
+      "candidateSha256": "e87bf0a852d0f5a3af5d398876b5e7c838983ca6f1099a77dfa867c466f04cc7",
+      "initialSha256": "e87bf0a852d0f5a3af5d398876b5e7c838983ca6f1099a77dfa867c466f04cc7",
+      "identical": true
+    },
+    {
+      "name": "smoke-suburbs.bmp",
+      "candidateSha256": "924df89ba9912baa328e44b69728fc89fd992e276ff254fc0c1c7fff8cbc1bb8",
+      "initialSha256": "924df89ba9912baa328e44b69728fc89fd992e276ff254fc0c1c7fff8cbc1bb8",
+      "identical": true
+    },
+    {
+      "name": "smoke-survey.bmp",
+      "candidateSha256": "487d0ba247894e1ec73fd35bab22d2f822b1cfb1dd43e4a1b4b5e11cac7d2d83",
+      "initialSha256": "487d0ba247894e1ec73fd35bab22d2f822b1cfb1dd43e4a1b4b5e11cac7d2d83",
+      "identical": true
+    },
+    {
+      "name": "smoke-trial-map.bmp",
+      "candidateSha256": "6c298c63a7cf896e9c89efafe2d13b2999118d94a2df28d4ee272ca020f8c403",
+      "initialSha256": "6c298c63a7cf896e9c89efafe2d13b2999118d94a2df28d4ee272ca020f8c403",
+      "identical": true
+    },
+    {
+      "name": "smoke-trial-run.bmp",
+      "candidateSha256": "efc7856429f5ca648f8c0a498c554382ac6baa8aac4969dbb48f671260ebd028",
+      "initialSha256": "b17e572e39b768b537cd5129d43b2ca850367ae652c572270e4bba62c22a971f",
+      "identical": false
+    },
+    {
+      "name": "smoke-trial.bmp",
+      "candidateSha256": "abd4ebff9620edbb20a17ed1a1fb47adb9f8385e8eca7b8cd4c5f40314528e69",
+      "initialSha256": "abd4ebff9620edbb20a17ed1a1fb47adb9f8385e8eca7b8cd4c5f40314528e69",
+      "identical": true
+    },
+    {
+      "name": "smoke-vehicle.bmp",
+      "candidateSha256": "5b33a9d03b970cdf5ff01137abbc8ab7dac7a95208a594a2be2a9ce2610d0010",
+      "initialSha256": "5b33a9d03b970cdf5ff01137abbc8ab7dac7a95208a594a2be2a9ce2610d0010",
+      "identical": true
+    },
+    {
+      "name": "smoke-wetland.bmp",
+      "candidateSha256": "22317b74af475bed042c9b45e5918a211ac7ff7f312778cf0e7709d13e1239b3",
+      "initialSha256": "22317b74af475bed042c9b45e5918a211ac7ff7f312778cf0e7709d13e1239b3",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop-day.bmp",
+      "candidateSha256": "18a1793fb4482013674e4002f91c8200604c26a396819127378ef4747e4bbfae",
+      "initialSha256": "18a1793fb4482013674e4002f91c8200604c26a396819127378ef4747e4bbfae",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop-door.bmp",
+      "candidateSha256": "ae55c15f8cf57f5bfc129504ad616ac2913aa94ec0e4ff35a7086b2bbac44467",
+      "initialSha256": "ae55c15f8cf57f5bfc129504ad616ac2913aa94ec0e4ff35a7086b2bbac44467",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop-night.bmp",
+      "candidateSha256": "e3663c1b6516ec1764d993fae4baad53a7675bfb7438751ec8bc84c35145e6b5",
+      "initialSha256": "e3663c1b6516ec1764d993fae4baad53a7675bfb7438751ec8bc84c35145e6b5",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop-office.bmp",
+      "candidateSha256": "5e507d7149cdf5a2cad861d0067bcedca237ead93eb366831b3a58714ca4bca9",
+      "initialSha256": "5e507d7149cdf5a2cad861d0067bcedca237ead93eb366831b3a58714ca4bca9",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop-service.bmp",
+      "candidateSha256": "fc7d7af91c184964812e953c3a119db2fbf2c20aeb1eb88bd5e22accccb8934e",
+      "initialSha256": "fc7d7af91c184964812e953c3a119db2fbf2c20aeb1eb88bd5e22accccb8934e",
+      "identical": true
+    },
+    {
+      "name": "smoke-workshop.bmp",
+      "candidateSha256": "a47a9ae2752ab8c651d0bbc4d86981ef87e790f5293a0ff9dd46e12de1baf9b1",
+      "initialSha256": "a47a9ae2752ab8c651d0bbc4d86981ef87e790f5293a0ff9dd46e12de1baf9b1",
+      "identical": true
+    },
+    {
+      "name": "smoke.bmp",
+      "candidateSha256": "38c1fed2b71a9d1887dcc9e9d090c863df0dc139cdeaf8292535f666d4c17851",
+      "initialSha256": "38c1fed2b71a9d1887dcc9e9d090c863df0dc139cdeaf8292535f666d4c17851",
+      "identical": true
+    }
+  ]
+}

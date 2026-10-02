@@ -1,0 +1,10 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Resident capture: scene=residents-talk; identity=5; activity=Talking; warmup=117.433; hour=19.5657; people=84; residents=16; groups=2; displacement=0; position=49.3498,0,63.0002; eye=52.2822,2.25,68.6594; target=49.3599,1.15,64
+Smoke scene: residents-talk
+Distant startup: ms=269.72; ready=2102.98; cacheTiles=1450; cacheBytes=54597680; selected=1089
+World revision 1 / render 1453: 735113 detailed vertices, 347741 detailed triangles; selected tiles=1089
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=8; completed=8; pending=0; samples=8; gpuSamples=8; invalid=0; latest=8; cpuMean=992.664075; cpuMax=1778.739700; waitMean=985.940113; prepareMean=1.781800; recordMean=4.355225; presentMean=0.585838; gpuMean=1595.528125; gpuMax=1782.650400; worldCalls=1; worldMean=41.233400; worldMax=41.233400
+Spatial audio: snapshots=8; engineHistories=36; footHistories=83; contacts=0; renewals=0; rejected=0; duplicateIds=0; capacityDrops=0
+Exit 0 after 8 frames

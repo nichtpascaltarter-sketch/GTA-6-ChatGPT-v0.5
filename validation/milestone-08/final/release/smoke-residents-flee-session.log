@@ -1,0 +1,10 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Resident capture: scene=residents-flee; identity=5; activity=Fleeing; warmup=118.367; hour=19.5781; people=84; residents=16; groups=0; displacement=2.34666; position=49.2999,0,60.6541; eye=46.123,2.25,56.1644; target=49.2999,1.15,60.6541
+Smoke scene: residents-flee
+Distant startup: ms=268.999; ready=2091.83; cacheTiles=1450; cacheBytes=54597680; selected=1089
+World revision 1 / render 1453: 735113 detailed vertices, 347741 detailed triangles; selected tiles=1089
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=8; completed=8; pending=0; samples=8; gpuSamples=8; invalid=0; latest=8; cpuMean=535.652300; cpuMax=868.768600; waitMean=530.999987; prepareMean=1.101913; recordMean=3.032850; presentMean=0.516662; gpuMean=866.210313; gpuMax=913.411200; worldCalls=1; worldMean=41.509800; worldMax=41.509800
+Spatial audio: snapshots=8; engineHistories=40; footHistories=83; contacts=0; renewals=0; rejected=0; duplicateIds=0; capacityDrops=0
+Exit 0 after 8 frames

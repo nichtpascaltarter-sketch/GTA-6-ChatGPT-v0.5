@@ -1,0 +1,79 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "lifecycle",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "timingRequired": true,
+  "gpuTimestampsForcedDisabled": false,
+  "gpuTimestampStatus": "enabled; frequency=10000000 Hz; slots=2; history=120",
+  "renderTiming": {
+    "cpu": 1,
+    "gpu": 1,
+    "frequency": 10000000,
+    "submitted": 120,
+    "completed": 120,
+    "pending": 0,
+    "samples": 120,
+    "gpuSamples": 120,
+    "invalid": 0,
+    "latest": 120,
+    "cpuMean": 183.195631,
+    "cpuMax": 254.7989,
+    "waitMean": 180.975952,
+    "prepareMean": 0.559186,
+    "recordMean": 1.494184,
+    "presentMean": 0.161188,
+    "gpuMean": 242.662268,
+    "gpuMax": 293.741,
+    "worldCalls": 1,
+    "worldMean": 113.8774,
+    "worldMax": 113.8774
+  },
+  "spatialAudioRequired": true,
+  "spatialAudio": {
+    "snapshots": 120,
+    "engineHistories": 28,
+    "footHistories": 84,
+    "contacts": 191,
+    "renewals": 0,
+    "rejected": 0,
+    "duplicateIds": 0,
+    "capacityDrops": 0
+  },
+  "audioDeviceTested": false,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": true,
+  "verifiedWindowStates": [
+    {
+      "frame": 30,
+      "width": 976,
+      "height": 657
+    },
+    {
+      "frame": 60,
+      "width": 1024,
+      "height": 768
+    },
+    {
+      "frame": 90,
+      "width": 976,
+      "height": 657
+    }
+  ],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "lodVerified": false,
+  "lodPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 120,
+  "renderedFrames": 120,
+  "exitCode": 0,
+  "elapsedSeconds": 30.95,
+  "width": 976,
+  "height": 657,
+  "sampledColors": 835,
+  "executableSha256": "bcb0193ab7f0b41cc441fa65d345791038fcb3eb3a0222f25c8b385455cd4043",
+  "screenshotSha256": "7a3aadfd3159cbc0b128cb5db365ac30875465f7e7a40c87800165c7cbc7f997"
+}
