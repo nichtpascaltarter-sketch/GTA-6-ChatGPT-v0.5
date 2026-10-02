@@ -21,10 +21,10 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `3c25f7def4417a6ad22d95ca3b695ab01f4a710d`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 06 below.
-- Native Release/Debug, system-import audits, 29 gameplay suites, 19 additional
-  scene captures, and strict window lifecycle validation pass. WARP does not
+- Latest verified executable: `b0c0c4c4096316d6bd007cafcd01099cbbed2728`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 07 below.
+- Native Release/Debug, system-import audits, 44 gameplay suites, 28 additional
+  scene captures, timing fallback and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
 - This remains a very early game, far below the full target. No claim of AAA
   quality, completeness, crash freedom, or 1440p/60 performance is made.
@@ -50,11 +50,12 @@ part of the game distribution.
 
 ## Current validation
 
-- At the verified checkpoint the central 49 chunks contain 726,020 vertices and
-  342,248 triangles. Countryside: 221,134 triangles; wetland: 294,430; island:
+- Before the workshop addition the central 49 chunks contained 726,020 vertices and
+  342,248 triangles; the current authored workshop brings the origin to 346,731
+  triangles. The prior regional checks measured countryside: 221,134 triangles; wetland: 294,430; island:
   130,916; coast: 140,226. Tests cover deterministic regeneration, collision,
   seams, 8,199 regional road samples, 14,014 road sweeps, lights, dock and runway.
-- Native 29/29 gameplay suites pass, including runway takeoff, banking, stall,
+- Native 44/44 gameplay suites pass, including runway takeoff, banking, stall,
   hard-landing damage across frame offsets, boat handling/swimming, save migration,
   passive aircraft motion, altitude-aware police visibility and dry exit preference.
   The six-contract campaign, conversations and persistent guidance are captured
@@ -148,12 +149,12 @@ part of the game distribution.
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
 
-### Integrated workshop source (native verification pending)
+### Integrated workshop source (verified in Milestone 07)
 
 The workshop source is integrated with the trial/timing source and its FPS
 repair. Full portable output is `/workspace/scratch/workshop-full-portable.log`;
 the corrected gameplay sanitizer log is `/tmp/workshop-headroom-sanitized.log`.
-Native captures and a combined scorecard are pending. The FPS-only rerun
+Native captures and the combined scorecard passed in Milestone 07. The FPS-only rerun
 `36950616732` was deliberately cancelled in favor of this complete candidate;
 no validation check was removed.
 
@@ -177,48 +178,44 @@ no validation check was removed.
   day/night energy, bounded selection and geometry validity. Six capture setups
   have clear player/camera positions, and the service setup verifies its charge.
 
-### Current candidate (not yet the verified executable)
+### Next candidate: neighborhood routines
 
-- Combined native workflow `36950765589` is testing exact source
-  `b0c0c4c4096316d6bd007cafcd01099cbbed2728`: workshop, trial, timing and FPS repair.
-  The smoke scene allowlist now admits all 28 capture scenes. Earlier combined
-  run `36950727233` was cancelled after review caught that missing allowlist
-  update, before spending a full capture sweep on it. Source is frozen while
-  validation runs; the downloadable EXE remains Milestone 06.
-- LOD source `3c25f7d` passed native workflow `36949428131` and its evidence
-  is archived. The aggregation-only comparison rerun `36949428138` also passed. Its 120-frame
-  median changed by -2.288%, smaller than the old build's 5.658% spread; all
-  equal-frame captures matched. Evidence is under the comparison `rerun/` directory.
-- Initial native workflow `36950056156` tests source `060dd8e1e6beb2559311416f3039aa9a73e63340`,
-  integrating Harbor Split and frame timing. Both builds pass all checks,
-  including Debug's forced-disabled GPU timestamp path and 22 Release captures.
-  The city image is byte-identical
-  to the prior verified build. The active-trial capture exposed a misleading FPS
-  readout: averaging reciprocal intervals let the tiny first interval dominate.
-  This is repaired with completed-frame counts over measured half-second windows,
-  explicit warm-up and inactivity resets. Focused strict and sanitizer rate tests
-  pass. The complete workshop and repaired FPS source now form one candidate;
-  its full native run includes 28 scene captures before milestone acceptance. Root owns the added HUD/map, F9 message preservation,
-  three trial scenes and `timing_probe.h`; build validation owns build/CI and
-  parser changes. The executable in `/workspace/outputs/` remains the last
-  verified LOD build until this candidate passes native validation.
-- Harbor Split passes 36 strict and sanitizer gameplay suites. Its full-population
-  control-driven route clears nine 6 m gates in 67.833 seconds with full health
-  and no penalties. Save v4 preserves records/paid medals and cancels unfinished
-  attempts. Native visual verification remains pending.
-- Timestamp telemetry uses four query slots, existing frame fences and a bounded
-  120-frame history, with no new waits. Scope is GPU render commands; queued
-  world uploads and presentation are excluded. CPU phases and world submission
-  are reported separately. The next native suite requires matching completed
-  samples and tests forced timestamp disable; historical comparison binaries
-  retain compatibility because timing validation is optional in that tool.
-- Harbor Motor Works is being implemented in the separate workshop worktree.
-  Outdoor pedestrian schedules, shared threat reactions and small groups are
-  planned afterward. Preserve the full world scope while extending these systems.
+- The combined workshop/trial/timing source passed native workflow `36950765589`
+  and is the verified executable. Earlier runs and their FPS defect remain
+  archived under `validation/milestone-07/initial`; final evidence is under
+  `validation/milestone-07/final`. The repaired FPS capture reads 1.2 FPS,
+  consistent with approximately 830 ms WARP render intervals.
+- The separate routines worktree contains authored central outdoor places,
+  sidewalk/crossing navigation, bounded resident decisions, daily activities,
+  small social groups, shared threat reactions, and activity-specific poses.
+  Its canonical network has 54 places, 252 nodes, 369 edges and 24 crossings.
+  Standing benches now use actual seat/back/leg collision instead of a solid
+  box over empty space above the seat; all eight seat positions are checked.
+- Six future native scenes wait for actual carrying, work, sitting, conversation,
+  startle and fleeing. They preserve the full population, advance the real clock,
+  require movement where relevant, and bind the gunshot response to the same
+  previously calm civilian. Static and dynamic visibility tests cover each
+  subject and held prop. The strict portable capture probe passes all six.
+- V5 persistence preserves resident roles and activity state. Authentic v1-v4
+  migration retains every original civilian position and health, reuses reachable
+  people for resident roles, and adds home residents only for missing roles.
+  New games retain 84 people; legacy saves can grow to 100. Twenty independent
+  migration cases pass, with exact V5 round trips and remote freeze/return checks.
+- Finish the final gameplay/AI sanitizer and integrated portable checks, rebase
+  `development/neighborhood-routines` onto the verified main development branch,
+  retain all FPS and workshop build fixes, then run the complete native suite
+  including 34 additional scene captures. Do not replace the verified executable
+  until native checks and visual inspection pass. The workshop's one harmless
+  MSVC integer-list conversion warning is being removed in this candidate.
+- Next audio work will add bounded spatial sound from actual nearby vehicles and
+  civilian contacts. Audit also found that focus loss/minimization currently
+  blocks before publishing paused audio; repair that lifecycle path in the audio
+  implementation. Spatial sound, physical listening and device recovery remain
+  unverified until implemented and tested.
 
 Captures for the verified checkpoint are in
-`/workspace/scratch/lod-3c25f7d-release/`; machine-readable evidence and selected
-original captures are under `validation/milestone-06/`. The full original target
+`/workspace/scratch/combined-b0c0c4c-release/`; original evidence and selected
+captures are under `validation/milestone-07/final/`. The full original target
 remains unchanged.
 
 ## Initial scorecard — before native validation
@@ -556,3 +553,62 @@ Windows 10 and long native soaks remain unverified.
 | Missions and story | 0.5/10 | Six original contracts have objectives, conversations and saves, while narrative scale and presentation remain small. |
 | Audio | 0.5/10 | Original synthesized radio, ambience, vehicles and movement feedback work; voiced acting, acoustics and native listening remain absent or unverified. |
 | Performance and stability | 0.5/10 | Bounded streaming and 28 native launches pass, but software-rendering checks do not establish hardware performance or extended crash-free operation. |
+
+
+## Milestone 07 — Harbor Split, Harbor Motor Works and frame timing, 2026-10-02
+
+Validated source: `b0c0c4c4096316d6bd007cafcd01099cbbed2728`.
+[Windows build and launch evidence](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36950765589).
+Release is 975,872 bytes; SHA256:
+`d7e14d953d1baa417f4b5e4967afb0e5c74374a67a03d7e8e315b2ca689f0371`.
+The single EXE and checksum are in `/workspace/outputs/`. Isolated launches and
+the import audit confirm no adjacent runtime, shader or asset files; its seven
+imports are Windows system libraries.
+
+Harbor Split is a repeatable nine-gate motorcycle trial with a standing start,
+damage penalties, medal thresholds, improvement-only payouts, map guidance and
+persistent records. Its full-population input-driven route finishes in 67.833
+seconds with full health and no penalties. Harbor Motor Works adds an authored
+enterable workshop with equipment, lit bays, an attendant, a $75 vehicle repair
+service and a $25 first-aid counter. A populated input-driven visit completes
+both transactions; collision, interior camera, boarding/exit clearance and save
+round trips are tested. Native views show the trial start, active route, workshop
+exterior, day/night interior, counter, doorway and completed repair. Characters,
+materials and city architecture remain visibly simple.
+
+Nonblocking timestamp queries use existing fences and a bounded 120-frame
+history, with separate CPU submission phases and a tested CPU-only fallback.
+An initial capture exposed a misleading startup FPS estimate; the repaired
+completed-frame window reads 1.2 FPS in the roughly 830 ms WARP trial view. GPU
+scope covers render commands and excludes separate world uploads/acceleration
+builds, queue backlog, presentation and capture. These software-rendering
+measurements do not establish hardware frame rates.
+
+Both native configurations pass ten embedded shader variants and ten test
+targets, including 44 gameplay suites. Thirty-eight isolated launches render
+1,824 frames; both streaming routes, 28 Release scenes, and Debug 4x/1x/2x plus
+timestamp-disabled lifecycle paths pass. All seven Debug launches use the actual
+validation layer without corruption/error diagnostics. The disabled path drains
+120 CPU samples with zero GPU frequency, samples or durations. One distinct
+harmless compiler warning repeats across targets: exactly representable integer
+workbench positions implicitly convert to float. Its literal cleanup is queued
+in the following source candidate and is not concealed as a warning-free build.
+
+Release city/legacy-streaming/LOD processes take 34.004/29.001/53.632 seconds.
+The city render timestamp mean is 277.139 ms on WARP. These are different scopes,
+and neither proves 1440p/60 on an RTX 4070. Hardware DXR, native listening,
+physical controllers, clean Windows 10 and long native soaks remain unverified.
+
+### Milestone 07 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | A large procedural geography gains one authored enterable workshop, while district uniqueness and location density remain far below the benchmark. |
+| Visual fidelity | 0.5/10 | Inspected workshop lighting, interiors and two-kilometer views work, but geometry, characters, materials and animation remain rudimentary. |
+| World density and life | 0.5/10 | Traffic, pedestrians and a staffed service location exist; rich daily routines and social activity are still in the next unverified candidate. |
+| Vehicles and driving | 1/10 | Four vehicle classes now support a timed motorcycle route and workshop repairs, with limited handling, deformation and animation depth. |
+| On-foot and combat | 0.5/10 | Indoor navigation, camera and boarding clearance are tested, but combat encounters, cover, weapon variety and movement detail remain sparse. |
+| NPC and police AI | 0.5/10 | Basic pursuit and panic remain functional; the next resident navigation and reaction system is not yet natively verified. |
+| Missions and story | 0.5/10 | Six contracts and a repeatable trial have tested objectives and persistence, while story scope, performances and cinematic presentation remain small. |
+| Audio | 0.5/10 | Original synthesized radio, engines, ambience and movement sounds work in tests; spatial world sources and native listening remain incomplete or unverified. |
+| Performance and stability | 0.5/10 | Thirty-eight native launches and timestamp fallback pass, but WARP timings do not establish target hardware performance or extended crash-free operation. |
