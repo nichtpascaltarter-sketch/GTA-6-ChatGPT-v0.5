@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "workflowRun": 36948442197,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36948442197",
+  "workflowSourceCommit": "8aec2accbd9a57685a9798aa0370171d618d473f",
+  "resultArtifact": 11203470700,
+  "workflowConclusion": "failure",
+  "failure": "All eight game launches passed. Final summary generation failed because PowerShell Measure-Object did not resolve elapsedSeconds on ordered-dictionary records.",
+  "summaryRecovery": "This summary was reconstructed with Python standard-library JSON/statistics from the original per-run reports; values were not remeasured.",
+  "toolingFixCommit": "ad5b0d9",
+  "variants": {
+    "A": {
+      "sourceCommit": "88a2cf6e24f3c7037581142915f757d8a49fa5e0",
+      "artifactId": 11202656698,
+      "sha256": "93e6fc058d80793d39eb09e7f61c61d7317b3d2e745a7884c4bbd6fff8081897"
+    },
+    "B": {
+      "sourceCommit": "2acd647a877b2062e79580c90c36da90eb4d1cdf",
+      "artifactId": 11203285505,
+      "sha256": "911b0c5aa17930bdb92ee49c4a94bcbfb687eb03bc2cf52e7c016159efecf7d7"
+    }
+  },
+  "settings": {
+    "scene": "city",
+    "adapter": "Microsoft Basic Render Driver (D3D12 WARP)",
+    "width": 960,
+    "height": 541,
+    "samples": 4,
+    "format": "R16G16B16A16_FLOAT",
+    "order": "A8, B8, A120, B120, B120, A120, B360, A360"
+  },
+  "launchesPassed": 8,
+  "framesTotal": 1216,
+  "launchElapsedSecondsTotal": 368.287,
+  "runs": [
+    {
+      "name": "00-warmup-A",
+      "variant": "A",
+      "frames": 8,
+      "elapsedSeconds": 2.198,
+      "report": "00-warmup-A/smoke-msaa4-report.json",
+      "screenshotSha256": "9179ff6fe910b7cbe8f0a335f8c5a446799e7f481526972acdb9caaaf65bfd99"
+    },
+    {
+      "name": "01-warmup-B",
+      "variant": "B",
+      "frames": 8,
+      "elapsedSeconds": 2.076,
+      "report": "01-warmup-B/smoke-msaa4-report.json",
+      "screenshotSha256": "9179ff6fe910b7cbe8f0a335f8c5a446799e7f481526972acdb9caaaf65bfd99"
+    },
+    {
+      "name": "02-A-120",
+      "variant": "A",
+      "frames": 120,
+      "elapsedSeconds": 26.526,
+      "report": "02-A-120/smoke-msaa4-report.json",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "03-B-120",
+      "variant": "B",
+      "frames": 120,
+      "elapsedSeconds": 26.389,
+      "report": "03-B-120/smoke-msaa4-report.json",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "04-B-120",
+      "variant": "B",
+      "frames": 120,
+      "elapsedSeconds": 26.32,
+      "report": "04-B-120/smoke-msaa4-report.json",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "05-A-120",
+      "variant": "A",
+      "frames": 120,
+      "elapsedSeconds": 25.788,
+      "report": "05-A-120/smoke-msaa4-report.json",
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "name": "06-B-360",
+      "variant": "B",
+      "frames": 360,
+      "elapsedSeconds": 128.783,
+      "report": "06-B-360/smoke-msaa4-report.json",
+      "screenshotSha256": "83e7d72f013dd47b2c93a3ba1ef90026c54e4513a4471bd869c468bafb2898f8"
+    },
+    {
+      "name": "07-A-360",
+      "variant": "A",
+      "frames": 360,
+      "elapsedSeconds": 130.207,
+      "report": "07-A-360/smoke-msaa4-report.json",
+      "screenshotSha256": "83e7d72f013dd47b2c93a3ba1ef90026c54e4513a4471bd869c468bafb2898f8"
+    }
+  ],
+  "summaries": [
+    {
+      "variant": "A",
+      "samples120Seconds": [
+        26.526,
+        25.788
+      ],
+      "median120Seconds": 26.157,
+      "spread120Percent": 2.821424475283861,
+      "elapsed360Seconds": 130.207,
+      "estimatedAdditionalFrameMilliseconds": 433.5416666666667
+    },
+    {
+      "variant": "B",
+      "samples120Seconds": [
+        26.389,
+        26.32
+      ],
+      "median120Seconds": 26.3545,
+      "spread120Percent": 0.26181487032574724,
+      "elapsed360Seconds": 128.783,
+      "estimatedAdditionalFrameMilliseconds": 426.7854166666666
+    }
+  ],
+  "median120ChangePercent": 0.7550560079519819,
+  "screenshotEquivalence": [
+    {
+      "frames": 8,
+      "allVariantsAndRepeatsIdentical": true,
+      "screenshotSha256": "9179ff6fe910b7cbe8f0a335f8c5a446799e7f481526972acdb9caaaf65bfd99"
+    },
+    {
+      "frames": 120,
+      "allVariantsAndRepeatsIdentical": true,
+      "screenshotSha256": "3c2f7b44a285055a0d576d2159959b03fa801b0288f898289f066376b5f742bc"
+    },
+    {
+      "frames": 360,
+      "allVariantsAndRepeatsIdentical": true,
+      "screenshotSha256": "83e7d72f013dd47b2c93a3ba1ef90026c54e4513a4471bd869c468bafb2898f8"
+    }
+  ],
+  "interpretation": "The 0.755% higher B median is smaller than A repeat spread; these samples do not establish a material stationary-city rendering regression from incremental chunk residency. They do not measure the improvement during world boundary crossings.",
+  "limitations": [
+    "One hosted Windows runner, software WARP, two measured 120-frame samples per version and one 360-frame sample; no statistical or hardware GPU performance guarantee.",
+    "Times include process startup, initial world upload and rendering, not GPU timestamp queries.",
+    "Additional-frame slopes use evolving city camera/time and one longer run. They are not steady-state GPU frame times or a 60 fps claim."
+  ]
+}

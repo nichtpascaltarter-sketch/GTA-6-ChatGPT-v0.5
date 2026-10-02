@@ -1,0 +1,4 @@
+All eight smoke launches passed, including both 360-frame runs.
+The original workflow failed only during final report aggregation:
+Measure-Object: Cannot process argument because the value of argument "elapsedSeconds" is not valid.
+Fixed by summing dictionary values explicitly in ad5b0d9.
