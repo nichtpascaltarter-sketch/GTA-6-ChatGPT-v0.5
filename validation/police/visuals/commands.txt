@@ -1,0 +1,30 @@
+Working directory: repository root
+Compiler: c++ (Debian 14.2.0-19) 14.2.0
+
+Common translation units:
+  game game_law law law_navigation pedestrians world world_geometry visuals
+
+Strict common objects were compiled by the concurrent gameplay gate using:
+  g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -O2 -c src/<unit>.cpp -o <unit>.o
+Sanitized common objects used:
+  g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -c src/<unit>.cpp -o <unit>.o
+The final repaired game.cpp object replaced the earlier one before linking.
+
+For each focused suite in police_visuals pedestrian_visuals:
+  c++ -std=c++20 -O2 -g -Wall -Wextra -Wpedantic -Werror -pthread tests/<suite>_tests.cpp <strict-common-objects> -o <suite>
+  ./<suite>
+  c++ -std=c++20 -O1 -g -Wall -Wextra -Wpedantic -Werror -pthread -fsanitize=address,undefined -fno-omit-frame-pointer tests/<suite>_tests.cpp <sanitized-common-objects> -o <suite>
+  ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ./<suite>
+
+Fingerprint comparison:
+  git show 70126b84943c431095d556b9b7b2730ad64b9cbc:src/visuals.cpp > <scratch>/baseline-visuals.cpp
+  c++ -std=c++20 -O2 -pthread -Isrc -c <scratch>/baseline-visuals.cpp -o <scratch>/baseline-visuals.o
+  c++ -std=c++20 -O2 -g -Wall -Wextra -Wpedantic -Werror -pthread -Isrc validation/police/visuals/non_police_probe.cpp <strict-nonvisual-objects> <baseline-or-current-visuals.o> -o <probe>
+  ./<probe>
+  diff -u baseline-meshes.log current-meshes.log
+
+Source verification after the final strict and sanitizer runs:
+  sha256sum -c validation/police/visuals/source.sha256
+
+Complete standalone reproduction, without shared objects:
+  bash validation/police/visuals/run.sh

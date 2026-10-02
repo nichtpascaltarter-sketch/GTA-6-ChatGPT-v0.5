@@ -61,7 +61,7 @@ void profileBody(Mesh& mesh,Vec3 position,float yaw,const Profile* profiles,int 
         triangle(mesh,position+Vec3{0,hi.height,0},position+rotate({std::sin(a)*hi.width,hi.height,std::cos(a)*hi.depth},yaw),position+rotate({std::sin(b)*hi.width,hi.height,std::cos(b)*hi.depth},yaw),color);
     }
 }
-void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3 shirt,Vec3 skin,bool armed,bool dead,uint32_t seed,bool closeDetail,bool riding=false,const Pedestrian* pedestrian=nullptr){
+void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3 shirt,Vec3 skin,bool armed,bool dead,uint32_t seed,bool closeDetail,bool riding=false,const Pedestrian* pedestrian=nullptr,const PolicePose* officer=nullptr){
     const int sides=closeDetail?10:6,headSegments=closeDetail?12:7,headRings=closeDetail?7:4;
     const Vec3 trousers{.055f,.065f,.081f},boots{.029f,.024f,.022f};
     const bool routine=pedestrian&&!dead&&!riding;
@@ -86,6 +86,50 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         if(dead)local={local.x,.16f-local.z,local.y-.84f};else local.y+=bob;
         return position+rotate(local,yaw)+seatOffset*seated;
     };
+    const bool policeWeapon=officer&&!dead&&!riding&&armed;
+    Vec3 gunMuzzle{},gunForward{},gunRight{},gunUp{},gunGrip{},supportHand{};
+    float reloadPose=0,reloadProgress=0;
+    auto weaponBox=[&](Vec3 center,Vec3 size,Vec3 color,float material){
+        const size_t first=mesh.vertices.size();addBox(mesh,{},size,color,0,material);
+        for(size_t index=first;index<mesh.vertices.size();++index){auto& vertex=mesh.vertices[index];
+            const Vec3 local=vertex.position,normal=vertex.normal;
+            vertex.position=center+gunRight*local.x+gunUp*local.y+gunForward*local.z;
+            vertex.normal=normalized(gunRight*normal.x+gunUp*normal.y+gunForward*normal.z);
+        }
+    };
+    auto localPoint=[&](Vec3 world){const Vec3 offset=world-position-seatOffset*seated-Vec3{0,bob,0};return Vec3{dot(offset,right(yaw)),offset.y,dot(offset,forward(yaw))};};
+    if(policeWeapon){
+        reloadProgress=std::isfinite(officer->reload)?clamp(officer->reload,0,1):0;
+        reloadPose=officer->reloading?clamp(std::min(reloadProgress/.16f,(1-reloadProgress)/.20f),0,1):0;
+        // The weapon timer restarts its aim ramp after reload. Finish at low
+        // ready so the next frame continues that ramp instead of dropping.
+        const float raise=officer->reloading?1-clamp((reloadProgress-.80f)/.20f,0,1):clamp(officer->aim,0,1);
+        const Vec3 body=position+Vec3{0,1.35f,0};
+        Vec3 direction=officer->aimPoint-body;
+        if(!std::isfinite(length(direction))||length(direction)<.001f)direction=forward(yaw);
+        direction=normalized(direction);
+        gunForward=normalized(lerp(normalized(forward(yaw)+Vec3{0,-.55f,0}),direction,raise));
+        if(length(gunForward)<.5f)gunForward=direction;
+        gunForward=normalized(lerp(gunForward,normalized(forward(yaw)+Vec3{0,-.42f,0}),reloadPose));
+        if(length(gunForward)<.5f)gunForward=direction;
+        gunRight=normalized(cross({0,1,0},gunForward));if(length(gunRight)<.5f)gunRight=right(yaw);
+        gunUp=normalized(cross(gunForward,gunRight));
+        const Vec3 nominal=std::isfinite(length(officer->muzzle))?officer->muzzle:body+direction*.45f;
+        gunMuzzle=lerp(point({.16f,.88f,.30f}),nominal,raise);
+        gunMuzzle=lerp(gunMuzzle,point({.16f,1.13f,.44f}),reloadPose);
+        // Recoil follows only the emitted shot's short flash envelope. At the
+        // emission instant the physical muzzle and rendered barrel tip agree.
+        const float flash=std::isfinite(officer->flash)?clamp(officer->flash,0,1):0;
+        const float recoil=flash*(1-flash)*4;
+        gunMuzzle+=gunUp*(.018f*recoil)-gunForward*(.025f*recoil);
+        gunGrip=gunMuzzle-gunForward*.21f-gunUp*.085f;
+        supportHand=gunGrip-gunRight*.065f+gunForward*.035f;
+        if(officer->reloading){
+            const Vec3 well=gunGrip-gunUp*.055f,pouch=point({-.18f,.82f,.08f});
+            const float reach=reloadProgress<.42f?clamp((reloadProgress-.16f)/.26f,0,1):1-clamp((reloadProgress-.42f)/.32f,0,1);
+            supportHand=lerp(lerp(supportHand,well,reloadPose),pouch,reach);
+        }
+    }
     const float bodyY=riding?-.09f:0;
     const Vec3 torsoPosition=position+Vec3{0,bob+bodyY,0}+seatOffset*seated;
     if(dead){ellipsoid(mesh,point({0,1.09f,0}),{.23f,.14f,.32f},yaw,shirt,sides,4);}
@@ -123,6 +167,10 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         ellipsoid(mesh,point({-.092f,1.729f,-.054f}),{.054f,.058f,.070f},yaw,hair*.88f,8,4);
         ellipsoid(mesh,point({.067f,1.772f,.018f}),{.061f,.048f,.091f},yaw,hair*1.12f,8,4);
     }
+    if(officer&&!dead){
+        ellipsoid(mesh,point({0,1.795f,-.015f}),{.143f,.047f,.124f},yaw,shirt,10,3);
+        ellipsoid(mesh,point({0,1.777f,.102f}),{.122f,.010f,.081f},yaw,shirt*.65f,10,3);
+    }
     if(checking){
         // Read the manifest while the right hand checks entries. Rotate the
         // complete authored head around the neck, including facial normals.
@@ -130,6 +178,23 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         const float angle=.95f+std::sin(activityTime*.65f)*.025f,c=std::cos(angle),s=std::sin(angle);
         auto tilt=[&](Vec3 vector){return vector*c+cross(axis,vector)*s+axis*(dot(axis,vector)*(1-c));};
         for(size_t index=headFirst;index<mesh.vertices.size();++index){auto& vertex=mesh.vertices[index];vertex.position=pivot+tilt(vertex.position-pivot);vertex.normal=normalized(tilt(vertex.normal));}
+    }
+    if(policeWeapon){
+        const Vec3 pivot=point({0,1.47f,0});
+        const Vec3 look=officer->reloading?normalized(forward(yaw)+Vec3{0,-.62f,0}):gunForward;
+        const float weight=officer->reloading?reloadPose:clamp(officer->aim,0,1);
+        const float headYaw=clamp(std::atan2(dot(look,right(yaw)),dot(look,forward(yaw))),-.8f,.8f)*weight;
+        const float headPitch=-std::atan2(look.y,std::hypot(look.x,look.z))*weight;
+        const float cy=std::cos(headYaw),sy=std::sin(headYaw),cp=std::cos(headPitch),sp=std::sin(headPitch);
+        auto turn=[&](Vec3 vector){
+            const Vec3 local{dot(vector,right(yaw)),vector.y,dot(vector,forward(yaw))};
+            const Vec3 tilted{local.x,local.y*cp-local.z*sp,local.y*sp+local.z*cp};
+            return rotate({tilted.x*cy+tilted.z*sy,tilted.y,-tilted.x*sy+tilted.z*cy},yaw);
+        };
+        for(size_t index=headFirst;index<mesh.vertices.size();++index){auto& vertex=mesh.vertices[index];
+            vertex.position=pivot+turn(vertex.position-pivot);
+            vertex.normal=normalized(turn(vertex.normal));
+        }
     }
     for(float side:{-1.0f,1.0f}){
         float footLift=std::max(0.0f,-std::cos(phase)*side)*.13f*motion;
@@ -170,6 +235,12 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
             if(carrying){elbow={side*.30f,1.02f+parcelRise,.18f};hand={side*.23f,.97f+parcelRise,parcelDepth};}
         }
         if(armed){elbow={side*.255f,1.105f,.24f};hand={.13f,1.23f,.54f};}
+        if(policeWeapon){
+            hand=localPoint(side>0?gunGrip:supportHand);
+            // Keep shoulders on the torso and let elbows settle below the
+            // actual grip. This works for pitched observations and reload reach.
+            elbow=lerp(shoulder,hand,.52f)+Vec3{side*.095f,-.14f,-.025f};
+        }
         if(riding){shoulder={side*.225f,1.25f,.10f};elbow={side*.32f,1.12f,.35f};hand={side*.37f,1.07f,.57f};}
         ellipsoid(mesh,point(shoulder),{.100f,.118f,.111f},yaw,shirt,sides,4);
         const bool sleeves=(seed&1u)==0;const Vec3 forearmColor=sleeves?shirt*.91f:skin;
@@ -192,7 +263,13 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         tube(mesh,point(pencilTip+Vec3{.002f,.02f,.004f}),point(pencilTip+Vec3{.02f,.18f,.035f}),.006f,.006f,{.78f,.51f,.09f},5);
         tube(mesh,point(pencilTip),point(pencilTip+Vec3{.002f,.02f,.004f}),.001f,.006f,{.12f,.13f,.14f},5);
     }
-    if(armed){addBox(mesh,point({.13f,1.275f,.70f}),{.039f,.043f,.15f},{.049f,.053f,.061f},yaw,1);addBox(mesh,point({.13f,1.207f,.60f}),{.032f,.070f,.040f},{.039f,.032f,.025f},yaw,0);}
+    if(policeWeapon){
+        weaponBox(gunMuzzle-gunForward*.14f,{.039f,.043f,.14f},{.049f,.053f,.061f},1);
+        weaponBox(gunGrip,{.032f,.070f,.037f},{.039f,.032f,.025f},0);
+        weaponBox(gunMuzzle-gunForward*.055f+gunUp*.05f,{.012f,.007f,.020f},{.14f,.15f,.16f},1);
+        if(officer->reloading&&reloadProgress>.16f&&reloadProgress<.74f)
+            weaponBox(supportHand-gunUp*.035f,{.023f,.065f,.028f},{.10f,.12f,.14f},1);
+    }else if(armed){addBox(mesh,point({.13f,1.275f,.70f}),{.039f,.043f,.15f},{.049f,.053f,.061f},yaw,1);addBox(mesh,point({.13f,1.207f,.60f}),{.032f,.070f,.040f},{.039f,.032f,.025f},yaw,0);}
 }
 // Vehicle rendering helpers for the anonymous namespace in visuals.cpp.
 // Local vehicle +Z points forwards. All surfaces retain outward winding.
@@ -525,10 +602,15 @@ Mesh Game::dynamicMesh() const {
         const uint32_t appearance=p.identity?p.identity:uint32_t(i);
         Vec3 shirt=i<4?Vec3{.035f,.065f,.12f}:Vec3{.13f+random01(appearance*13)*.55f,.09f+random01(appearance*29)*.55f,.10f+random01(appearance*43)*.55f};
         Vec3 skin=Vec3{.72f,.47f,.31f}*(.65f+random01(appearance*17)*.4f);
-        personMesh(mesh,p.position,p.yaw,p.phase,p.motion,shirt,skin,i<4&&wanted>0,p.health<=0,appearance,distance<32,false,&p);
-        if(i<4&&p.health>0){
-            ellipsoid(mesh,p.position+rotate({0,1.795f,-.015f},p.yaw),{.143f,.047f,.124f},p.yaw,shirt,10,3);
-            ellipsoid(mesh,p.position+rotate({0,1.777f,.102f},p.yaw),{.122f,.010f,.081f},p.yaw,shirt*.65f,10,3);
+        const PolicePose officer=i<4?policePose(i):PolicePose{};
+        const bool weapon=i<4&&(officer.phase==LawPhase::Engage||officer.aim>0||officer.reloading||officer.flash>0);
+        personMesh(mesh,p.position,p.yaw,p.phase,p.motion,shirt,skin,weapon,p.health<=0,appearance,distance<32,false,&p,i<4?&officer:nullptr);
+        if(i<4&&p.health>0&&officer.flash>0&&std::isfinite(officer.flash)&&
+           std::isfinite(length(officer.muzzle))&&std::isfinite(length(officer.impact-officer.muzzle))){
+            const float glow=clamp(officer.flash,0,1),radius=.025f+.045f*glow;
+            ellipsoid(mesh,officer.muzzle,{radius,radius,radius},p.yaw,{1,.73f,.22f},6,3,5);
+            const float travel=length(officer.impact-officer.muzzle);
+            if(travel>.01f&&travel<=60)tube(mesh,officer.muzzle,officer.impact,.008f*glow,.003f*glow,{1,.68f,.23f},4,5);
         }
     }
     const Vec3 attendant=World::garageSite().staff;
@@ -733,6 +815,11 @@ std::vector<Light> Game::lightSources() const {
             flasher.color=blue?Vec3{.06f,.22f,1}:Vec3{1,.035f,.02f};flasher.direction={0,1,0};
             flasher.radius=18;flasher.intensity=wanted>0?90+60*daylight:90*night;flasher.cone=-1;collect(flasher);
         }
+    }
+    for(size_t i=0;i<std::min(size_t(4),pedestrians.size());++i){
+        const PolicePose officer=policePose(i);if(officer.flash<=0)continue;
+        Light muzzle;muzzle.position=officer.muzzle;muzzle.radius=8;muzzle.color={1,.73f,.22f};
+        muzzle.intensity=45*clamp(officer.flash,0,1);muzzle.direction={0,1,0};muzzle.cone=-1;collect(muzzle);
     }
     if(shotFlash>0&&occupied<0){
         Light muzzle;muzzle.position=shotOrigin;muzzle.radius=8;muzzle.color={1,.73f,.22f};

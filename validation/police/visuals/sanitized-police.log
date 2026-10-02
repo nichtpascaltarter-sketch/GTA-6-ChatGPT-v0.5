@@ -1,0 +1,2 @@
+PASS real aim/fire/reload sequence, physical muzzle/impact alignment, near/far mesh validity and contact props (49 samples)
+PASS blocked, paused and dead officers emit no invented tracer or muzzle event
