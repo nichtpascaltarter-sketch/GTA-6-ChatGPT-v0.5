@@ -68,99 +68,6 @@ Vec3 pedestrianCorner(const World& world,Vec3 position,uint32_t seed){
     const float bx=std::floor(position.x/grid)*grid,bz=std::floor(position.z/grid)*grid;
     return atGround(world,{bx+((corner&1)?grid-12.0f:12.0f),0,bz+((corner&2)?grid-12.0f:12.0f)});
 }
-void limb(Mesh& mesh,Vec3 a,Vec3 b,float width,Vec3 color,float material=0){
-    Vec3 up=normalized(b-a);Vec3 side=normalized(cross(up,std::abs(up.z)<.8f?Vec3{0,0,1}:Vec3{1,0,0}))*width;
-    Vec3 front=normalized(cross(up,side))*width;
-    Vec3 p[8]={a-side-front,a+side-front,a+side+front,a-side+front,b-side-front,b+side-front,b+side+front,b-side+front};
-    addQuad(mesh,p[0],p[3],p[2],p[1],color,material);addQuad(mesh,p[4],p[5],p[6],p[7],color,material);
-    addQuad(mesh,p[0],p[1],p[5],p[4],color,material);addQuad(mesh,p[1],p[2],p[6],p[5],color,material);
-    addQuad(mesh,p[2],p[3],p[7],p[6],color,material);addQuad(mesh,p[3],p[0],p[4],p[7],color,material);
-}
-void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3 shirt,Vec3 skin,bool armed,bool dead=false){
-    if(dead){
-        addBox(mesh,position+Vec3{0,.20f,0},{.24f,.16f,.49f},shirt,yaw);
-        addBox(mesh,position+rotate({0,.19f,.67f},yaw),{.16f,.15f,.18f},skin,yaw);
-        for(float side:{-1.0f,1.0f})addBox(mesh,position+rotate({side*.12f,.16f,-.68f},yaw),{.10f,.12f,.30f},{.055f,.07f,.09f},yaw);
-        return;
-    }
-    const float stride=std::sin(phase)*.37f*motion,bob=std::abs(std::sin(phase))*.035f*motion;
-    auto point=[&](Vec3 local){local.y+=bob;return position+rotate(local,yaw);};
-    const Vec3 trousers{.055f,.07f,.10f},boots{.035f,.027f,.022f};
-    addBox(mesh,point({0,1.10f,0}),{.245f,.30f,.15f},shirt,yaw);
-    addBox(mesh,point({0,.79f,0}),{.21f,.09f,.145f},trousers,yaw);
-    addBox(mesh,point({0,1.43f,0}),{.075f,.08f,.075f},skin,yaw);
-    addBox(mesh,point({0,1.62f,0}),{.155f,.18f,.14f},skin,yaw);
-    addBox(mesh,point({0,1.77f,-.018f}),{.161f,.045f,.145f},{.045f,.024f,.013f},yaw);
-    addBox(mesh,point({0,1.64f,.147f}),{.035f,.038f,.025f},skin*.86f,yaw);
-    for(float side:{-1.0f,1.0f}){
-        addBox(mesh,point({side*.065f,1.685f,.143f}),{.025f,.013f,.012f},{.94f,.91f,.85f},yaw);
-        addBox(mesh,point({side*.064f,1.685f,.157f}),{.009f,.010f,.003f},{.07f,.11f,.12f},yaw);
-        Vec3 hip{side*.12f,.82f,0},knee{side*.12f,.47f,-stride*side*.45f},foot{side*.12f,.10f,stride*side};
-        limb(mesh,point(hip),point(knee),.105f,trousers);limb(mesh,point(knee),point(foot),.085f,trousers);
-        addBox(mesh,point(foot+Vec3{0,-.025f,.07f}),{.10f,.075f,.17f},boots,yaw);
-        Vec3 shoulder{side*.28f,1.31f,0},elbow{side*.33f,1.02f,stride*side*.65f},hand{side*.32f,.78f,stride*side};
-        if(armed){elbow={side*.24f,1.16f,.28f};hand={.13f,1.25f,.54f};}
-        limb(mesh,point(shoulder),point(elbow),.09f,shirt);limb(mesh,point(elbow),point(hand),.07f,skin);
-        addBox(mesh,point(hand),{.068f,.075f,.07f},skin,yaw);
-    }
-    if(armed){addBox(mesh,point({.13f,1.28f,.70f}),{.047f,.055f,.18f},{.045f,.05f,.06f},yaw,1);addBox(mesh,point({.13f,1.20f,.60f}),{.04f,.09f,.05f},{.04f,.035f,.03f},yaw);}
-}
-void wheelMesh(Mesh& mesh,Vec3 center,float yaw,float radius,float width,float phase){
-    constexpr int count=12;const Vec3 axis=right(yaw),fore=forward(yaw);
-    for(int i=0;i<count;++i){
-        const float a=float(i)*2*Pi/count,b=float(i+1)*2*Pi/count;
-        Vec3 pa=Vec3{0,std::cos(a)*radius,0}+fore*(std::sin(a)*radius),pb=Vec3{0,std::cos(b)*radius,0}+fore*(std::sin(b)*radius);
-        addQuad(mesh,center-axis*width+pa,center-axis*width+pb,center+axis*width+pb,center+axis*width+pa,{.028f,.031f,.033f});
-        for(float s:{-1.0f,1.0f}){
-            Vec3 hub=center+axis*(width+.006f)*s;
-            Vec3 ha=pa*.60f,hb=pb*.60f;
-            addQuad(mesh,hub+pa,hub+pb,hub+hb,hub+ha,{.045f,.047f,.052f});
-            addQuad(mesh,hub,hub+ha,hub+hb,hub,{.42f,.45f,.48f},1);
-        }
-    }
-    for(int i=0;i<5;++i){float a=phase+float(i)*2*Pi/5;Vec3 offset=Vec3{0,std::cos(a)*radius*.43f,0}+fore*(std::sin(a)*radius*.43f);limb(mesh,center+axis*(width+.014f),center+axis*(width+.015f)+offset,.018f,{.08f,.09f,.11f},1);}
-}
-void vehicleMesh(Mesh& mesh,const Vehicle& v,float time){
-    const bool bike=v.kind==VehicleKind::Motorcycle;
-    auto point=[&](Vec3 local){return v.position+rotate(local,v.yaw);};
-    const Vec3 paint=v.color*(.55f+.45f*v.health/100.0f),glass{.045f,.095f,.12f},trim{.055f,.059f,.065f};
-    if(bike){
-        addBox(mesh,point({0,.63f,0}),{.24f,.20f,.57f},paint,v.yaw,1);
-        addBox(mesh,point({0,.88f,-.22f}),{.23f,.075f,.37f},trim,v.yaw);
-        addBox(mesh,point({0,.90f,.28f}),{.21f,.13f,.27f},paint,v.yaw,1);
-        for(float z:{-.78f,.80f})wheelMesh(mesh,point({0,.34f,z}),v.yaw+(z>0?v.steer*.35f:0),.34f,.12f,time*v.speed);
-        for(float side:{-1.0f,1.0f})limb(mesh,point({side*.13f,.34f,.80f}),point({side*.13f,1.10f,.62f}),.035f,{.58f,.60f,.61f},1);
-        limb(mesh,point({-.45f,1.10f,.57f}),point({.45f,1.10f,.57f}),.035f,trim,1);
-        addBox(mesh,point({0,1.01f,.71f}),{.13f,.10f,.06f},{1,.94f,.73f},v.yaw,2);
-        addBox(mesh,point({0,.78f,-.69f}),{.13f,.06f,.03f},{.75f,.015f,.01f},v.yaw,2);
-        return;
-    }
-    addBox(mesh,point({0,.61f,0}),{.91f,.26f,2.02f},paint,v.yaw,1);
-    addBox(mesh,point({0,.85f,1.18f}),{.88f,.11f,.76f},paint,v.yaw,1);
-    addBox(mesh,point({0,.85f,-1.37f}),{.89f,.11f,.55f},paint,v.yaw,1);
-    addBox(mesh,point({0,1.10f,-.12f}),{.75f,.27f,.91f},glass,v.yaw,1);
-    addBox(mesh,point({0,1.40f,-.20f}),{.77f,.075f,.85f},paint,v.yaw,1);
-    for(float side:{-1.0f,1.0f}){
-        addBox(mesh,point({side*.775f,1.11f,-.17f}),{.035f,.25f,.047f},trim,v.yaw);
-        addBox(mesh,point({side*.87f,.87f,.21f}),{.04f,.024f,.11f},{.68f,.72f,.73f},v.yaw,1);
-        addBox(mesh,point({side*1.01f,1.03f,.63f}),{.16f,.085f,.12f},paint,v.yaw,1);
-        addBox(mesh,point({side*.90f,.43f,0}),{.045f,.08f,1.12f},trim,v.yaw);
-        for(float z:{-1.30f,1.30f})wheelMesh(mesh,point({side*.91f,.39f,z}),v.yaw+(z>0?v.steer*.40f:0),.39f,.13f,time*v.speed/.39f);
-        addBox(mesh,point({side*.61f,.76f,2.031f}),{.23f,.10f,.025f},{1,.91f,.66f},v.yaw,2);
-        addBox(mesh,point({side*.65f,.76f,-2.031f}),{.19f,.10f,.025f},{.72f,.018f,.012f},v.yaw,2);
-    }
-    addBox(mesh,point({0,.50f,2.045f}),{.88f,.07f,.07f},trim,v.yaw);
-    addBox(mesh,point({0,.68f,2.045f}),{.29f,.08f,.018f},trim,v.yaw);
-    addBox(mesh,point({0,.51f,-2.045f}),{.88f,.07f,.07f},trim,v.yaw);
-    addBox(mesh,point({0,.69f,-2.047f}),{.18f,.07f,.022f},{.81f,.80f,.68f},v.yaw);
-    if(v.police){
-        addBox(mesh,point({0,1.52f,-.18f}),{.65f,.055f,.12f},trim,v.yaw);
-        bool flash=std::sin(time*17)>0;
-        addBox(mesh,point({-.36f,1.61f,-.18f}),{.24f,.06f,.10f},flash?Vec3{.1f,.25f,1}:Vec3{.02f,.04f,.13f},v.yaw,flash?2.0f:0.0f);
-        addBox(mesh,point({.36f,1.61f,-.18f}),{.24f,.06f,.10f},flash?Vec3{.15f,.02f,.02f}:Vec3{1,.03f,.02f},v.yaw,flash?0.0f:2.0f);
-        for(float side:{-1.0f,1.0f})addBox(mesh,point({side*.918f,.69f,0}),{.014f,.17f,.58f},{.84f,.86f,.85f},v.yaw);
-    }
-}
 struct SaveWriter {
     std::vector<uint8_t> data;
     void u32(uint32_t n){for(int k=0;k<4;++k)data.push_back(uint8_t(n>>(k*8)));}
@@ -373,7 +280,7 @@ void Game::update(const Input& input,float elapsed){
         Vec3 direction=target-v.position;direction.y=0;float desiredYaw=std::atan2(direction.x,direction.z),turn=wrapAngle(desiredYaw-v.yaw);
         if(std::abs(turn)>.7f)targetSpeed=std::min(targetSpeed,6.0f);
         for(size_t j=0;j<vehicles.size();++j){if(i==j)continue;Vec3 offset=vehicles[j].position-v.position;float ahead=dot(offset,forward(v.yaw));if(ahead>0&&ahead<10+std::abs(v.speed)*.65f&&std::abs(dot(offset,right(v.yaw)))<2.3f)targetSpeed=std::min(targetSpeed,std::max(0.0f,(ahead-5)*.75f));}
-        if(occupied<0){Vec3 offset=player-v.position;if(dot(offset,forward(v.yaw))>0&&planarDistance(player,v.position)<10&&std::abs(dot(offset,right(v.yaw)))<2)targetSpeed=v.police&&wanted>0?2:0;}
+        if(occupied<0){Vec3 offset=player-v.position;if(dot(offset,forward(v.yaw))>0&&planarDistance(player,v.position)<10&&std::abs(dot(offset,right(v.yaw)))<2)targetSpeed=v.police&&wanted>0?2.0f:0.0f;}
         v.speed=towards(v.speed,targetSpeed,dt*(targetSpeed<v.speed?8:3.8f));v.steer=clamp(turn*1.5f,-1,1);
         v.yaw=wrapAngle(v.yaw+clamp(turn,-1.2f*dt,1.2f*dt));v.velocity=forward(v.yaw)*v.speed;
         Vec3 before=v.position;v.position=world.move(v.position,v.velocity*dt,v.kind==VehicleKind::Motorcycle?.45f:1.0f);v.position=atGround(world,v.position);
@@ -422,7 +329,7 @@ void Game::update(const Input& input,float elapsed){
             Vehicle& v=vehicles[i];if(int(i)==occupied||planarDistance(v.position,player)<430)continue;
             float grid=roadGrid(player);float angle=float(hash32(uint32_t(i)+simulationTick)%4u)*Pi*.5f;Vec3 node{std::round(player.x/grid)*grid,0,std::round(player.z/grid)*grid};Vec3 p=node+forward(angle)*grid*2+right(angle)*Lane;
             if(world.biome(p.x,p.z)==Biome::Ocean)continue;
-            v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0:8;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
+            v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0.0f:8.0f;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
         }
         for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{12,0,12};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
     }
@@ -464,27 +371,6 @@ void Game::update(const Input& input,float elapsed){
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
     }else if(wanted==0&&health<35)health=std::min(35.0f,health+dt*1.5f);
     world.stream(player);
-}
-Mesh Game::dynamicMesh() const {
-    Mesh mesh;mesh.vertices.reserve(95000);mesh.indices.reserve(145000);
-    for(const Vehicle& v:vehicles){if(planarDistance(v.position,player)>310)continue;vehicleMesh(mesh,v,time);}
-    for(size_t i=0;i<pedestrians.size();++i){const Pedestrian& p=pedestrians[i];if(planarDistance(p.position,player)>180)continue;
-        Vec3 shirt=i<4?Vec3{.035f,.065f,.12f}:Vec3{.13f+random01(uint32_t(i)*13)*.55f,.09f+random01(uint32_t(i)*29)*.55f,.10f+random01(uint32_t(i)*43)*.55f};Vec3 skin=Vec3{.72f,.47f,.31f}*(.65f+random01(uint32_t(i)*17)*.4f);
-        personMesh(mesh,p.position,p.yaw,p.phase,p.panic>0?1.0f:.60f,shirt,skin,i<4&&wanted>0,p.health<=0);
-        if(i<4&&p.health>0)addBox(mesh,p.position+rotate({0,1.82f,0},p.yaw),{.18f,.06f,.19f},shirt,p.yaw);
-    }
-    if(occupied<0)personMesh(mesh,player,yaw,playerPhase,playerMotion,{.035f,.16f,.19f},{.64f,.40f,.27f},aiming||shotFlash>0);
-    else if(size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Motorcycle)personMesh(mesh,player+Vec3{0,.50f,0},vehicles[size_t(occupied)].yaw,0,.0f,{.035f,.16f,.19f},{.64f,.40f,.27f},false);
-    if(shotFlash>0&&occupied<0){addBox(mesh,shotOrigin,{.055f,.055f,.12f},{1,.73f,.22f},yaw,2);limb(mesh,shotOrigin,shotEnd,.012f,{1,.68f,.23f},2);}
-    if(missionInfo()){
-        Vec3 target=missionTarget();target.y=world.height(target.x,target.z);
-        if(planarDistance(target,player)<420){const Vec3 color=activeMission<0?Vec3{1,.58f,.08f}:Vec3{.1f,.88f,.68f};
-            const float radius=activeMission<0?2.5f:3.8f;
-            for(int i=0;i<32;++i){float a=float(i)*2*Pi/32,b=float(i+1)*2*Pi/32;Vec3 p=target+Vec3{std::sin(a)*radius,.08f,std::cos(a)*radius},q=target+Vec3{std::sin(b)*radius,.08f,std::cos(b)*radius};limb(mesh,p,q,.055f,color,2);}
-            float bob=std::sin(time*2)*.15f;addBox(mesh,target+Vec3{0,3.2f+bob,0},{.32f,.32f,.32f},color,time*.6f,2);}
-    }
-    for(Vec3 marker:{Garage,Outfitter}){if(planarDistance(marker,player)>160)continue;marker.y=world.height(marker.x,marker.z);addBox(mesh,marker+Vec3{0,2.4f,0},{.22f,.22f,.22f},{.13f,.46f,1},time*.35f,2);}
-    return mesh;
 }
 bool Game::save(const std::string& path) const {
     try {
