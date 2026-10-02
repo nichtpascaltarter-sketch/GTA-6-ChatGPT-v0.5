@@ -44,7 +44,7 @@ jobs:
 
       - name: Validate distant coverage and visible tile residency
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 160 -Scene lod -TimeoutSeconds 300
+        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 320 -Scene lod -TimeoutSeconds 300
 
       - name: Validate resize and fullscreen resource lifetime
         if: matrix.configuration == 'Debug'

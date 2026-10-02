@@ -193,16 +193,21 @@ if ($Scene -eq 'lod') {
         }
         foreach ($name in $metricNames) { if (-not $phase.Contains($name)) { throw "Missing distant-world metric: $name" } }
         $expectedEpoch = if ($index -eq 0) { $phase.epoch } elseif ($index -eq 4) { $lodPhases[0].epoch + 1 } else { $lodPhases[0].epoch }
+        # A one-cell move deliberately retains 15 medium tiles in the cache's
+        # hysteresis band; those replace far tiles and remain shadow candidates.
+        $expectedMedium = if ($index -eq 1) { 191 } else { 176 }
+        $expectedFar = if ($index -eq 1) { 849 } else { 864 }
+        $expectedShadow = 49 + $expectedMedium
         if ($phase.phase -ne $index -or $phase.centerX -ne $expectedX[$index] -or
             $phase.centerZ -ne $expectedZ[$index] -or $phase.epoch -ne $expectedEpoch -or
-            $phase.detail -ne 49 -or $phase.medium -ne 176 -or $phase.far -ne 864 -or
+            $phase.detail -ne 49 -or $phase.medium -ne $expectedMedium -or $phase.far -ne $expectedFar -or
             $phase.ready -lt 2000 -or $phase.fogEnd -lt 1980 -or $phase.fogEnd -gt 2000 -or
             $phase.cacheBytes -gt 64MB -or $phase.fallbackBytes -gt 64MB -or
             $phase.residentBytes -eq 0 -or $phase.residentBytes -gt 320MB -or
             $phase.uploaded -ne ($phase.uploadedDetail + $phase.uploadedMedium + $phase.uploadedFar) -or
             $phase.tlasBuilds -ne 0 -or $phase.rayInstances -ne 0 -or
             $phase.mainDrawn -eq 0 -or $phase.mainCulled -eq 0 -or ($phase.mainDrawn + $phase.mainCulled) -ne 1089 -or
-            $phase.shadowDrawn -eq 0 -or $phase.shadowCulled -eq 0 -or ($phase.shadowDrawn + $phase.shadowCulled) -ne 225 -or
+            $phase.shadowDrawn -eq 0 -or $phase.shadowCulled -eq 0 -or ($phase.shadowDrawn + $phase.shadowCulled) -ne $expectedShadow -or
             $phase.batches -ne 0 -or $phase.retiredBytes -ne 0 -or $phase.ordinaryWaits -ne 0 -or
             $phase.pressureWaits -ne 0 -or $phase.repacks -ne 0 -or $phase.frame -gt $Frames) {
             throw "LOD phase $index did not verify its expected coverage, residency, culling, or drained resources."
