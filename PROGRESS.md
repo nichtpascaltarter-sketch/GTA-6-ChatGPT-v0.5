@@ -88,9 +88,12 @@ part of the game distribution.
 4. Bounded asynchronous generation and persistent per-chunk GPU geometry/BLAS
    passed Milestone 04. The old detailed-only eight-phase streaming probe remains
    as a regression guard. A controlled A/B/B/A WARP comparison of combined versus
-   per-chunk drawing is running at workflow `36948442197`; source and reports in
-   `tools/compare-warp.ps1` and `.github/workflows/compare-warp.yml`. Investigate
-   the measured difference before claiming a rendering improvement.
+   per-chunk drawing completed all eight game launches at workflow `36948442197`.
+   Its final summary writer failed after the measurements; original reports were
+   preserved and the aggregation was repaired in `ad5b0d9`. Same-runner 120-frame
+   medians are 26.157 s before / 26.3545 s after (+0.755%, below the old build's
+   2.82% spread), with byte-identical captures at 8, 120 and 360 frames. This does
+   not establish a material rendering regression; GPU frame timing is still needed.
 5. Five original footstep responses, swim splashes and tire scrub are integrated
    and natively tested in Milestone 05. Shared sky/fog radiance repairs the distant
    color mismatch, and closer native car/boat captures verify the passenger.
@@ -120,6 +123,8 @@ part of the game distribution.
    from the LOD batch. Broader goals remain pedestrian routines, police tactics,
    interiors, destruction, animation, true dynamic GI and volumetric atmosphere.
    Measure actual hardware frame times and compatibility as access becomes available.
+9. Prepare GPU timestamp telemetry in an isolated worktree, without adding waits,
+   so future rendering changes can be assessed beyond whole-process WARP timings.
 
 Captures for the verified checkpoint are in
 `/workspace/scratch/sky-9628aab/`; Debug evidence is in
