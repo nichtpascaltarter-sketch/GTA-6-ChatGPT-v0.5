@@ -1,0 +1,70 @@
+[
+  {
+    "suite": "market",
+    "exit": 0,
+    "elapsedSeconds": 0.149
+  },
+  {
+    "suite": "world",
+    "exit": 0,
+    "elapsedSeconds": 3.089
+  },
+  {
+    "suite": "world_streamer",
+    "exit": 0,
+    "elapsedSeconds": 1.59
+  },
+  {
+    "suite": "world_lod_geometry",
+    "exit": 0,
+    "elapsedSeconds": 3.273
+  },
+  {
+    "suite": "world_lod_streaming",
+    "exit": 0,
+    "elapsedSeconds": 0.621
+  },
+  {
+    "suite": "game",
+    "exit": 0,
+    "elapsedSeconds": 44.842
+  },
+  {
+    "suite": "pedestrian",
+    "exit": 0,
+    "elapsedSeconds": 4.624
+  },
+  {
+    "suite": "workshop_lighting",
+    "exit": 0,
+    "elapsedSeconds": 0.115
+  },
+  {
+    "suite": "pedestrian_visuals",
+    "exit": 0,
+    "elapsedSeconds": 0.035
+  },
+  {
+    "suite": "resident_capture_repaired",
+    "exit": 0,
+    "elapsedSeconds": null,
+    "notes": "Separate run against pinned capture-repair commit 7ede3bd; wall duration was not measured."
+  },
+  {
+    "suite": "market-sanitized",
+    "exit": 0,
+    "sanitizers": [
+      "address",
+      "undefined",
+      "leak"
+    ]
+  },
+  {
+    "suite": "view_probe",
+    "exit": 0,
+    "views": 5,
+    "clearFramedSamples": 28,
+    "normalPopulation": 84,
+    "nightMarketLightsSelected": 4
+  }
+]

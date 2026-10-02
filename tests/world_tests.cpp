@@ -219,7 +219,7 @@ bool sourceOnEmissiveFace(const Mesh& m,Vec3 p,float material=2) {
 }
 void lighting() {
     World w;w.stream({8,0,8});const Chunk& origin=find(w,0,0);
-    assert(origin.lights.size()==15); // Twelve street lamps and three market downlights.
+    assert(origin.lights.size()==19); // Twelve street lamps, three shop lights and four market arcade lights.
     for(float along:{24.0f,64.0f,104.0f})for(Vec3 expected:{Vec3{9.2f,8.31f,along},Vec3{118.8f,8.31f,along},Vec3{along,8.31f,9.2f},Vec3{along,8.31f,118.8f}}) {
         int count=0;
         for(const auto& light:origin.lights)if(length(light.position-expected)<.001f) {
@@ -231,6 +231,12 @@ void lighting() {
     for(float z:{35.0f,54.0f,73.0f}) {
         int count=0;for(const auto& light:origin.lights)if(length(light.position-Vec3{88.3f,3.07f,z})<.001f) {
             ++count;assert(light.radius==11&&light.intensity==22);assert(sameVector(light.color,{1,.78f,.46f}));
+        }
+        assert(count==1);
+    }
+    for(float z:{29.0f,46.0f,63.0f,80.0f}) {
+        int count=0;for(const auto& light:origin.lights)if(length(light.position-Vec3{84.45f,4.48f,z})<.001f) {
+            ++count;assert(light.radius==13&&light.intensity==30);assert(sameVector(light.color,{1,.77f,.43f}));
         }
         assert(count==1);
     }

@@ -12,6 +12,10 @@ GarageSite World::garageSite() {
         {175,.056f,111},{175,.16f,88},{160,.16f,84.5f},{160,.16f,81},
         {175,.16f,98},{160,.16f,98},{175,0,120},.16f,Pi};
 }
+MarketSite World::marketSite() {
+    return {"Tide Hall Market",{{15,0,15},{113,27.7f,113}},
+        {81.5f,0,54},{64,0,64},{44,0,98}};
+}
 const std::vector<PedestrianPlace>& World::pedestrianPlaces() {
     static const std::vector<PedestrianPlace> catalog=[] {
         std::vector<PedestrianPlace> places;const World world;

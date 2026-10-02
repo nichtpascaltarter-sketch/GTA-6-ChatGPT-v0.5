@@ -20,6 +20,11 @@ struct GarageSite {
     Vec3 marker,vehicleStop,counter,staff,vehicleDoor,pedestrianDoor,streetAccess;
     float floorHeight,vehicleHeading;
 };
+struct MarketSite {
+    const char* name;
+    Box bounds;
+    Vec3 marker,fountain,tower;
+};
 enum class PedestrianPlaceKind { Home, Work, Market, Seat, Shelter, Conversation };
 enum class PedestrianNodeKind { Sidewalk, Curb, Place };
 struct PedestrianNode {uint32_t id=0;Vec3 position;PedestrianNodeKind kind=PedestrianNodeKind::Sidewalk;};
@@ -107,6 +112,7 @@ public:
     const char* district(Vec3 position) const;
     static const std::vector<Landmark>& landmarks();
     static GarageSite garageSite();
+    static MarketSite marketSite();
     // The authored central 3x3 neighborhood; absent collision tiles never contribute routes or places.
     PedestrianNetwork pedestrianNetwork(Vec3 center) const;
     uint16_t pedestrianResidency() const;

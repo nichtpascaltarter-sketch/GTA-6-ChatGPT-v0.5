@@ -1,0 +1,53 @@
+{
+  "baseCommit": "1a7241b9a418731e3eddd1837646ecbb0dee48c6",
+  "captureRepairCommit": "7ede3bd1674a4bf69fc7130353fc31ee9662b0fb",
+  "captureRepairOriginal": "408490e",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "strictFlags": [
+    "-std=c++20",
+    "-O2",
+    "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror"
+  ],
+  "sanitizerFlags": [
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-pthread",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer"
+  ],
+  "sanitizerEnvironment": {
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1"
+  },
+  "changedManifestPaths": [
+    "src/resident_scenes.h"
+  ],
+  "manifestExplanation": "All strict and sanitizer world/game/pose/lighting inputs remained unchanged between manifests. The one header change is a pinned root capture repair. The old capture run is excluded from results; resident_capture_repaired.log is the separate passing run built against that exact pinned header.",
+  "baselineProbeSources": [
+    "validation/tide-hall-market/baseline_probe.cpp",
+    "src/world.cpp",
+    "src/world_geometry.cpp"
+  ],
+  "baselineNotes": "Baseline probe was compiled from main source 1a7241b before edits; it uses the same compiler. BaselineNavigation and BaselinePlaces in market_tests.cpp preserve that measured catalog and graph at millimetre/milliradian precision.",
+  "probeIncludePaths": [
+    "src"
+  ],
+  "viewProbeSources": [
+    "validation/tide-hall-market/view_probe.cpp",
+    "src/game.cpp",
+    "src/pedestrians.cpp",
+    "src/world.cpp",
+    "src/world_geometry.cpp",
+    "src/visuals.cpp"
+  ],
+  "viewProbeSha256": "8a35c4fe9b9ee6bb3ca871c3e80d9593603ae56c95756d0d2e9810cf247da1fe"
+}

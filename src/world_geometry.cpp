@@ -335,6 +335,7 @@ void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 
 }
 struct ShopfrontSpec {
     Vec3 origin;float width=0,yaw=0;uint32_t seed=0;bool illuminated=false,residential=false;
+    const char* label=nullptr;
     Vec3 outward() const {return rotated({0,0,-1},yaw);}
     Vec3 door() const {return origin+rotated({width*.65f,0,-.3f},yaw);}
 };
@@ -361,7 +362,7 @@ void shopfront(Chunk& chunk,const ShopfrontSpec& spec) {
         addBox(m,q+along*(width*.18f),{.045f,1.6f,.10f},{.60f,.63f,.56f},yaw,1);
     }
     addBox(m,p+Vec3{0,3.92f,0}+out*.22f,{width,.61f,.12f},awning,yaw);
-    signText(m,p+Vec3{0,3.46f,0}+out*.37f,along,spec.residential?"RESIDENTS":names[seed%8],std::min(.15f,width*.033f),{.95f,.85f,.59f});
+    signText(m,p+Vec3{0,3.46f,0}+out*.37f,along,spec.label?spec.label:spec.residential?"RESIDENTS":names[seed%8],std::min(.15f,width*.033f),{.95f,.85f,.59f});
     for(int k=0;k<12;++k) {
         float a=-width+k*width/6,b=a+width/6;
         Vec3 color=k%2?awning:Vec3{.81f,.76f,.59f};
@@ -630,27 +631,212 @@ void clockPavilion(Chunk& chunk,Vec3 p,WorldLod lod=WorldLod::Detail) {
     }
     if(lod==WorldLod::Detail)chunk.solids.push_back({p-Vec3{4.6f,0,4.6f},p+Vec3{4.6f,26,4.6f}});
 }
+void marketFruit(Mesh& mesh,Vec3 center,Vec3 size,Vec3 color) {
+    // Closed octahedral fruit catches the light without adding a texture or a sphere mesh.
+    const Vec3 ring[]={{-size.x,0,0},{0,0,size.z},{size.x,0,0},{0,0,-size.z}};
+    for(int i=0;i<4;++i) {
+        tri(mesh,center+Vec3{0,size.y,0},center+ring[i],center+ring[(i+1)%4],color);
+        tri(mesh,center-Vec3{0,size.y,0},center+ring[(i+1)%4],center+ring[i],color*.85f);
+    }
+}
+void marketTray(Mesh& mesh,Vec3 bottom,float halfX,float halfZ,Vec3 color) {
+    addBox(mesh,bottom+Vec3{0,.045f,0},{halfX,.045f,halfZ},color);
+    for(float sign:{-1.0f,1.0f}) {
+        addBox(mesh,bottom+Vec3{sign*(halfX-.035f),.16f,0},{.035f,.12f,halfZ},color);
+        addBox(mesh,bottom+Vec3{0,.16f,sign*(halfZ-.035f)},{halfX,.12f,.035f},color);
+    }
+}
+void marketKettle(Mesh& mesh,Vec3 bottom) {
+    constexpr int sides=10;
+    constexpr float heights[]={0,.10f,.34f,.49f,.56f},radii[]={.19f,.30f,.31f,.23f,.15f};
+    const Vec3 ceramic{.12f,.34f,.39f},rim{.77f,.78f,.65f};
+    for(int ring=0;ring<4;++ring)for(int i=0;i<sides;++i) {
+        const float a=2*Pi*i/sides,b=2*Pi*(i+1)/sides;
+        const Vec3 va{std::cos(a),0,std::sin(a)},vb{std::cos(b),0,std::sin(b)};
+        addQuad(mesh,bottom+vb*radii[ring]+Vec3{0,heights[ring],0},bottom+va*radii[ring]+Vec3{0,heights[ring],0},
+            bottom+va*radii[ring+1]+Vec3{0,heights[ring+1],0},bottom+vb*radii[ring+1]+Vec3{0,heights[ring+1],0},ceramic);
+    }
+    addCylinder(mesh,bottom+Vec3{0,.56f,0},.17f,.045f,rim,10);
+    addCylinder(mesh,bottom+Vec3{0,.605f,0},.045f,.06f,ceramic,6);
+    branch(mesh,bottom+Vec3{-.23f,.22f,0},bottom+Vec3{-.47f,.53f,0},.10f,.065f,ceramic,6);
+    // An open C handle is attached at both ends instead of a solid loop silhouette.
+    for(int i=0;i<5;++i) {
+        const float a=-Pi*.5f+i*Pi/5,b=-Pi*.5f+(i+1)*Pi/5;
+        branch(mesh,bottom+Vec3{.19f+.21f*std::cos(a),.32f+.20f*std::sin(a),0},
+            bottom+Vec3{.19f+.21f*std::cos(b),.32f+.20f*std::sin(b),0},.028f,.028f,rim,5);
+    }
+}
+void marketMug(Mesh& mesh,Vec3 bottom) {
+    constexpr int sides=8;
+    const Vec3 ceramic{.79f,.76f,.58f};
+    for(int i=0;i<sides;++i) {
+        const float a=2*Pi*i/sides,b=2*Pi*(i+1)/sides;
+        const Vec3 va{std::cos(a),0,std::sin(a)},vb{std::cos(b),0,std::sin(b)},up{0,.20f,0};
+        addQuad(mesh,bottom+vb*.11f,bottom+va*.11f,bottom+va*.11f+up,bottom+vb*.11f+up,ceramic);
+        addQuad(mesh,bottom+va*.11f+up,bottom+va*.08f+up,bottom+vb*.08f+up,bottom+vb*.11f+up,ceramic);
+        tri(mesh,bottom+Vec3{0,.17f,0},bottom+vb*.08f+Vec3{0,.17f,0},bottom+va*.08f+Vec3{0,.17f,0},{.24f,.17f,.08f});
+    }
+    for(float y:{.06f,.16f})addBox(mesh,bottom+Vec3{.14f,y,0},{.065f,.02f,.025f},ceramic);
+    addBox(mesh,bottom+Vec3{.19f,.11f,0},{.02f,.07f,.025f},ceramic);
+}
+void marketLoaf(Mesh& mesh,Vec3 bottom,float yaw) {
+    constexpr int sides=8;
+    const Vec3 crust{.73f,.39f,.13f};
+    const auto point=[&](float angle,float along,float width,float height){return bottom+rotated({std::cos(angle)*width,std::sin(angle)*height,along},yaw);};
+    // Flat bottom, rounded upper crust, and closed ends keep every loaf on its tray.
+    for(int i=0;i<sides;++i) {
+        const float a=Pi*i/sides,b=Pi*(i+1)/sides;
+        addQuad(mesh,point(a,-.40f,.16f,.22f),point(b,-.40f,.16f,.22f),point(b,.40f,.16f,.22f),point(a,.40f,.16f,.22f),crust);
+        tri(mesh,bottom+rotated({0,0,-.40f},yaw),point(b,-.40f,.16f,.22f),point(a,-.40f,.16f,.22f),crust*.86f);
+        tri(mesh,bottom+rotated({0,0,.40f},yaw),point(a,.40f,.16f,.22f),point(b,.40f,.16f,.22f),crust*.86f);
+    }
+    addQuad(mesh,point(0,-.40f,.16f,.22f),point(0,.40f,.16f,.22f),point(Pi,.40f,.16f,.22f),point(Pi,-.40f,.16f,.22f),crust*.8f);
+    for(float z:{-.23f,0.f,.23f}) {
+        const Vec3 a=bottom+rotated({-.10f,.176f,z-.035f},yaw),b=bottom+rotated({0,.224f,z},yaw),c=bottom+rotated({.10f,.176f,z+.035f},yaw);
+        const Vec3 across=rotated({0,0,.016f},yaw);
+        addQuad(mesh,a-across,a+across,b+across,b-across,{.91f,.66f,.31f});
+        addQuad(mesh,b-across,b+across,c+across,c-across,{.91f,.66f,.31f});
+    }
+}
+void marketStock(Chunk& chunk,Vec3 q,int shop) {
+    Mesh& mesh=chunk.mesh;
+    const Vec3 counter=q+Vec3{-8.5f,0,0};
+    const Vec3 wood{.46f,.31f,.17f},trim{.15f,.29f,.28f};
+    // All goods sit on this solid 1.15 m counter. Its front leaves 0.85 m to the
+    // unchanged resident destination, including the full player capsule radius.
+    addBox(mesh,counter+Vec3{0,.55f,0},{1.15f,.55f,2.4f},trim);
+    addBox(mesh,counter+Vec3{0,1.125f,0},{1.15f,.025f,2.4f},wood);
+    chunk.solids.push_back({counter-Vec3{1.15f,0,2.4f},counter+Vec3{1.15f,1.15f,2.4f}});
+    for(float z:{-1.6f,-.8f,0.f,.8f,1.6f})addBox(mesh,counter+Vec3{-1.157f,.58f,z},{.012f,.45f,.018f},{.26f,.40f,.35f});
+    if(shop==0) {
+        for(int tray=0;tray<3;++tray) {
+            const Vec3 base=counter+Vec3{-.05f,1.15f,(tray-1)*1.5f};marketTray(mesh,base,.82f,.64f,wood);
+            for(int row=0;row<2;++row)for(int fruit=0;fruit<3;++fruit) {
+                const Vec3 center=base+Vec3{-.48f+row*.68f,.26f,(fruit-1)*.35f};
+                marketFruit(mesh,center,{.16f,.17f,.16f},tray==1?Vec3{.78f,.69f,.12f}:Vec3{.94f,.45f,.065f});
+                addQuad(mesh,center+Vec3{-.05f,.17f,0},center+Vec3{.02f,.18f,.045f},center+Vec3{.12f,.20f,.015f},center+Vec3{.02f,.18f,-.035f},{.20f,.39f,.13f});
+            }
+        }
+    } else if(shop==1) {
+        for(int tin=0;tin<4;++tin) {
+            const Vec3 base=counter+Vec3{.50f,1.15f,-1.65f+tin*1.10f};
+            addCylinder(mesh,base,.24f,.52f,tin%2?Vec3{.52f,.27f,.15f}:Vec3{.15f,.34f,.36f},8,1);
+            addBox(mesh,base+Vec3{-.235f,.29f,0},{.015f,.12f,.12f},{.82f,.75f,.55f});
+        }
+        addBox(mesh,counter+Vec3{-.37f,1.17f,.15f},{.57f,.02f,1.35f},{.71f,.68f,.50f});
+        marketKettle(mesh,counter+Vec3{-.28f,1.19f,.35f});
+        for(float z:{-.65f,1.15f})marketMug(mesh,counter+Vec3{-.55f,1.19f,z});
+    } else {
+        for(int tray=0;tray<2;++tray) {
+            const Vec3 base=counter+Vec3{0,1.15f,tray?1.1f:-1.1f};marketTray(mesh,base,.95f,.95f,wood);
+            for(int loaf=0;loaf<3;++loaf)marketLoaf(mesh,base+Vec3{-.58f+loaf*.58f,.09f,0},loaf==1?.10f:-.08f);
+        }
+    }
+}
+void marketCanopy(Chunk& chunk,Vec3 q,WorldLod lod) {
+    Mesh& mesh=chunk.mesh;const bool detail=lod==WorldLod::Detail;
+    const Vec3 copper{.43f,.29f,.17f},underside{.32f,.42f,.35f},steel{.13f,.26f,.25f};
+    const auto point=[&](float x,float z){return q+Vec3{x,4.6f+(x+12.4f)*(.5f/5.7f),z};};
+    const int strips=detail?10:1;
+    for(int i=0;i<strips;++i) {
+        const float a=-8.2f+16.4f*i/strips,b=-8.2f+16.4f*(i+1)/strips;
+        addQuad(mesh,point(-12.4f,a),point(-12.4f,b),point(-6.7f,b),point(-6.7f,a),detail&&i%2?copper*.86f:copper,1);
+    }
+    const Vec3 thickness{0,.10f,0};
+    addQuad(mesh,point(-12.4f,-8.2f)-thickness,point(-6.7f,-8.2f)-thickness,point(-6.7f,8.2f)-thickness,point(-12.4f,8.2f)-thickness,underside);
+    addQuad(mesh,point(-12.4f,-8.2f),point(-6.7f,-8.2f),point(-6.7f,-8.2f)-thickness,point(-12.4f,-8.2f)-thickness,copper,1);
+    addQuad(mesh,point(-6.7f,8.2f),point(-12.4f,8.2f),point(-12.4f,8.2f)-thickness,point(-6.7f,8.2f)-thickness,copper,1);
+    addBox(mesh,q+Vec3{-12.41f,4.53f,0},{.08f,.10f,8.2f},steel,0,1);
+    for(float z:{-6.8f,6.8f}) {
+        const Vec3 post=q+Vec3{-7.25f,2.85f,z};
+        addBox(mesh,post,{.12f,2.85f,.12f},steel,0,1);
+        if(detail)solidBox(chunk,post,{.12f,2.85f,.12f});
+        branch(mesh,q+Vec3{-7.25f,5.70f,z},q+Vec3{-12.10f,4.66f,z},.045f,.045f,steel,4);
+        branch(mesh,q+Vec3{-7.25f,4.48f,z},q+Vec3{-12.10f,4.48f,z},.065f,.065f,steel,4);
+    }
+    if(detail) {
+        // Eight shallow bands follow the roof slope; no collision fills the clear
+        // walking volume or the empty triangular space below each cantilever tie.
+        for(int band=0;band<8;++band) {
+            const float a=-12.4f+5.7f*band/8,b=-12.4f+5.7f*(band+1)/8;
+            chunk.solids.push_back({q+Vec3{a,point(a,0).y-q.y-.10f,-8.2f},q+Vec3{b,point(b,0).y-q.y,8.2f}});
+        }
+        solidBox(chunk,q+Vec3{-12.41f,4.53f,0},{.08f,.10f,8.2f});
+    }
+}
 void marketArcade(Chunk& chunk,Vec3 p,WorldLod lod=WorldLod::Detail) {
-    Mesh& m=chunk.mesh;
+    Mesh& m=chunk.mesh;const bool detail=lod==WorldLod::Detail;
+    constexpr const char* names[]={"SUN PEEL","BLUE KETTLE","HEARTH"};
+    constexpr Vec3 walls[]={{.75f,.66f,.47f},{.65f,.70f,.60f},{.75f,.55f,.39f}};
     for(int shop=0;shop<3;++shop) {
-        Vec3 q=marketStall(p,shop);
-        addBox(m,q+Vec3{0,2.5f,0},{7,2.5f,7.7f},{.73f,.63f,.43f});
-        if(lod==WorldLod::Detail)shopfront(chunk,{q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2),true});
+        const Vec3 q=marketStall(p,shop);
+        addBox(m,q+Vec3{0,2.5f,0},{7,2.5f,7.7f},walls[shop]);
+        if(detail)shopfront(chunk,{q+Vec3{-7.05f,0,0},6.8f,Pi*.5f,static_cast<uint32_t>(shop*3+2),true,false,names[shop]});
         roofGable(m,q+Vec3{0,5,0},7.6f,8.3f,2.6f,{.48f,.24f,.13f});
-        if(lod==WorldLod::Detail) {
-        addBox(m,q+Vec3{-8.1f,1.0f,8.2f},{1.7f,1,1.4f},{.22f,.34f,.20f});
-        for(int crate=0;crate<3;++crate) {
-            Vec3 r=q+Vec3{-9.2f,1.45f,float(crate)*.85f-1};
-            addBox(m,r,{.62f,.25f,.35f},{.53f,.35f,.17f});
-            for(int fruit=0;fruit<4;++fruit)addCylinder(m,r+Vec3{-.40f+fruit*.27f,.26f,0},.14f,.21f,shop==0?Vec3{.85f,.52f,.10f}:Vec3{.61f,.19f,.08f},6);
+        marketCanopy(chunk,q,lod);
+        if(detail)marketStock(chunk,q,shop);
+        else addBox(m,q+Vec3{-8.5f,.575f,0},{1.15f,.575f,2.4f},{.15f,.29f,.28f});
+        if(detail)chunk.solids.push_back({q-Vec3{7,0,7.7f},q+Vec3{7,6,7.7f}});
+    }
+    const Vec3 header=p+Vec3{-12.47f,5.29f,19};
+    addBox(m,header,{.09f,.59f,6.70f},{.13f,.27f,.25f},0,1);
+    for(float z:{-5.9f,5.9f}) {
+        const Vec3 mount=header+Vec3{0,-.60f,z};
+        addBox(m,mount,{.055f,.24f,.06f},{.13f,.27f,.25f},0,1);
+        if(detail)solidBox(chunk,mount,{.055f,.24f,.06f});
+    }
+    if(detail) {
+        solidBox(chunk,header,{.09f,.59f,6.70f});
+        signText(m,header+Vec3{-.096f,-.46f,0},{0,0,-1},"TIDE HALL MARKET",.15f,{.91f,.81f,.56f});
+        for(float z:{29.f,46.f,63.f,80.f}) {
+            const Vec3 lens{p.x-11.55f,p.y+4.48f,p.z-35+z};
+            addBox(m,lens+Vec3{0,.07f,0},{.22f,.055f,.46f},{.13f,.26f,.25f},0,1);
+            for(float side:{-1.f,1.f}) {
+                addBox(m,lens+Vec3{side*.19f,.01f,0},{.03f,.03f,.46f},{.13f,.26f,.25f},0,1);
+                addBox(m,lens+Vec3{0,.01f,side*.42f},{.16f,.03f,.04f},{.13f,.26f,.25f},0,1);
+            }
+            addQuad(m,lens+Vec3{-.16f,0,-.38f},lens+Vec3{.16f,0,-.38f},lens+Vec3{.16f,0,.38f},lens+Vec3{-.16f,0,.38f},{1,.77f,.43f},2);
+            chunk.lights.push_back({lens,13,{1,.77f,.43f},30,{0,-1,0},.20f});
         }
+    }
+}
+void marketSculpture(Mesh& mesh,Vec3 p) {
+    constexpr Vec3 centerline[]={{-.55f,1.85f,0},{-.25f,3.10f,.15f},{.20f,4.70f,.55f},{.80f,6.10f,.85f},{1.35f,7.40f,1.10f}};
+    constexpr float widths[]={.70f,.85f,.68f,.44f,.025f};
+    const Vec3 copper{.44f,.60f,.48f},edge{.23f,.39f,.33f};
+    for(int sail=0;sail<3;++sail) {
+        const float yaw=sail*2*Pi/3;
+        const auto vertex=[&](int ring,float side,float depth){return p+rotated(centerline[ring]+Vec3{side*widths[ring],0,depth},yaw);};
+        for(int ring=0;ring<4;++ring) {
+            addQuad(mesh,vertex(ring,-1,-.075f),vertex(ring+1,-1,-.075f),vertex(ring+1,1,-.075f),vertex(ring,1,-.075f),copper,1);
+            addQuad(mesh,vertex(ring,1,.075f),vertex(ring+1,1,.075f),vertex(ring+1,-1,.075f),vertex(ring,-1,.075f),copper*.86f,1);
+            addQuad(mesh,vertex(ring,-1,-.075f),vertex(ring,-1,.075f),vertex(ring+1,-1,.075f),vertex(ring+1,-1,-.075f),edge,1);
+            addQuad(mesh,vertex(ring,1,-.075f),vertex(ring+1,1,-.075f),vertex(ring+1,1,.075f),vertex(ring,1,.075f),edge,1);
         }
-        if(lod==WorldLod::Detail)chunk.solids.push_back({q-Vec3{7,0,7.7f},q+Vec3{7,6,7.7f}});
+        addQuad(mesh,vertex(0,-1,-.075f),vertex(0,1,-.075f),vertex(0,1,.075f),vertex(0,-1,.075f),edge,1);
+        addQuad(mesh,vertex(4,-1,.075f),vertex(4,1,.075f),vertex(4,1,-.075f),vertex(4,-1,-.075f),edge,1);
+    }
+}
+void marketPaving(Mesh& mesh,const World& world,WorldLod lod) {
+    const Vec3 stone{.72f,.69f,.57f},border{.39f,.47f,.40f};
+    groundPatch(mesh,world,15.1f,60.8f,49.0f,67.2f,stone,.057f);
+    groundPatch(mesh,world,80.3f,24.2f,86.1f,83.0f,stone,.057f);
+    groundPatch(mesh,world,48.8f,92.0f,104.0f,101.5f,stone,.057f);
+    for(float x:{80.3f,85.96f})groundPatch(mesh,world,x,24.2f,x+.14f,83.0f,border,.059f);
+    for(float z:{60.8f,67.06f})groundPatch(mesh,world,15.1f,z,49.0f,z+.14f,border,.059f);
+    for(float z:{92.0f,101.36f})groundPatch(mesh,world,48.8f,z,104.0f,z+.14f,border,.059f);
+    const int segments=lod==WorldLod::Detail?48:lod==WorldLod::Medium?24:12;
+    const Vec3 origin{64,world.height(64,64)+.058f,64};
+    for(int i=0;i<segments;++i) {
+        const float a=2*Pi*i/segments,b=2*Pi*(i+1)/segments;
+        const Vec3 va{std::cos(a),0,std::sin(a)},vb{std::cos(b),0,std::sin(b)};
+        addQuad(mesh,origin+va*12.45f,origin+vb*12.45f,origin+vb*12.90f,origin+va*12.90f,border);
     }
 }
 void landmarkPlaza(Chunk& c,const World& w,float x,float z,const worldGeometry::BlockSpec& block,WorldLod lod=WorldLod::Detail) {
     Mesh& m=c.mesh;float h=w.height(x+64,z+64);
     groundPatch(m,w,x+15,z+15,x+113,z+113,{.63f,.63f,.56f},.05f);
+    if(c.x==0&&c.z==0)marketPaving(m,w,lod);
     if(block.exchange) {
         Vec3 p{x+64,h,z+64};
         for(const auto& spec:block.buildings)building(c,spec,lod);
@@ -660,8 +846,11 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,const worldGeometry::
         addCylinder(m,{x+64,h+.1f,z+64},12,.7f,{.62f,.63f,.56f},24);
         addCylinder(m,{x+64,h+.83f,z+64},10,.03f,{.14f,.49f,.58f},24,3);
         addCylinder(m,{x+64,h+.85f,z+64},2.0f,1.2f,{.67f,.63f,.51f},12);
-        addBox(m,{x+64,h+4.5f,z+64},{.7f,3.0f,.7f},{.54f,.68f,.63f},.7f,1);
-        addBox(m,{x+64,h+6.9f,z+64},{3.5f,.55f,.55f},{.54f,.68f,.63f},-.45f,1);
+        if(c.x==0&&c.z==0)marketSculpture(m,{x+64,h,z+64});
+        else {
+            addBox(m,{x+64,h+4.5f,z+64},{.7f,3.0f,.7f},{.54f,.68f,.63f},.7f,1);
+            addBox(m,{x+64,h+6.9f,z+64},{3.5f,.55f,.55f},{.54f,.68f,.63f},-.45f,1);
+        }
         if(lod==WorldLod::Detail) {
             c.solids.push_back({{x+62,h,z+62},{x+66,h+8,z+66}});
             // Thin circumscribed bands cover the entire basin, including its shallow water.
@@ -1509,7 +1698,7 @@ const char* World::district(Vec3 p) const {
     return "MERIDIAN COAST";
 }
 const std::vector<Landmark>& World::landmarks() {
-    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,World{}.height(4096,0),0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"},{{3090,WaterLevel,1080},"Leena's Launch"},{World::garageSite().marker,"Harbor Motor Works"}};
+    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,World{}.height(4096,0),0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"},{{3090,WaterLevel,1080},"Leena's Launch"},{World::garageSite().marker,"Harbor Motor Works"},{World::marketSite().marker,"Tide Hall Market"}};
     return places;
 }
 }

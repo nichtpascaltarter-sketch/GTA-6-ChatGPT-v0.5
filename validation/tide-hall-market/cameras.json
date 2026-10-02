@@ -1,0 +1,94 @@
+{
+  "setup": {
+    "initializeNormally": true,
+    "spectator": [
+      77,
+      0,
+      17
+    ],
+    "paused": true,
+    "rain": 0,
+    "messageTime": 0,
+    "worldStreamAtSpectator": true,
+    "modifyNpcState": false,
+    "aspect": "16:9",
+    "verticalFovDegrees": 68
+  },
+  "views": [
+    {
+      "name": "market-day",
+      "eye": [
+        28,
+        15,
+        30
+      ],
+      "target": [
+        65,
+        3.5,
+        68
+      ],
+      "dayTime": 14,
+      "clearFramedSamples": 7
+    },
+    {
+      "name": "market-night",
+      "eye": [
+        37,
+        3.8,
+        26
+      ],
+      "target": [
+        75,
+        3.5,
+        57
+      ],
+      "dayTime": 23,
+      "clearFramedSamples": 7
+    },
+    {
+      "name": "market-citrus",
+      "eye": [
+        81.8,
+        2.35,
+        31.9
+      ],
+      "target": [
+        87.35,
+        1.38,
+        35
+      ],
+      "dayTime": 14,
+      "clearFramedSamples": 5
+    },
+    {
+      "name": "market-tea",
+      "eye": [
+        81.8,
+        2.35,
+        50.9
+      ],
+      "target": [
+        87.35,
+        1.38,
+        54
+      ],
+      "dayTime": 14,
+      "clearFramedSamples": 5
+    },
+    {
+      "name": "market-bread",
+      "eye": [
+        81.8,
+        2.35,
+        69.9
+      ],
+      "target": [
+        87.35,
+        1.38,
+        73
+      ],
+      "dayTime": 14,
+      "clearFramedSamples": 4
+    }
+  ]
+}
