@@ -1,0 +1,25 @@
+Terrain: 512/160/80 triangles, canonical eight-metre boundaries, 288 mixed-LOD seams; no unmatched interior edges
+Chunks: deterministic geometry and bounds in 16 regions; visual-only LODs stay within per-tile capacity budget
+Skyline: all six city styles and suburban chimney/roof maxima preserved across 21 LOD samples
+Landmarks: exchange spire, clock pavilion, market roofs, hangar, dock and clinic launch retain defining geometry at every LOD
+Vegetation: 374 coarse trunk anchors match deterministic descriptors and detail collision across all four tree kinds
+Road visibility: 19800 triangle centroids across 119 regional chunks retain at least 0.024999 m terrain clearance
+Workshop LODs: 11995/1012/636 triangles, 1858600/79824/51312 capacity bytes; open entrances and matched roof 7.76m
+Prefetch cache (0,0): 1450 visual tiles, 735976 triangles, 54678272 capacity bytes; largest tile 125856 bytes
+  Downtown: Medium 13765168B/225 tiles, Far 16851616B/420 tiles
+  Residential: Medium 0B/0 tiles, Far 20829184B/664 tiles
+  Countryside: Medium 0B/0 tiles, Far 1850524B/88 tiles
+  Wetland: Medium 0B/0 tiles, Far 1116672B/39 tiles
+  Beach: Medium 0B/0 tiles, Far 254164B/13 tiles
+  Island: Medium 0B/0 tiles, Far 0B/0 tiles
+  Ocean: Medium 0B/0 tiles, Far 10944B/1 tiles
+Prefetch cache (-4,4): 1450 visual tiles, 739234 triangles, 56682928 capacity bytes; largest tile 125856 bytes
+Prefetch cache (5,5): 1450 visual tiles, 679471 triangles, 50001292 capacity bytes; largest tile 125856 bytes
+Prefetch cache (-8,-5): 1450 visual tiles, 716391 triangles, 53041412 capacity bytes; largest tile 111872 bytes
+Prefetch cache (20,0): 1450 visual tiles, 394993 triangles, 26166236 capacity bytes; largest tile 75920 bytes
+Prefetch cache (-32,15): 1450 visual tiles, 570404 triangles, 35691208 capacity bytes; largest tile 58120 bytes
+Prefetch cache (8,-22): 1450 visual tiles, 475688 triangles, 29683096 capacity bytes; largest tile 71968 bytes
+Prefetch cache (20,6): 1450 visual tiles, 400715 triangles, 26644740 capacity bytes; largest tile 75920 bytes
+Prefetch cache (32,-2): 1450 visual tiles, 242798 triangles, 13874936 capacity bytes; largest tile 69328 bytes
+Prefetch cache (-32,16): 1450 visual tiles, 569748 triangles, 35539696 capacity bytes; largest tile 58120 bytes
+World LOD geometry tests passed

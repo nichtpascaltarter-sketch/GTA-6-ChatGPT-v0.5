@@ -1,0 +1,12 @@
+LOD default/readiness: unchanged detail49; exact off-center missing-cell distance; disable clears visuals
+LOD requests: overlap tickets stable; stale epochs, wrong LOD/ticket, malformed and duplicate results rejected
+LOD handover: detail publishes atomically, wins overlapping cells, and remains until coarse coverage arrives
+LOD fallback cap: oversized departing detail is replaced with generated Far geometry without coverage holes
+LOD saturated handover: eviction preserves departing cells' sole coarse coverage after detail publication
+LOD cache cap: capacity-based accounting defers over-budget work and preserves installed coverage
+LOD world edge: genuine Far chunks cover the prefetch envelope beyond old detail-only limits
+LOD workers: blocked old-world jobs cannot install after replacement; teleport restores collision49 immediately
+LOD cancellation: disabling during blocked coarse builds discards queued and in-flight visual work
+LOD real warmup: 1450 cached tiles, 49/176/864 selected LODs, 2056m ready, 54678272 cache bytes
+LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates
+World LOD streaming tests passed.

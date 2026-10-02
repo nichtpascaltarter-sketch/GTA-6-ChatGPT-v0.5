@@ -1,0 +1,13 @@
+Central light sources: 588 street lamps, 129 shop/market downlights
+Clinic launch: 1330 owner-chunk triangles, four collision sections, attached red hazard beacon
+Bench collision: 8 seats, clear front/side shots and cameras, solid backrests/seats/legs
+Harbor Motor Works: 1408 clear route samples, 8 all-day lights, 11995 owner triangles, 347447 loaded triangles
+Central 49 chunks: 737973 vertices, 349211 triangles, 108 collision solids in block 0,0
+Countryside: 221134 triangles, 861 collision solids, 1776 clear road samples, 3112 clear paths
+Wetlands: 294430 triangles, 861 collision solids, 2802 clear road samples, 4831 clear paths
+Island: 132888 triangles, 685 collision solids, 1035 clear road samples, 1858 clear paths
+Coast: 140226 triangles, 543 collision solids, 2586 clear road samples, 4213 clear paths
+Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions
+Ground surfaces: paved roads, sidewalks and 360 path triangles; wood, soil, grass and sand independent of streaming
+Pedestrian neighborhood: 54 reachable places, 252 nodes, 369 edges, 24 painted crossings, 9987 clear path samples
+World tests passed.
