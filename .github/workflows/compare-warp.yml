@@ -1,0 +1,40 @@
+name: Compare pinned WARP artifacts
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Fetch exact comparison tooling revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git init .
+          if ($LASTEXITCODE) { throw 'git init failed' }
+          git remote add origin "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.git"
+          if ($LASTEXITCODE) { throw 'git remote failed' }
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+          if ($LASTEXITCODE) { throw 'git fetch failed' }
+          git checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE) { throw 'git checkout failed' }
+
+      - name: Compare pinned binaries on the same software adapter
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./tools/compare-warp.ps1 -Repository $env:GITHUB_REPOSITORY
+
+      - name: Upload comparison reports and captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: MeridianCoast-pinned-WARP-comparison
+          if-no-files-found: warn
+          path: build/warp-comparison/
