@@ -1,0 +1,13 @@
+{
+  "revision": "ee19f361b3e1c73de1a325ef9bf99f039d45f7f0",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "flags": "-std=c++20 -O2 -DNDEBUG -Wall -Wextra -Werror -Wpedantic -pthread",
+  "affinity": [
+    0,
+    1,
+    2
+  ],
+  "workers": 2,
+  "timing": "steady_clock elapsed CPU-side work; includes scheduler delays; no GPU or renderer"
+}

@@ -1,0 +1,2 @@
+limit=16 frames=250 horizonFrames=164 elapsedMs=401.278 callbackMedianMs=1.184 callbackP95Ms=1.483 callbackMaxMs=1.707 idlePairUs=0.620 completedPeak=5 completedBytes=254504 cacheBytes=54562800 cacheTiles=1450 ready=2056.0 selected=49/176/864 fallback=0 budgetDeferrals=0
+paced=0 horizonMs=253.725 selectedArrivalP95Bytes=309008 selectedArrivalMaxBytes=377784 selectedArrivalTotalBytes=45806360
