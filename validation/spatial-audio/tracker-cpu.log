@@ -1,0 +1,2 @@
+Tracker CPU: hour=8; samples=3600; warmup=120; meanUs=63.578; medianUs=60.283; p95Us=89.377; maxUs=1854.270; contacts=5301; engines=8; feet=2; storageBytes=39080
+Tracker CPU: hour=18; samples=3600; warmup=120; meanUs=72.771; medianUs=54.771; p95Us=74.829; maxUs=21850.777; contacts=4320; engines=8; feet=2; storageBytes=39080
