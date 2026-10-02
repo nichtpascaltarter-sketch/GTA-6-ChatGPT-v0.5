@@ -41,14 +41,20 @@ try {
     $process.Refresh()
     $exitCode = $process.ExitCode
 } finally {
-    if ($process) { $process.Dispose() }
-    $dataDirectory = [Environment]::GetFolderPath('LocalApplicationData')
-    if (-not $dataDirectory) { $dataDirectory = [IO.Path]::GetTempPath() }
-    $sessionLog = Join-Path $dataDirectory 'MeridianCoast\session.log'
-    if ((Test-Path $sessionLog) -and (Get-Item $sessionLog).LastWriteTimeUtc -ge $startedAt.AddSeconds(-1)) {
-        Copy-Item -LiteralPath $sessionLog -Destination $sessionCopy -Force
+    try {
+        if ($process) {
+            if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
+            $process.Dispose()
+        }
+        $dataDirectory = [Environment]::GetFolderPath('LocalApplicationData')
+        if (-not $dataDirectory) { $dataDirectory = [IO.Path]::GetTempPath() }
+        $sessionLog = Join-Path $dataDirectory 'MeridianCoast\session.log'
+        if ((Test-Path $sessionLog) -and (Get-Item $sessionLog).LastWriteTimeUtc -ge $startedAt.AddSeconds(-1)) {
+            Copy-Item -LiteralPath $sessionLog -Destination $sessionCopy -Force
+        }
+    } finally {
+        Remove-Item -LiteralPath $runDirectory -Recurse -Force
     }
-    Remove-Item -LiteralPath $runDirectory -Recurse -Force
 }
 if ($exitCode -ne 0) {
     if (Test-Path $stderr) { Get-Content $stderr | Write-Host }
