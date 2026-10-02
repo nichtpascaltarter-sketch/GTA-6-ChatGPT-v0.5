@@ -1,5 +1,9 @@
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -92,7 +96,7 @@ Input readInput(App& app,float dt,XINPUT_STATE& state,WORD& newlyPressed) {
     input.interact=app.pressed['E'];input.reload=app.pressed['R'];input.mission=app.pressed['M'];input.radio=app.pressed['Q'];
     if(pad){input.moveX=clamp(input.moveX+stick(state.Gamepad.sThumbLX,XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE),-1,1);input.moveY=clamp(input.moveY+stick(state.Gamepad.sThumbLY,XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE),-1,1);
         input.lookX+=stick(state.Gamepad.sThumbRX,XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)*dt*2.4f;input.lookY-=stick(state.Gamepad.sThumbRY,XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE)*dt*2.0f;
-        input.sprint|=(buttons&XINPUT_GAMEPAD_A)!=0;input.brake|=(buttons&XINPUT_GAMEPAD_B)!=0;input.jump|=(newlyPressed&XINPUT_GAMEPAD_X)!=0;
+        input.sprint|=(buttons&XINPUT_GAMEPAD_A)!=0;input.brake|=(buttons&XINPUT_GAMEPAD_B)!=0;input.jump|=(newlyPressed&XINPUT_GAMEPAD_LEFT_SHOULDER)!=0;
         input.fire|=state.Gamepad.bRightTrigger>40;input.aim|=state.Gamepad.bLeftTrigger>40;input.interact|=(newlyPressed&XINPUT_GAMEPAD_Y)!=0;
         input.reload|=(newlyPressed&XINPUT_GAMEPAD_X)!=0;input.mission|=(newlyPressed&XINPUT_GAMEPAD_DPAD_UP)!=0;input.radio|=(newlyPressed&XINPUT_GAMEPAD_DPAD_RIGHT)!=0;
     }
@@ -128,7 +132,7 @@ int execute(HINSTANCE instance,const Options& options) {
     int result=0;
     {
         Renderer renderer;std::string error;
-        if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
+        if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
         Game game;game.initialize();if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         uint64_t uploaded=UINT64_MAX;
@@ -168,7 +172,7 @@ int execute(HINSTANCE instance,const Options& options) {
             app.pressed.fill(false);
         }
         captureMouse(app,false);
-        if(result){log<<"ERROR "<<result<<": "<<error<<'\n';if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast",MB_OK|MB_ICONERROR);}
+        if(result){log<<"ERROR "<<result<<": "<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast",MB_OK|MB_ICONERROR);}
         if(!options.smoke){if(!game.save(saveFile))log<<"Autosave failed\n";saveSettings(settingsPath,settings);}
         log<<"Exit "<<result<<" after "<<renderer.frameCount()<<" frames\n";
     }

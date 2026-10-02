@@ -85,20 +85,21 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     for(int i=0;i<5;++i)ui.text(ui.width-margin-(5-i)*19*s,margin+37*s,"*",2.2f*s,i<g.wanted?gold:Vec3{.25f,.29f,.31f});
     const float map=186*s,mx=margin,my=ui.height-margin-map;
     ui.rect(mx-3*s,my-3*s,map+6*s,map+6*s,{.28f,.4f,.4f},.9f);ui.rect(mx,my,map,map,{.025f,.07f,.085f},.94f);
-    const float range=220,cell=map/24;
-    for(int z=0;z<24;++z)for(int x=0;x<24;++x){float wx=g.player.x+(x-11.5f)*range/12,wz=g.player.z-(z-11.5f)*range/12;
+    const float range=220,cell=map/48;
+    for(int z=0;z<48;++z)for(int x=0;x<48;++x){float wx=g.player.x+(x-23.5f)*range/24,wz=g.player.z-(z-23.5f)*range/24;
         Biome biome=g.world.biome(wx,wz);Vec3 color{.13f,.2f,.18f};if(biome==Biome::Ocean)color={.04f,.17f,.23f};else if(biome==Biome::Downtown)color={.21f,.25f,.26f};else if(biome==Biome::Beach)color={.32f,.33f,.25f};
+        if(g.world.road(wx,wz))color={.46f,.52f,.51f};
         ui.rect(mx+x*cell,my+z*cell,cell+.2f,cell+.2f,color);
-    }
-    for(int step=-4;step<=4;++step){float wx=std::floor(g.player.x/128)*128+step*128;float xx=mx+map*.5f+(wx-g.player.x)*map/(range*2);
-        if(xx>mx&&xx<mx+map)for(int segment=0;segment<24;++segment){float z=g.player.z+(12-segment-.5f)*range/12;if(g.world.road(wx,z))ui.rect(xx-2*s,my+segment*cell,4*s,cell+.2f,{.46f,.52f,.51f},.8f);}
-        float wz=std::floor(g.player.z/128)*128+step*128;float yy=my+map*.5f-(wz-g.player.z)*map/(range*2);
-        if(yy>my&&yy<my+map)for(int segment=0;segment<24;++segment){float x=g.player.x+(segment-12+.5f)*range/12;if(g.world.road(x,wz))ui.rect(mx+segment*cell,yy-2*s,cell+.2f,4*s,{.46f,.52f,.51f},.8f);}
     }
     auto marker=[&](Vec3 p,Vec3 color,float radius){float xx=mx+map*.5f+(p.x-g.player.x)*map/(range*2),yy=my+map*.5f-(p.z-g.player.z)*map/(range*2);
         if(xx>mx+5*s&&xx<mx+map-5*s&&yy>my+5*s&&yy<my+map-5*s)ui.circle(xx,yy,radius*s,color);};
     for(const auto& v:g.vehicles)marker(v.position,v.police?Vec3{.38f,.6f,1}:Vec3{.65f,.7f,.7f},v.police?2.5f:1.4f);
-    Vec3 objective=g.missionTarget();marker(objective,gold,4);float cx=mx+map*.5f,cy=my+map*.5f;
+    Vec3 objective=g.missionTarget();float cx=mx+map*.5f,cy=my+map*.5f;
+    float ox=(objective.x-g.player.x)*map/(range*2),oy=-(objective.z-g.player.z)*map/(range*2);
+    float edge=std::max(std::fabs(ox),std::fabs(oy)),limit=map*.5f-9*s;
+    if(edge>limit){ox*=limit/edge;oy*=limit/edge;float l=std::sqrt(ox*ox+oy*oy),dx=ox/l,dy=oy/l;
+        ui.triangle({cx+ox+dx*5*s,cy+oy+dy*5*s},{cx+ox-dx*5*s-dy*4*s,cy+oy-dy*5*s+dx*4*s},{cx+ox-dx*5*s+dy*4*s,cy+oy-dy*5*s-dx*4*s},gold);
+    }else marker(objective,gold,4);
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
     const Mission* mission=g.missionInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;

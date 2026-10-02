@@ -37,7 +37,7 @@ frame rates remain under validation.
 | Look | Mouse | Right stick |
 | Enter / exit vehicle | E | Y |
 | Sprint | Shift | A |
-| Jump / handbrake | Space | X / B |
+| Jump / handbrake | Space | Left bumper / B |
 | Fire / aim | Left / right mouse | Right / left trigger |
 | Reload | R | X |
 | Accept nearby contract | M | D-pad up |
