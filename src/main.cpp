@@ -272,8 +272,8 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
             if(options.smoke&&options.scene.rfind("passenger-",0)==0&&game.occupied>=0){
                 const auto& carrier=game.vehicles[size_t(game.occupied)];
-                const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{4.4f,2.8f,-5.2f}:Vec3{4,2.4f,4};
-                const Vec3 target=carrier.kind==VehicleKind::Aircraft?Vec3{0,1.5f,.6f}:Vec3{0,.85f,0};
+                const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{2.7f,1.7f,.4f}:Vec3{-3.3f,2.2f,-4.4f};
+                const Vec3 target=carrier.kind==VehicleKind::Aircraft?Vec3{0,1.5f,.6f}:carrier.kind==VehicleKind::Boat?Vec3{-.1f,1,-.6f}:carrier.kind==VehicleKind::Car?Vec3{.3f,1,.05f}:Vec3{0,.85f,0};
                 frame.eye=carrier.position+right(carrier.yaw)*view.x+forward(carrier.yaw)*view.z+Vec3{0,view.y,0};
                 frame.target=carrier.position+right(carrier.yaw)*target.x+forward(carrier.yaw)*target.z+Vec3{0,target.y,0};
             }
