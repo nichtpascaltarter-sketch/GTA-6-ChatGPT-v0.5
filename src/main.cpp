@@ -53,6 +53,7 @@ struct App {
     unsigned width=1600,height=900;std::array<bool,256> pressed{};float mouseX=0,mouseY=0;
     bool title=true,menu=true,showSettings=false,diagnostics=false;int selected=0;
     RECT windowed{};DWORD oldStyle=0;bool borderless=false;WORD padButtons=0;
+    ~App(){if(focusedMouse){ClipCursor(nullptr);ReleaseCapture();ShowCursor(TRUE);}if(window&&IsWindow(window))DestroyWindow(window);}
 };
 void captureMouse(App& app,bool capture) {
     capture=capture&&app.active;
@@ -76,6 +77,8 @@ LRESULT CALLBACK windowProc(HWND hwnd,UINT message,WPARAM wp,LPARAM lp) {
     case WM_CLOSE:app->running=false;return 0;
     case WM_DESTROY:PostQuitMessage(0);return 0;
     case WM_SIZE:if(wp!=SIZE_MINIMIZED){app->width=LOWORD(lp);app->height=HIWORD(lp);app->resized=true;}return 0;
+    case WM_GETMINMAXINFO:{auto* limits=reinterpret_cast<MINMAXINFO*>(lp);limits->ptMinTrackSize={960,580};return 0;}
+    case WM_DPICHANGED:{if(!app->borderless){const auto* r=reinterpret_cast<const RECT*>(lp);SetWindowPos(hwnd,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);}return 0;}
     case WM_ACTIVATEAPP:app->active=wp!=0;if(!app->active)captureMouse(*app,false);return 0;
     case WM_KILLFOCUS:app->pressed.fill(false);app->mouseX=app->mouseY=0;captureMouse(*app,false);return 0;
     case WM_KEYDOWN:case WM_SYSKEYDOWN:if(wp<256&&!(lp&(1ll<<30)))app->pressed[size_t(wp)]=true;if(message==WM_SYSKEYDOWN)return DefWindowProcW(hwnd,message,wp,lp);return 0;
