@@ -20,13 +20,15 @@ output="$repo/build/$configuration"
 mkdir -p -- "$output"
 
 printf 'Compiling portable simulation and synthesis tests with %s\n' "$compiler"
-"$compiler" "${flags[@]}" "$repo/tests/world_tests.cpp" "$repo/src/world.cpp" -o "$output/world_tests"
-"$compiler" "${flags[@]}" "$repo/tests/world_streamer_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_streamer.cpp" -o "$output/world_streamer_tests"
-"$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" "$repo/src/visuals.cpp" -o "$output/game_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" -o "$output/world_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_streamer_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/world_streamer.cpp" -o "$output/world_streamer_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_lod_geometry_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" -o "$output/world_lod_geometry_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_lod_streaming_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/world_streamer.cpp" -o "$output/world_lod_streaming_tests"
+"$compiler" "${flags[@]}" "$repo/tests/game_tests.cpp" "$repo/src/game.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/visuals.cpp" -o "$output/game_tests"
 "$compiler" "${flags[@]}" "$repo/tests/audio_tests.cpp" -o "$output/audio_tests"
-"$compiler" "${flags[@]}" "$repo/tests/cinematics_tests.cpp" "$repo/src/world.cpp" -o "$output/cinematics_tests"
+"$compiler" "${flags[@]}" "$repo/tests/cinematics_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" -o "$output/cinematics_tests"
 
-for suite in world world_streamer game audio cinematics; do
+for suite in world world_streamer world_lod_geometry world_lod_streaming game audio cinematics; do
     printf 'Running %s tests\n' "$suite"
     "$output/${suite}_tests"
 done

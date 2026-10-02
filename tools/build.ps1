@@ -89,7 +89,7 @@ try {
     $systemLibraries = @('kernel32.lib', 'user32.lib', 'gdi32.lib', 'shell32.lib',
         'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'xinput9_1_0.lib', 'ole32.lib',
         'uuid.lib', 'avrt.lib')
-    $sourceNames = @('main', 'world', 'world_streamer', 'game', 'visuals', 'renderer', 'audio')
+    $sourceNames = @('main', 'world', 'world_geometry', 'world_streamer', 'game', 'visuals', 'renderer', 'audio')
     $sources = @($sourceNames | ForEach-Object { Join-Path $repo "src\$_.cpp" })
     $executable = Join-Path $output 'MeridianCoast.exe'
     Write-Host "Building $Configuration x64 executable with static C/C++ runtime"
@@ -101,11 +101,13 @@ try {
     & (Join-Path $PSScriptRoot 'audit-imports.ps1') -Executable $executable -Dumpbin $dumpbin
     if (-not $SkipTests) {
         $testSets = @(
-            @{ Name = 'world'; Sources = @('world') },
-            @{ Name = 'world_streamer'; Sources = @('world', 'world_streamer') },
-            @{ Name = 'game'; Sources = @('game', 'world', 'visuals') },
+            @{ Name = 'world'; Sources = @('world', 'world_geometry') },
+            @{ Name = 'world_streamer'; Sources = @('world', 'world_geometry', 'world_streamer') },
+            @{ Name = 'world_lod_geometry'; Sources = @('world', 'world_geometry') },
+            @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
+            @{ Name = 'game'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
-            @{ Name = 'cinematics'; Sources = @('world') }
+            @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
         )
         foreach ($test in $testSets) {
             $testObjects = Join-Path $objects $test.Name
