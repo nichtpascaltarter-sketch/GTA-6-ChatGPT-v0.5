@@ -1,0 +1,65 @@
+[
+  {
+    "scene": "crowd_walk_close",
+    "baseline_mean_median_ms": 5.754393,
+    "candidate_mean_median_ms": 5.7573245,
+    "relative_percent": 0.0509436877182301,
+    "matching_hash": "c389225220417de9"
+  },
+  {
+    "scene": "crowd_walk_far",
+    "baseline_mean_median_ms": 1.8171665,
+    "candidate_mean_median_ms": 1.8283909999999999,
+    "relative_percent": 0.617692434897954,
+    "matching_hash": "9bcb26abe836726b"
+  },
+  {
+    "scene": "player_only",
+    "baseline_mean_median_ms": 0.0682545,
+    "candidate_mean_median_ms": 0.0696035,
+    "relative_percent": 1.976426462724068,
+    "matching_hash": "e1cb64bf4d5de001"
+  },
+  {
+    "scene": "workshop_attendant",
+    "baseline_mean_median_ms": 0.1120425,
+    "candidate_mean_median_ms": 0.1146715,
+    "relative_percent": 2.346431041792174,
+    "matching_hash": "5a066a1d6d83bcd2"
+  },
+  {
+    "scene": "trial_marshal",
+    "baseline_mean_median_ms": 0.1218645,
+    "candidate_mean_median_ms": 0.124142,
+    "relative_percent": 1.8688789598283462,
+    "matching_hash": "379ed6aa8c66e967"
+  },
+  {
+    "scene": "rescue_car",
+    "baseline_mean_median_ms": 0.472277,
+    "candidate_mean_median_ms": 0.4739955,
+    "relative_percent": 0.3638754375080655,
+    "matching_hash": "979e0d41eaac1c99"
+  },
+  {
+    "scene": "rescue_motorcycle",
+    "baseline_mean_median_ms": 0.1611465,
+    "candidate_mean_median_ms": 0.15959600000000002,
+    "relative_percent": -0.9621679651745318,
+    "matching_hash": "87e61179df35460c"
+  },
+  {
+    "scene": "rescue_boat",
+    "baseline_mean_median_ms": 0.427435,
+    "candidate_mean_median_ms": 0.4231815,
+    "relative_percent": -0.995122065343268,
+    "matching_hash": "549405fef96eae51"
+  },
+  {
+    "scene": "rescue_aircraft",
+    "baseline_mean_median_ms": 0.688523,
+    "candidate_mean_median_ms": 0.6951365,
+    "relative_percent": 0.9605343612341333,
+    "matching_hash": "55d1c5827d83b692"
+  }
+]

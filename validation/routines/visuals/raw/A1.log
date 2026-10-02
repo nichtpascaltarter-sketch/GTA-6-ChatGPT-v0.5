@@ -1,0 +1,9 @@
+crowd_walk_close vertices=192790 triangles=190170 bytes=9993640 hash=c389225220417de9 median_ms=5.725618 p95_ms=6.167880 max_ms=10.221839
+crowd_walk_far vertices=70890 triangles=62570 bytes=3586440 hash=9bcb26abe836726b median_ms=1.812521 p95_ms=1.993592 max_ms=2.444431
+player_only vertices=3014 triangles=2450 bytes=149960 hash=e1cb64bf4d5de001 median_ms=0.067980 p95_ms=0.081348 max_ms=0.084141
+workshop_attendant vertices=4868 triangles=4320 bytes=246560 hash=5a066a1d6d83bcd2 median_ms=0.111666 p95_ms=0.127149 max_ms=0.296982
+trial_marshal vertices=5570 triangles=4776 bytes=280112 hash=379ed6aa8c66e967 median_ms=0.121556 p95_ms=0.134749 max_ms=0.176937
+rescue_car vertices=9576 triangles=3164 bytes=421008 hash=979e0d41eaac1c99 median_ms=0.473228 p95_ms=0.527051 max_ms=0.632295
+rescue_motorcycle vertices=6382 triangles=5276 bytes=318592 hash=87e61179df35460c median_ms=0.160745 p95_ms=0.177305 max_ms=0.246540
+rescue_boat vertices=6174 triangles=5304 bytes=310608 hash=549405fef96eae51 median_ms=0.420139 p95_ms=0.461059 max_ms=0.511862
+rescue_aircraft vertices=7580 triangles=2826 bytes=337112 hash=55d1c5827d83b692 median_ms=0.686416 p95_ms=0.730389 max_ms=0.940077

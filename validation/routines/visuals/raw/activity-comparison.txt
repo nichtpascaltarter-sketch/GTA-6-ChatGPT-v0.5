@@ -1,0 +1,1 @@
+All 14 non-Work activity/detail combinations are byte-identical; Work differs at both detail levels.

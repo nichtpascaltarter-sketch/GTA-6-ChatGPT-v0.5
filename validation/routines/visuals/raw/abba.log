@@ -1,0 +1,58 @@
+UTC 2026-10-02T01:25:14.181865+00:00
+Platform Linux-6.18.44-x86_64-with-glibc2.41
+Host affinity [0, 1, 2, 3, 4]
+cgroup cpu.max 400000 100000
+cgroup cpu.stat before "usage_usec 3848905136\nuser_usec 3639430509\nsystem_usec 209474626\nnice_usec 0\nnr_periods 30874\nnr_throttled 805\nthrottled_usec 50068702\nnr_bursts 0\nburst_usec 0\n"
+A1 competing_compilers_before=[]
+A1 elapsed_seconds=1.082751370000551
+crowd_walk_close vertices=192790 triangles=190170 bytes=9993640 hash=c389225220417de9 median_ms=5.725618 p95_ms=6.167880 max_ms=10.221839
+crowd_walk_far vertices=70890 triangles=62570 bytes=3586440 hash=9bcb26abe836726b median_ms=1.812521 p95_ms=1.993592 max_ms=2.444431
+player_only vertices=3014 triangles=2450 bytes=149960 hash=e1cb64bf4d5de001 median_ms=0.067980 p95_ms=0.081348 max_ms=0.084141
+workshop_attendant vertices=4868 triangles=4320 bytes=246560 hash=5a066a1d6d83bcd2 median_ms=0.111666 p95_ms=0.127149 max_ms=0.296982
+trial_marshal vertices=5570 triangles=4776 bytes=280112 hash=379ed6aa8c66e967 median_ms=0.121556 p95_ms=0.134749 max_ms=0.176937
+rescue_car vertices=9576 triangles=3164 bytes=421008 hash=979e0d41eaac1c99 median_ms=0.473228 p95_ms=0.527051 max_ms=0.632295
+rescue_motorcycle vertices=6382 triangles=5276 bytes=318592 hash=87e61179df35460c median_ms=0.160745 p95_ms=0.177305 max_ms=0.246540
+rescue_boat vertices=6174 triangles=5304 bytes=310608 hash=549405fef96eae51 median_ms=0.420139 p95_ms=0.461059 max_ms=0.511862
+rescue_aircraft vertices=7580 triangles=2826 bytes=337112 hash=55d1c5827d83b692 median_ms=0.686416 p95_ms=0.730389 max_ms=0.940077
+A1 competing_compilers_after=[]
+B1 competing_compilers_before=[]
+B1 elapsed_seconds=1.951187937999748
+crowd_walk_close vertices=192790 triangles=190170 bytes=9993640 hash=c389225220417de9 median_ms=5.763745 p95_ms=6.034783 max_ms=9.826385
+crowd_walk_far vertices=70890 triangles=62570 bytes=3586440 hash=9bcb26abe836726b median_ms=1.824443 p95_ms=1.974006 max_ms=2.585264
+crowd_activities_close vertices=195814 triangles=191682 bytes=10132744 hash=cb7d2ea269779638 median_ms=5.765136 p95_ms=6.177312 max_ms=8.874543
+crowd_activities_far vertices=73914 triangles=64082 bytes=3725544 hash=812e3630c62300e3 median_ms=1.857078 p95_ms=2.036674 max_ms=3.588154
+player_only vertices=3014 triangles=2450 bytes=149960 hash=e1cb64bf4d5de001 median_ms=0.068641 p95_ms=0.090208 max_ms=3.172718
+workshop_attendant vertices=4868 triangles=4320 bytes=246560 hash=5a066a1d6d83bcd2 median_ms=0.113047 p95_ms=0.152529 max_ms=0.398711
+trial_marshal vertices=5570 triangles=4776 bytes=280112 hash=379ed6aa8c66e967 median_ms=0.122382 p95_ms=0.145046 max_ms=0.223144
+rescue_car vertices=9576 triangles=3164 bytes=421008 hash=979e0d41eaac1c99 median_ms=0.472701 p95_ms=0.501905 max_ms=0.636569
+rescue_motorcycle vertices=6382 triangles=5276 bytes=318592 hash=87e61179df35460c median_ms=0.157332 p95_ms=0.183930 max_ms=0.236928
+rescue_boat vertices=6174 triangles=5304 bytes=310608 hash=549405fef96eae51 median_ms=0.423203 p95_ms=0.444933 max_ms=0.536029
+rescue_aircraft vertices=7580 triangles=2826 bytes=337112 hash=55d1c5827d83b692 median_ms=0.686432 p95_ms=0.718664 max_ms=0.797956
+B1 competing_compilers_after=[]
+B2 competing_compilers_before=[]
+B2 elapsed_seconds=1.9619580110002062
+crowd_walk_close vertices=192790 triangles=190170 bytes=9993640 hash=c389225220417de9 median_ms=5.750904 p95_ms=6.094016 max_ms=9.831089
+crowd_walk_far vertices=70890 triangles=62570 bytes=3586440 hash=9bcb26abe836726b median_ms=1.832339 p95_ms=2.185713 max_ms=2.611576
+crowd_activities_close vertices=195814 triangles=191682 bytes=10132744 hash=cb7d2ea269779638 median_ms=5.822432 p95_ms=6.130777 max_ms=8.956785
+crowd_activities_far vertices=73914 triangles=64082 bytes=3725544 hash=812e3630c62300e3 median_ms=1.891827 p95_ms=2.143490 max_ms=2.755316
+player_only vertices=3014 triangles=2450 bytes=149960 hash=e1cb64bf4d5de001 median_ms=0.070566 p95_ms=0.139744 max_ms=0.147599
+workshop_attendant vertices=4868 triangles=4320 bytes=246560 hash=5a066a1d6d83bcd2 median_ms=0.116296 p95_ms=0.193154 max_ms=0.767087
+trial_marshal vertices=5570 triangles=4776 bytes=280112 hash=379ed6aa8c66e967 median_ms=0.125902 p95_ms=0.142716 max_ms=0.266564
+rescue_car vertices=9576 triangles=3164 bytes=421008 hash=979e0d41eaac1c99 median_ms=0.475290 p95_ms=0.522872 max_ms=0.750277
+rescue_motorcycle vertices=6382 triangles=5276 bytes=318592 hash=87e61179df35460c median_ms=0.161860 p95_ms=0.177823 max_ms=0.359854
+rescue_boat vertices=6174 triangles=5304 bytes=310608 hash=549405fef96eae51 median_ms=0.423160 p95_ms=0.481060 max_ms=0.903853
+rescue_aircraft vertices=7580 triangles=2826 bytes=337112 hash=55d1c5827d83b692 median_ms=0.703841 p95_ms=0.738889 max_ms=0.815808
+B2 competing_compilers_after=[]
+A2 competing_compilers_before=[]
+A2 elapsed_seconds=1.0976644099991972
+crowd_walk_close vertices=192790 triangles=190170 bytes=9993640 hash=c389225220417de9 median_ms=5.783168 p95_ms=6.301131 max_ms=10.324455
+crowd_walk_far vertices=70890 triangles=62570 bytes=3586440 hash=9bcb26abe836726b median_ms=1.821812 p95_ms=2.238334 max_ms=2.691024
+player_only vertices=3014 triangles=2450 bytes=149960 hash=e1cb64bf4d5de001 median_ms=0.068529 p95_ms=0.084284 max_ms=0.115636
+workshop_attendant vertices=4868 triangles=4320 bytes=246560 hash=5a066a1d6d83bcd2 median_ms=0.112419 p95_ms=0.127912 max_ms=0.135801
+trial_marshal vertices=5570 triangles=4776 bytes=280112 hash=379ed6aa8c66e967 median_ms=0.122173 p95_ms=0.138624 max_ms=0.233519
+rescue_car vertices=9576 triangles=3164 bytes=421008 hash=979e0d41eaac1c99 median_ms=0.471326 p95_ms=0.489101 max_ms=0.651286
+rescue_motorcycle vertices=6382 triangles=5276 bytes=318592 hash=87e61179df35460c median_ms=0.161548 p95_ms=0.191091 max_ms=0.341199
+rescue_boat vertices=6174 triangles=5304 bytes=310608 hash=549405fef96eae51 median_ms=0.434731 p95_ms=0.473380 max_ms=0.603609
+rescue_aircraft vertices=7580 triangles=2826 bytes=337112 hash=55d1c5827d83b692 median_ms=0.690630 p95_ms=0.725708 max_ms=1.009130
+A2 competing_compilers_after=[]
+cgroup cpu.stat after "usage_usec 3855029374\nuser_usec 3645444510\nsystem_usec 209584864\nnice_usec 0\nnr_periods 30935\nnr_throttled 805\nthrottled_usec 50068702\nnr_bursts 0\nburst_usec 0\n"
