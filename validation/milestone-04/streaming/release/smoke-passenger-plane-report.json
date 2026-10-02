@@ -1,0 +1,23 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "passenger-plane",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 1.952,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 1136,
+  "executableSha256": "911b0c5aa17930bdb92ee49c4a94bcbfb687eb03bc2cf52e7c016159efecf7d7",
+  "screenshotSha256": "685ee940f599e53c1a8cc03ac71c28ed27fc753a5e7b528ad406ce7c803dbdbd"
+}

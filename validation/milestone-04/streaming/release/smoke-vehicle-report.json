@@ -1,0 +1,23 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "vehicle",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 2.258,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 868,
+  "executableSha256": "911b0c5aa17930bdb92ee49c4a94bcbfb687eb03bc2cf52e7c016159efecf7d7",
+  "screenshotSha256": "f90c8cbfb7723b0000d3f638c0e255325d7a48086c3639d3ba4f8d2fac5554d2"
+}
