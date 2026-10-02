@@ -152,8 +152,14 @@ part of the game distribution.
   is archived. The aggregation-only comparison rerun `36949428138` also passed. Its 120-frame
   median changed by -2.288%, smaller than the old build's 5.658% spread; all
   equal-frame captures matched. Evidence is under the comparison `rerun/` directory.
-- Native workflow `36950056156` is building source `060dd8e1e6beb2559311416f3039aa9a73e63340`,
-  which integrates Harbor Split and frame timing after the verified LOD milestone. Root owns the added HUD/map, F9 message preservation,
+- Initial native workflow `36950056156` tests source `060dd8e1e6beb2559311416f3039aa9a73e63340`,
+  integrating Harbor Split and frame timing. Release passes all checks and 22
+  captures; Debug lifecycle checks are finishing. The city image is byte-identical
+  to the prior verified build. The active-trial capture exposed a misleading FPS
+  readout: averaging reciprocal intervals let the tiny first interval dominate.
+  This is repaired with completed-frame counts over measured half-second windows,
+  explicit warm-up and inactivity resets. Focused strict and sanitizer rate tests
+  pass. A repaired native run is required before accepting this milestone. Root owns the added HUD/map, F9 message preservation,
   three trial scenes and `timing_probe.h`; build validation owns build/CI and
   parser changes. The executable in `/workspace/outputs/` remains the last
   verified LOD build until this candidate passes native validation.

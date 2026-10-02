@@ -231,13 +231,14 @@ int execute(HINSTANCE instance,const Options& options) {
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
-        auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;WorldMap worldMap;
+        auto last=std::chrono::steady_clock::now();float presentationTime=game.time;FrameRateWindow frameRate;Ui ui;Cinematic cinematic;WorldMap worldMap;
         if(options.smoke&&(options.scene=="map"||options.scene=="trial-map")){app.mapOpen=true;if(options.scene=="trial-map")worldMap.span=1024;worldMap.focus(game.player);}
         RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
-            auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);fps=lerp(fps,1/std::max(elapsed,.0001f),.04f);
-            if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();continue;}
+            auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);
+            if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();frameRate.reset();continue;}
+            frameRate.observe(renderer.frameCount(),std::chrono::duration<double>(now.time_since_epoch()).count());
             if(IsIconic(app.window)){WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(options.smoke&&options.scene=="lifecycle"){
                 const uint64_t frameNumber=renderer.frameCount();
@@ -324,13 +325,13 @@ int execute(HINSTANCE instance,const Options& options) {
             if(app.menu)drawMenu(ui,app,settings,renderer);
             else if(app.mapOpen)drawWorldMap(ui,game,worldMap);
             else if(cinematic.active())drawCinematic(ui,cinematic,game.missionInfo()?game.missionInfo()->title:nullptr);
-            else drawHud(ui,game,fps,app.diagnostics,renderer,worldMap.hasWaypoint?&worldMap.waypoint:nullptr);
+            else drawHud(ui,game,frameRate.framesPerSecond(),app.diagnostics,renderer,worldMap.hasWaypoint?&worldMap.waypoint:nullptr);
             RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.lights=&lights;frame.ui=&ui.vertices;
             if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
-            if(options.smoke&&options.scene=="trial"){frame.eye={278,game.world.height(278,-165)+5.4f,-165};frame.target={264,game.world.height(264,-177)+1.0f,-177};}
+            if(options.smoke&&options.scene=="trial"){frame.eye={249,game.world.height(249,-184)+3.6f,-184};frame.target={269,game.world.height(269,-173)+1.4f,-173};}
             if(options.smoke&&options.scene.rfind("passenger-",0)==0&&game.occupied>=0){
                 const auto& carrier=game.vehicles[size_t(game.occupied)];
                 const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{2.7f,1.7f,.4f}:Vec3{-3.3f,2.2f,-4.4f};

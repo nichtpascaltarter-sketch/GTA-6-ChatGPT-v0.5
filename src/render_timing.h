@@ -5,6 +5,28 @@
 #include <cstdint>
 
 namespace mc {
+// Count completed frames over elapsed wall time. Averaging reciprocal frame
+// intervals biases the result upward and lets a tiny startup interval dominate.
+class FrameRateWindow {
+    uint64_t firstFrame=0;
+    double firstTime=0;
+    float rate=0;
+    bool primed=false;
+public:
+    void reset(){*this={};}
+    void observe(uint64_t frames,double seconds){
+        if(!std::isfinite(seconds))return;
+        if(!primed||frames<firstFrame||seconds<firstTime){
+            firstFrame=frames;firstTime=seconds;rate=0;primed=true;return;
+        }
+        const double elapsed=seconds-firstTime;
+        if(elapsed>=.5&&frames>firstFrame){
+            rate=float(double(frames-firstFrame)/elapsed);
+            firstFrame=frames;firstTime=seconds;
+        }
+    }
+    float framesPerSecond() const {return rate;}
+};
 struct FrameTiming {
     uint64_t frameIndex=0;
     // Wall time within Renderer::render only. Preparation includes transient

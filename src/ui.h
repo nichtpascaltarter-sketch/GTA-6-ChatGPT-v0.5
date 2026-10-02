@@ -155,7 +155,8 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
         const auto stats=renderer.streamStats();
         const auto timing=renderer.timingStats();
         ui.rect(0,ui.height-50*s,ui.width,50*s,{0,0,0},.8f);
-        std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s  /  VIEW %.0f M",fps,
+        char rate[40];if(fps>0)std::snprintf(rate,sizeof(rate),"%.1f FPS",fps);else std::snprintf(rate,sizeof(rate),"FPS WARMING");
+        std::snprintf(b,sizeof(b),"%s  /  %llu FRAMES  /  %s  /  VIEW %.0f M",rate,
             static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER",stats.fogEnd);
         ui.text(5*s,ui.height-46*s,b,1.25f*s,teal);
         std::snprintf(b,sizeof(b),"TILES %u / %u / %u  DRAW %u  CULLED %u  GEOMETRY %.1f MB  UPLOADS %u",

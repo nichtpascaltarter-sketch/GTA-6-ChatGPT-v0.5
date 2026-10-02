@@ -15,6 +15,21 @@ FrameTiming sample(uint64_t id){
 }
 }
 int main(){
+    FrameRateWindow rate;rate.observe(0,0);rate.observe(0,.000001);
+    assert(rate.framesPerSecond()==0);rate.observe(1,.8);
+    assert(close(rate.framesPerSecond(),1.25));
+    rate.reset();rate.observe(0,0);rate.observe(1,.01);rate.observe(2,.5);
+    assert(close(rate.framesPerSecond(),4)); // Not the biased mean of 100 and 2.04.
+    rate.reset();rate.observe(120,30);rate.observe(180,31);
+    assert(close(rate.framesPerSecond(),60));
+    rate.reset();rate.observe(180,100);rate.observe(210,100.5);
+    assert(close(rate.framesPerSecond(),60)); // Inactive time is not rendered time.
+    rate.observe(211,std::numeric_limits<double>::quiet_NaN());
+    rate.observe(210,100.6);assert(close(rate.framesPerSecond(),60));
+    rate.observe(0,101);assert(rate.framesPerSecond()==0);
+    rate.observe(30,101.5);assert(close(rate.framesPerSecond(),60));
+    rate.observe(30,0);assert(rate.framesPerSecond()==0);
+    rate.observe(31,.8);assert(close(rate.framesPerSecond(),1.25));
     double ms=-1;
     assert(detail::timestampMilliseconds(123000,135345,1000000,ms)&&close(ms,12.345));
     assert(detail::timestampMilliseconds(7,7,1,ms)&&ms==0);
@@ -52,5 +67,5 @@ int main(){
     assert(stats.completedFrames==320&&stats.windowSamples==120&&stats.windowGpuSamples==0);
     assert(stats.latest.frameIndex==320&&!stats.mean.gpuValid&&!stats.maximum.gpuValid);
     assert(stats.mean.gpuRenderMs==0&&stats.maximum.gpuRenderMs==0&&close(stats.mean.cpuRenderMs,260.5));
-    std::puts("Render timing: timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.");
+    std::puts("Render timing: measured frame rates, startup/wake/reset intervals, timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.");
 }
