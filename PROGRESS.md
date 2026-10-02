@@ -128,8 +128,21 @@ part of the game distribution.
    Harbor Motor Works, shared site metadata, continuous forecourt, segmented
    collision, always-lit interior fixtures, bay repair and office treatment,
    boarding/exit obstruction fixes, contextual guidance and native captures.
-   World, gameplay, renderer and root UI work are active in an isolated worktree.
-10. Broader goals remain pedestrian routines, police tactics, authored districts,
+   Source is implemented in `/workspace/GTA-6-ChatGPT-v0.5-workshop`; strict
+   44-suite gameplay and world/LOD checks pass. A complete input-driven visit
+   drives into the bay, repairs, exits and walks to the first-aid counter.
+   Interior collision, 2,560 camera poses, lighting-cone coverage and save/load
+   are tested. Complete suite and sanitizers are running; review's 1.65 vs 1.70 m
+   boarding-headroom mismatch is being repaired before integration. Six native
+   workshop captures are prepared. Validate the current trial/timing source first.
+10. Civilian routines are starting separately on `development/neighborhood-routines`
+    in `/workspace/GTA-6-ChatGPT-v0.5-routines`, based on workshop `e7dc4f0`.
+    World owns actual outdoor places and sidewalk/crossing metadata; gameplay owns
+    bounded navigation, persistent residents, activities, groups and threat
+    reactions; renderer owns activity poses. Apply later workshop repairs before
+    integration, preserve all story/trial tests, and do not merge before the
+    workshop milestone is natively verified.
+11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
 
