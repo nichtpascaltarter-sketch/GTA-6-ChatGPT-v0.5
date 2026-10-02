@@ -147,8 +147,11 @@ part of the game distribution.
 12. `development/tide-hall-market` in `/workspace/GTA-6-ChatGPT-v0.5-market`
     develops the origin plaza around unchanged resident destinations and seats.
     Its three distinct stocked stalls, supported canopies, fountain sculpture,
-    circulation inlays and night fixtures are undergoing geometry, navigation,
-    lighting and capture checks. Keep it isolated until its complete gates pass.
+    circulation inlays and night fixtures pass focused geometry, navigation,
+    lighting and five-camera checks. Source `fad1a20` is running the complete
+    17-target portable gate; native captures remain pending. The loaded origin
+    contains 349,211 triangles, 1,470 above the resident source. Keep it isolated
+    until its complete gates pass.
 
 ### Integrated workshop source (verified in Milestone 07)
 
@@ -189,7 +192,8 @@ no validation check was removed.
   The source is frozen until Release/Debug and visual inspection pass.
 - Native workflow `36952070205` validates exact source
   `c90828a6794afa309f1783b9352df75a3f2c52c9`. Release passes all 37 launches /
-  832 frames, and Debug passes compilation/tests while its launches continue.
+  832 frames, and Debug passes all seven launches / 1,040 frames, including the
+  actual validation layer, 4x/1x/2x lifecycle paths and disabled GPU timestamps.
   Visual acceptance fails because market props hide the Work subject. Evidence
   remains under `validation/milestone-08/initial`; do not promote that executable.
   Root and renderer independently inspected all six new views. The other five
@@ -268,9 +272,17 @@ no validation check was removed.
   navigation modules are being implemented in
   `/workspace/GTA-6-ChatGPT-v0.5-police`, branch `development/police-perception`.
   Its isolated core passes 12 law and eight real-world navigation suites under
-  strict and sanitized builds. Game integration has started on the completed
-  audio source, preserving vehicle identity, old-save migration and populated
-  contract/trial routes; the core alone is not a shipped gameplay feature.
+  strict and sanitized builds. Integrated v6 saves retain older migrations and
+  reject noncanonical patrol bindings. Observation-driven aim/reload poses and
+  actual-shot spatial gunfire are implemented separately in that worktree;
+  final exact-source checks and native validation remain pending. A full-population
+  encounter exposed all four initial officers overlapping streetlamp colliders:
+  this blocks path-start projection and some sightlines. The exact geometry
+  diagnosis is committed in police branch `28ad6e3`; gameplay is repairing
+  placement and recovery before freezing the next candidate. A scratch capture
+  probe at `/workspace/scratch/police-native-scenes` uses one actual player shot
+  and preserves 84 people / 50 vehicles, naturally reaching aim, firing and
+  reload; it must be rerun against the repaired source before integration.
 - The evidence-only push at `58b4103` started duplicate native workflow
   `36951477521`; it was cancelled because game, shader and build source were
   unchanged from the accepted run. The next tooling batch ignores documentation
