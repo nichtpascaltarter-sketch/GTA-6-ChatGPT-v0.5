@@ -171,6 +171,71 @@ void weaponsAndRadio() {
     require(game.radioStation == newStation, "holding radio cycled repeatedly");
 }
 
+void shoulderAimAndNearestHit() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.clear();
+    game.pedestrians.clear();
+    game.player = {0, game.world.height(0, 0), 0};
+    game.yaw = 0;
+    game.pitch = 0;
+    mc::Input aim;
+    aim.aim = true;
+    tick(game, aim);
+    const mc::Vec3 eye = game.cameraEye();
+    const mc::Vec3 sight = mc::normalized(game.cameraTarget() - eye);
+    mc::Pedestrian nearTarget;
+    nearTarget.position = eye + sight * 100 - mc::Vec3{0, 1, 0};
+    mc::Pedestrian farTarget;
+    farTarget.position = eye + sight * 130 - mc::Vec3{0, 1, 0};
+    game.pedestrians.push_back(nearTarget);
+    game.pedestrians.push_back(farTarget);
+    const int ammunition = game.ammo;
+    aim.fire = true;
+    tick(game, aim);
+    require(close(game.pedestrians[0].health, 60),
+            "shoulder camera crosshair did not hit the centered target");
+    require(close(game.pedestrians[1].health, 100),
+            "one shot passed through the nearest target into a second target");
+    require(game.ammo == ammunition - 1, "aimed shot consumed incorrect ammunition");
+}
+
+void policeObstruction() {
+    mc::Game game;
+    game.initialize();
+    game.vehicles.clear();
+    game.pedestrians.clear();
+    const float ground = game.world.height(0, 0);
+    game.player = {0, ground, 0};
+    game.health = 80;
+    game.wanted = 1;
+    mc::Pedestrian officer;
+    officer.position = {0, game.world.height(0, 10), 10};
+    game.pedestrians.push_back(officer);
+    game.world.chunks.front().solids.push_back({{-5, ground - 1, 4}, {5, ground + 3, 6}});
+    tick(game);
+    require(close(game.health, 80), "officer dealt damage through a solid wall");
+    game.world.chunks.front().solids.pop_back();
+    game.wanted = 1;
+    tick(game);
+    require(game.health < 80, "visible nearby officer did not engage the wanted player");
+
+    game.health = 80;
+    game.wanted = 1;
+    game.pedestrians.clear();
+    mc::Vehicle patrol;
+    patrol.position = {0, game.world.height(0, 4), 4};
+    patrol.police = true;
+    game.vehicles.push_back(patrol);
+    game.world.chunks.front().solids.push_back({{-5, ground - 1, 1}, {5, ground + 3, 2}});
+    tick(game);
+    require(close(game.health, 80), "patrol vehicle dealt damage through a solid wall");
+    game.world.chunks.front().solids.pop_back();
+    game.wanted = 1;
+    tick(game);
+    require(game.health < 80, "visible patrol vehicle did not engage the wanted player");
+}
+
 void campaignProgression() {
     mc::Game game;
     game.initialize();
@@ -471,6 +536,8 @@ int main() {
         {"movement, pause, and timestep bounds", movementAndPause},
         {"vehicle interaction", vehicleInteraction},
         {"weapons and radio", weaponsAndRadio},
+        {"shoulder aim and nearest hit", shoulderAimAndNearestHit},
+        {"police damage respects solid walls", policeObstruction},
         {"complete campaign progression", campaignProgression},
         {"delivery deadline and retry", missionDeadline},
         {"save round trip and corruption", saveRoundTripAndCorruption},
