@@ -59,7 +59,8 @@ try {
         @{ Source = 'ui'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
         @{ Source = 'ui'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null },
         @{ Source = 'sky'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
-        @{ Source = 'sky'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null }
+        @{ Source = 'sky'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null },
+        @{ Source = 'post'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null }
     )
     foreach ($shader in $shaders) {
         $name = if ($shader.ContainsKey('Name')) { $shader.Name } else { "$($shader.Source)_$($shader.Stage)" }
