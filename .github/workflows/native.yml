@@ -1,0 +1,55 @@
+name: Native Windows build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+    steps:
+      - name: Fetch exact source revision
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git init .
+          if ($LASTEXITCODE) { throw 'git init failed' }
+          git remote add origin "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.git"
+          if ($LASTEXITCODE) { throw 'git remote failed' }
+          git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+          if ($LASTEXITCODE) { throw 'git fetch failed' }
+          git checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE) { throw 'git checkout failed' }
+
+      - name: Compile embedded shaders, game, and simulation tests
+        shell: cmd
+        run: build.bat ${{ matrix.configuration }}
+
+      - name: Launch D3D12 WARP and validate captured frame
+        shell: pwsh
+        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe
+
+      # GitHub's first-party artifact transport is CI infrastructure only. It is
+      # never linked, bundled, installed, or required by the game or local build.
+      - name: Upload executable and validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: MeridianCoast-Windows-x64-${{ matrix.configuration }}
+          if-no-files-found: warn
+          path: |
+            build/${{ matrix.configuration }}/MeridianCoast.exe
+            build/${{ matrix.configuration }}/MeridianCoast.exe.sha256
+            build/${{ matrix.configuration }}/MeridianCoast.exe.imports.txt
+            build/${{ matrix.configuration }}/smoke.bmp
+            build/${{ matrix.configuration }}/smoke-report.json
+            build/${{ matrix.configuration }}/smoke-*.log

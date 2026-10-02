@@ -1,0 +1,17 @@
+/build/
+/.vs/
+*.obj
+*.pdb
+*.ilk
+*.ipdb
+*.iobj
+*.idb
+*.pch
+*.exe
+*.dll
+*.lib
+*.exp
+*.log
+*.bmp
+*.sav
+*.tmp
