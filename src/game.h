@@ -47,6 +47,7 @@ struct Game {
     bool objectiveActive() const;
     bool objectiveIsTrial() const;
     float objectiveTimeRemaining() const;
+    const char* workshopInstruction() const;
     static Vec3 harborSplitContact();
     static Vec3 harborSplitStart();
     static const std::vector<Vec3>& harborSplitCourse();

@@ -390,6 +390,363 @@ void vehicleInteraction() {
             "exiting placed the player too far from the vehicle");
 }
 
+void vehicleBoardingRespectsWalls() {
+    mc::Game game;
+    const float ground = game.world.height(0, 0);
+    mc::Vehicle hidden;
+    hidden.position = {0, ground, 0};
+    hidden.parked = true;
+    game.vehicles.push_back(hidden);
+    game.player = {4, ground, 0};
+    game.health = 80;
+    game.money = 1234;
+    game.world.stream(game.player);
+    game.world.chunks.front().solids.push_back({{1.8f, ground - 1, -10}, {2.2f, ground + 3, 10}});
+    mc::Input enter;
+    enter.interact = true;
+    tick(game, enter);
+    require(game.occupied == -1 && mc::length(game.player - mc::Vec3{4, ground, 0}) < .001f,
+            "interact boarded a nearby vehicle through a solid wall");
+    require(close(game.health, 80) && game.money == 1234,
+            "rejected vehicle entry changed health or money");
+
+    mc::Vehicle reachable = hidden;
+    reachable.position = {4, ground, 5};
+    game.vehicles.push_back(reachable);
+    tick(game);
+    tick(game, enter);
+    require(game.occupied == 1,
+            "an obstructed nearer vehicle prevented entry to the reachable vehicle");
+
+    mc::Game belowCeiling;
+    belowCeiling.player = {0, ground, 0};
+    hidden.position = {0, ground + 2.8f, 0};
+    belowCeiling.vehicles.push_back(hidden);
+    belowCeiling.world.stream(belowCeiling.player);
+    belowCeiling.world.chunks.front().solids.push_back(
+        {{-4, ground + 1.8f, -4}, {4, ground + 2, 4}});
+    require(!belowCeiling.world.blocked(belowCeiling.player, .34f),
+            "ceiling entry fixture obstructs the standing player");
+    tick(belowCeiling, enter);
+    require(belowCeiling.occupied == -1 && close(belowCeiling.player.y, ground),
+            "interact boarded an elevated vehicle through a solid ceiling");
+}
+
+void vehicleExitRequiresClearPath() {
+    const auto prepare = [] {
+        mc::Game game;
+        mc::Vehicle car;
+        car.position = {0, game.world.height(0, 0), 0};
+        car.parked = true;
+        game.vehicles.push_back(car);
+        game.player = car.position;
+        game.occupied = 0;
+        game.health = 80;
+        game.money = 1234;
+        game.world.stream(game.player);
+        return game;
+    };
+    mc::Game game = prepare();
+    const mc::Vec3 origin = game.player;
+    game.world.chunks.front().solids.push_back(
+        {{-1.5f, origin.y - 1, -4}, {-1.3f, origin.y + 3, 4}});
+    require(!game.world.blocked(origin + mc::Vec3{-2, 0, 0}, .35f),
+            "exit fixture does not leave a clear endpoint behind its wall");
+    mc::Input exit;
+    exit.interact = true;
+    tick(game, exit);
+    require(game.occupied == -1 && game.player.x > origin.x,
+            "vehicle exit crossed a wall instead of choosing its clear opposite side");
+    require(mc::length(game.world.move(origin, game.player - origin, .35f) - game.player) < .01f,
+            "selected exit cannot be reached by the player's collision sweep");
+
+    game = prepare();
+    auto& solids = game.world.chunks.front().solids;
+    solids.push_back({{-1.5f, origin.y - 1, -4}, {-1.3f, origin.y + 3, 4}});
+    solids.push_back({{1.3f, origin.y - 1, -4}, {1.5f, origin.y + 3, 4}});
+    solids.push_back({{-4, origin.y - 1, -2.4f}, {4, origin.y + 3, -2.2f}});
+    solids.push_back({{-4, origin.y - 1, 2.2f}, {4, origin.y + 3, 2.4f}});
+    tick(game, exit);
+    require(game.occupied == 0 && mc::length(game.player - origin) < .001f &&
+            close(game.health, 80) && game.money == 1234,
+            "a fully enclosed vehicle allowed an exit through its surrounding walls");
+}
+
+mc::Game workshopFixture() {
+    mc::Game game;
+    const mc::GarageSite site = mc::World::garageSite();
+    mc::Vehicle car;
+    car.position = site.vehicleStop;
+    car.yaw = site.vehicleHeading;
+    car.parked = true;
+    car.health = 40;
+    game.vehicles.push_back(car);
+    game.player = car.position;
+    game.occupied = 0;
+    game.health = 80;
+    game.money = 1000;
+    game.world.stream(game.player);
+    return game;
+}
+
+void workshopBayRepairs() {
+    const mc::Game base = workshopFixture();
+    mc::Input service;
+    service.mission = true;
+    for (mc::VehicleKind kind : {mc::VehicleKind::Car, mc::VehicleKind::Motorcycle}) {
+        mc::Game game = base;
+        game.vehicles[0].kind = kind;
+        require(!game.world.blocked(game.player, kind == mc::VehicleKind::Car ? 1.02f : .45f),
+                "workshop service pad is obstructed");
+        const char* instruction = game.workshopInstruction();
+        require(instruction && std::string(instruction).find("$75") != std::string::npos,
+                "stopped damaged road vehicle did not receive the repair price");
+        tick(game, service);
+        require(close(game.vehicles[0].health, 100) && game.money == 925,
+                "bay service did not repair the road vehicle for exactly $75");
+        require(close(game.health, 80) && game.occupied == 0,
+                "vehicle repair changed the driver's health or occupancy");
+        game.vehicles[0].health = 70;
+        tick(game, service, 3);
+        require(close(game.vehicles[0].health, 70) && game.money == 925,
+                "holding the service button bought another repair");
+        tick(game);
+        tick(game, service);
+        require(close(game.vehicles[0].health, 100) && game.money == 850,
+                "a newly pressed service button could not buy a second needed repair");
+        tick(game);
+        tick(game, service);
+        require(game.money == 850 && close(game.health, 80),
+                "a fully repaired road vehicle was charged again");
+    }
+}
+
+void workshopServiceBoundaries() {
+    const mc::Game base = workshopFixture();
+    const mc::GarageSite site = mc::World::garageSite();
+    mc::Input service;
+    service.mission = true;
+    const auto reject = [&](mc::Game game, const char* reason) {
+        const int money = game.money;
+        tick(game, service);
+        require(game.money == money && game.vehicles[0].health < 99,
+                reason);
+        require(close(game.health, 80), "rejected workshop repair healed the driver");
+    };
+    mc::Game game = base;
+    game.money = 74;
+    reject(game, "repair ignored insufficient funds");
+    game = base;
+    game.wanted = 3;
+    reject(game, "repair was sold during pursuit");
+    game = base;
+    game.vehicles[0].speed = 4;
+    game.vehicles[0].velocity = mc::forward(game.vehicles[0].yaw) * 4;
+    reject(game, "repair was sold to a moving road vehicle");
+    game = base;
+    game.vehicles[0].velocity = {1, 0, 0};
+    reject(game, "repair ignored lateral vehicle motion");
+    for (mc::VehicleKind kind : {mc::VehicleKind::Boat, mc::VehicleKind::Aircraft}) {
+        game = base;
+        game.vehicles[0].kind = kind;
+        reject(game, "workshop repaired an unsupported water or air vehicle");
+    }
+    game = base;
+    game.player = game.vehicles[0].position = site.marker;
+    reject(game, "outside workshop marker sold a repair without entering the bay");
+    game = base;
+    game.player = game.vehicles[0].position = {140, game.world.height(140, 128), 128};
+    reject(game, "obsolete outdoor garage bubble still sold a repair");
+    game = base;
+    game.occupied = -1;
+    game.player = site.counter;
+    game.player.y += 1;
+    const int before = game.money;
+    tick(game, service);
+    require(game.money == before && close(game.health, 80),
+            "counter supplied first aid to a player above its service floor");
+}
+
+void workshopCounterFirstAid() {
+    mc::Game base = workshopFixture();
+    const mc::GarageSite site = mc::World::garageSite();
+    base.occupied = -1;
+    base.player = site.counter;
+    require(!base.world.blocked(base.player, .34f), "workshop customer position is obstructed");
+    mc::Input service;
+    service.mission = true;
+    mc::Game game = base;
+    const char* instruction = game.workshopInstruction();
+    require(instruction && std::string(instruction).find("$25") != std::string::npos,
+            "injured customer did not receive the first-aid price");
+    tick(game, service);
+    require(close(game.health, 100) && game.money == 975 && close(game.vehicles[0].health, 40),
+            "counter did not heal only the customer for exactly $25");
+    game.health = 80;
+    tick(game, service, 3);
+    require(close(game.health, 80) && game.money == 975,
+            "holding the service button bought additional first aid");
+    tick(game);
+    tick(game, service);
+    require(close(game.health, 100) && game.money == 950,
+            "new first-aid purchase failed after releasing the button");
+    tick(game);
+    tick(game, service);
+    require(game.money == 950, "healthy customer was charged for first aid");
+    for (int scenario = 0; scenario < 5; ++scenario) {
+        game = base;
+        if (scenario == 0) game.money = 24;
+        if (scenario == 1) game.wanted = 3;
+        if (scenario == 2) game.player = site.vehicleStop;
+        if (scenario == 3) game.player = site.marker;
+        if (scenario == 4) game.player = {140, game.world.height(140, 128), 128};
+        const int money = game.money;
+        tick(game, service);
+        require(game.money == money && close(game.health, 80) && close(game.vehicles[0].health, 40),
+                "first aid ignored funds, pursuit, or the customer-area boundary");
+    }
+}
+
+void workshopPopulatedServiceVisit() {
+    mc::Game game;
+    game.initialize();
+    const mc::GarageSite site = mc::World::garageSite();
+    const size_t population = game.pedestrians.size(), traffic = game.vehicles.size();
+    mc::Vehicle& car = game.vehicles[0];
+    car.position = site.streetAccess;
+    car.yaw = site.vehicleHeading;
+    car.speed = 0;
+    car.velocity = {};
+    car.health = 40;
+    car.parked = false;
+    game.player = car.position;
+    game.yaw = car.yaw;
+    game.occupied = 0;
+    game.health = 80;
+    game.money = 1000;
+    bool stopped = false;
+    int driveFrames = 0;
+    for (; driveFrames < 1500; ++driveFrames) {
+        const float distance = mc::dot(site.vehicleStop - car.position, mc::forward(site.vehicleHeading));
+        if (std::fabs(distance) < 2 && std::fabs(car.speed) < .2f && mc::length(car.velocity) < .2f) {
+            stopped = true;
+            break;
+        }
+        const float desiredSpeed = mc::clamp(distance * .65f, 0.f, 5.f);
+        mc::Input drive;
+        drive.moveY = mc::clamp((desiredSpeed - car.speed) * .6f, 0.f, 1.f);
+        drive.brake = distance < 1 || car.speed > desiredSpeed + .2f;
+        tick(game, drive);
+    }
+    require(stopped && car.position.z >= site.serviceBay.min.z && car.position.z <= site.serviceBay.max.z,
+            "control-driven car did not reach and stop inside the workshop bay");
+    require(close(car.health, 40) && close(game.health, 80) && game.wanted == 0,
+            "normal populated workshop approach caused damage or police pursuit");
+    mc::Input service;
+    service.mission = true;
+    tick(game, service);
+    require(close(car.health, 100) && game.money == 925 && close(game.health, 80),
+            "driven workshop visit did not purchase the correct vehicle repair");
+    mc::Input exit;
+    exit.interact = true;
+    tick(game, exit);
+    require(game.occupied == -1 && !game.world.blocked(game.player, .34f),
+            "repaired vehicle could not be exited safely inside the workshop");
+    const mc::Vec3 route[] = {{game.player.x, site.floorHeight, site.shell.max.z + 2},
+                              {site.pedestrianDoor.x, site.floorHeight, site.shell.max.z + 2},
+                              site.counter};
+    int walkFrames = 0;
+    for (mc::Vec3 destination : route) {
+        bool reached = false;
+        for (int step = 0; step < 900; ++step) {
+            mc::Vec3 delta = destination - game.player;
+            delta.y = 0;
+            if (mc::length(delta) < .15f) { reached = true; break; }
+            mc::Input walk;
+            const float turn = mc::wrapAngle(std::atan2(delta.x, delta.z) - game.yaw);
+            walk.lookX = mc::clamp(turn, -1.f, 1.f);
+            walk.moveY = std::fabs(turn) < .2f ? 1.f : 0.f;
+            tick(game, walk);
+            ++walkFrames;
+        }
+        require(reached, "player could not walk from the service bay through the office doorway");
+    }
+    tick(game, service);
+    require(close(game.health, 100) && game.money == 900 && close(car.health, 100),
+            "walked workshop visit did not purchase first aid at the counter");
+    require(game.pedestrians.size() == population && game.vehicles.size() == traffic,
+            "workshop visit replaced or cleared the initialized population");
+    std::cout << "Populated workshop visit: " << driveFrames / 60.f << " s drive, "
+              << walkFrames / 60.f << " s walk, repair and first aid $100\n";
+}
+
+void verifyCameraClearance(mc::Game& game, const char* fixture) {
+    const mc::Vec3 anchor = game.player + mc::Vec3{0, game.occupied >= 0 ? 1.65f : 1.45f, 0};
+    for (float pitch : {-.85f, -.4f, 0.f, .55f, 1.12f}) {
+        game.pitch = pitch;
+        for (int turn = 0; turn < 64; ++turn) {
+            game.yaw = turn * (2 * mc::Pi / 64);
+            const mc::Vec3 eye = game.cameraEye(), target = game.cameraTarget();
+            require(finite(eye) && finite(target) && mc::length(eye - target) > 1,
+                    "camera sweep produced an invalid view");
+            require(eye.y >= game.world.height(eye.x, eye.z) + .34f,
+                    "camera sweep placed the view below the ground");
+            for (const mc::Chunk& chunk : game.world.chunks) for (const mc::Box& box : chunk.solids) {
+                const mc::Vec3 nearest{
+                    mc::clamp(eye.x, box.min.x, box.max.x),
+                    mc::clamp(eye.y, box.min.y, box.max.y),
+                    mc::clamp(eye.z, box.min.z, box.max.z)};
+                if (mc::length(eye - nearest) < .10f)
+                    throw std::runtime_error(std::string(fixture) + " camera touches solid geometry at yaw " +
+                                             std::to_string(game.yaw) + " pitch " + std::to_string(pitch));
+                // Test the whole view segment, since a clear endpoint can lie behind a thin wall.
+                const mc::Vec3 delta = eye - anchor;
+                const float p[] = {anchor.x, anchor.y, anchor.z};
+                const float d[] = {delta.x, delta.y, delta.z};
+                const float lo[] = {box.min.x, box.min.y, box.min.z};
+                const float hi[] = {box.max.x, box.max.y, box.max.z};
+                float enter = 0, leave = 1;
+                bool crosses = true;
+                for (int axis = 0; axis < 3; ++axis) {
+                    if (std::fabs(d[axis]) < 1e-6f) {
+                        if (p[axis] <= lo[axis] || p[axis] >= hi[axis]) crosses = false;
+                    } else {
+                        const float a = (lo[axis] - p[axis]) / d[axis];
+                        const float b = (hi[axis] - p[axis]) / d[axis];
+                        enter = std::max(enter, std::min(a, b));
+                        leave = std::min(leave, std::max(a, b));
+                        if (enter >= leave) crosses = false;
+                    }
+                }
+                if (crosses)
+                    throw std::runtime_error(std::string(fixture) + " camera crosses a solid wall at yaw " +
+                                             std::to_string(game.yaw) + " pitch " + std::to_string(pitch));
+            }
+        }
+    }
+}
+
+void cameraCloseWallAndWorkshopSweep() {
+    mc::Game game;
+    game.player = {0, game.world.height(0, 0), 0};
+    game.world.stream(game.player);
+    game.world.chunks.front().solids.push_back({{.36f, -1, -4}, {2, 5, 4}});
+    game.world.chunks.front().solids.push_back({{-4, -1, .36f}, {4, 5, 2}});
+    require(!game.world.blocked(game.player, .34f), "close-corner camera fixture obstructs the player");
+    verifyCameraClearance(game, "close corner");
+    game = workshopFixture();
+    verifyCameraClearance(game, "occupied service bay");
+    game.occupied = -1;
+    const mc::GarageSite site = mc::World::garageSite();
+    for (mc::Vec3 point : {site.counter, site.vehicleStop, site.pedestrianDoor, site.vehicleDoor,
+                          mc::Vec3{156, site.floorHeight, 97.25f},
+                          mc::Vec3{156, site.floorHeight, 98.75f}}) {
+        game.player = point;
+        require(!game.world.blocked(point, .34f), "workshop camera fixture obstructs the player");
+        verifyCameraClearance(game, "workshop foot route");
+    }
+}
+
 void boatHandlingAndSwimming() {
     mc::Game game;
     mc::Vehicle boat;
@@ -918,6 +1275,44 @@ struct TemporarySave {
         std::filesystem::remove(path, ignored);
     }
 };
+
+void workshopInteriorSaveRoundTrip() {
+    const mc::Game base = workshopFixture();
+    const mc::GarageSite site = mc::World::garageSite();
+    TemporarySave save;
+    mc::Input service;
+    service.mission = true;
+    for (bool inVehicle : {false, true}) {
+        mc::Game game = base;
+        game.occupied = inVehicle ? 0 : -1;
+        game.player = inVehicle ? site.vehicleStop : site.counter;
+        game.harborSplit.bestTime = 80;
+        game.harborSplit.medal = 3;
+        require(game.save(save.path.string()), "saving inside the workshop failed");
+        mc::Game restored;
+        require(restored.load(save.path.string()), "loading inside the workshop failed");
+        require(restored.occupied == game.occupied && mc::length(restored.player - game.player) < .001f &&
+                close(restored.health, 80) && restored.money == 1000 &&
+                restored.harborSplit.medal == 3 && close(restored.harborSplit.bestTime, 80),
+                "interior save changed pose, occupancy, player state, or trial record");
+        require(restored.vehicles.size() == 1 && close(restored.vehicles[0].health, 40) &&
+                mc::length(restored.vehicles[0].position - site.vehicleStop) < .001f &&
+                close(restored.vehicles[0].yaw, site.vehicleHeading),
+                "interior save changed the parked service vehicle");
+        tick(restored);
+        require(mc::length(restored.player - game.player) < .001f &&
+                close(restored.world.height(restored.player.x, restored.player.z), site.floorHeight) &&
+                !restored.world.blocked(restored.player, inVehicle ? 1.02f : .34f),
+                "loaded workshop occupant fell, moved, or became trapped on the next tick");
+        require(restored.workshopInstruction() != nullptr,
+                "loaded interior did not restore its service context");
+        tick(restored, service);
+        require(restored.money == (inVehicle ? 925 : 975) &&
+                close(restored.health, inVehicle ? 80.f : 100.f) &&
+                close(restored.vehicles[0].health, inVehicle ? 100.f : 40.f),
+                "loaded workshop interior could not perform its correct service");
+    }
+}
 
 void writeBytes(const std::filesystem::path& path, const std::vector<char>& bytes) {
     std::ofstream stream(path, std::ios::binary | std::ios::trunc);
@@ -2075,6 +2470,14 @@ int main() {
         {"movement, pause, and timestep bounds", movementAndPause},
         {"movement sound follows displacement and contact", movementSoundMapping},
         {"vehicle interaction", vehicleInteraction},
+        {"vehicle boarding respects walls", vehicleBoardingRespectsWalls},
+        {"vehicle exit requires a clear path", vehicleExitRequiresClearPath},
+        {"workshop bay repairs", workshopBayRepairs},
+        {"workshop service boundaries", workshopServiceBoundaries},
+        {"workshop counter first aid", workshopCounterFirstAid},
+        {"workshop populated service visit", workshopPopulatedServiceVisit},
+        {"workshop interior save round trip", workshopInteriorSaveRoundTrip},
+        {"camera close walls and workshop sweep", cameraCloseWallAndWorkshopSweep},
         {"boat handling and swimming", boatHandlingAndSwimming},
         {"aircraft flight, stall, and landing", aircraftFlightAndLanding},
         {"hard aircraft landings across frame offsets", hardAircraftLandingsAcrossFrameOffsets},

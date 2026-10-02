@@ -19,7 +19,6 @@ namespace mc {
 namespace {
 constexpr float Lane=3.2f;
 constexpr int Magazine=30;
-constexpr Vec3 Garage{140,0,128};
 constexpr Vec3 Outfitter{-116,0,128};
 constexpr Vec3 DispatchDestination{-372,0,256};
 constexpr Vec3 SignalDestination{780,0,-384};
@@ -51,6 +50,9 @@ bool finite(Vec3 p){return finite(p.x)&&finite(p.y)&&finite(p.z);}
 Vec3 rotate(Vec3 p,float yaw){return right(yaw)*p.x+Vec3{0,p.y,0}+forward(yaw)*p.z;}
 float towards(float current,float target,float amount){return current<target?std::min(current+amount,target):std::max(current-amount,target);}
 bool roadVehicle(VehicleKind kind){return kind==VehicleKind::Car||kind==VehicleKind::Motorcycle;}
+bool insideServiceArea(Vec3 p,const Box& area,float floorHeight){
+    return p.x>=area.min.x&&p.x<=area.max.x&&p.z>=area.min.z&&p.z<=area.max.z&&std::abs(p.y-floorHeight)<.4f;
+}
 void appendStarterCraft(std::vector<Vehicle>& vehicles,const World& world){
     bool boat=false,aircraft=false;
     for(const Vehicle& vehicle:vehicles){boat|=vehicle.kind==VehicleKind::Boat;aircraft|=vehicle.kind==VehicleKind::Aircraft;}
@@ -109,6 +111,24 @@ float rayBox(Vec3 origin,Vec3 direction,const Box& box,float maximum){
         else {float a=(lo[k]-o[k])/d[k],b=(hi[k]-o[k])/d[k];if(a>b)std::swap(a,b);nearT=std::max(nearT,a);farT=std::min(farT,b);if(nearT>farT)return maximum;}
     }
     return nearT;
+}
+bool passengerPathClear(const World& world,Vec3 from,Vec3 to){
+    // Passengers can step up onto a pier or threshold. Test the full standing
+    // clearance on the step, across the gap, and down to the other landing.
+    // Checking the vertical legs also prevents boarding through a ceiling.
+    const float height=std::max(from.y,to.y);
+    const std::array<Vec3,4> path{{from,{from.x,height,from.z},{to.x,height,to.z},to}};
+    bool moved=false;
+    for(size_t i=0;i+1<path.size();++i){
+        const Vec3 delta=path[i+1]-path[i];const float distance=length(delta);
+        if(distance<.001f)continue;
+        moved=true;const Vec3 direction=delta/distance;
+        for(const Chunk& chunk:world.chunks)for(const Box& obstacle:chunk.solids){
+            const Box expanded{obstacle.min-Vec3{.35f,1.65f,.35f},obstacle.max+Vec3{.35f,-.04f,.35f}};
+            if(rayBox(path[i],direction,expanded,distance)<distance-.001f)return false;
+        }
+    }
+    return moved||!world.blocked(to,.35f);
 }
 float raySphere(Vec3 origin,Vec3 direction,Vec3 center,float radius,float maximum){
     Vec3 oc=origin-center;float b=dot(oc,direction),c=dot(oc,oc)-radius*radius,disc=b*b-c;
@@ -292,7 +312,7 @@ const char* Game::missionInstruction() const {
     }
 }
 Vec3 Game::missionTarget() const {
-    const Mission* mission=missionInfo();if(!mission)return Garage;
+    const Mission* mission=missionInfo();if(!mission)return World::garageSite().marker;
     if(activeMission<0)return mission->start;
     if(activeMission==1&&missionStage>=1)return DispatchDestination;
     if(activeMission==3&&missionStage>=1)return SignalDestination;
@@ -343,6 +363,22 @@ const char* Game::objectiveInstruction() const {
     }
     return missionInstruction();
 }
+const char* Game::workshopInstruction() const {
+    const GarageSite site=World::garageSite();
+    if(planarDistance(player,site.marker)>48||std::abs(player.y-site.floorHeight)>12)return nullptr;
+    if(wanted>0)return "LOSE THE PATROL BEFORE REQUESTING WORKSHOP SERVICE";
+    if(occupied>=0&&size_t(occupied)<vehicles.size()){
+        const Vehicle& vehicle=vehicles[size_t(occupied)];
+        if(!roadVehicle(vehicle.kind))return "CAR / MOTORCYCLE REPAIRS ONLY; USE THE FRONT BAY";
+        if(!insideServiceArea(vehicle.position,site.serviceBay,site.floorHeight))return "DRIVE INTO THE OPEN BAY AND STOP ON THE SERVICE PAD";
+        if(std::abs(vehicle.speed)>.5f||length(vehicle.velocity)>.6f)return "STOP COMPLETELY FOR BAY SERVICE";
+        if(vehicle.health>=99.99f)return "VEHICLE READY; NO REPAIR NEEDED";
+        return money>=75?"M / DPAD UP: REPAIR VEHICLE $75":"VEHICLE REPAIR $75; INSUFFICIENT CASH";
+    }
+    if(!insideServiceArea(player,site.customerArea,site.floorHeight))return "WALK THROUGH THE OFFICE DOOR TO THE FIRST-AID COUNTER";
+    if(health>=99.99f)return "FIRST AID NOT NEEDED; VEHICLE REPAIRS IN THE BAY";
+    return money>=25?"M / DPAD UP: FIRST AID $25":"FIRST AID $25; INSUFFICIENT CASH";
+}
 void Game::endHarborSplit(const char* reason){
     const float best=harborSplit.bestTime;const int medal=harborSplit.medal;
     harborSplit={};harborSplit.bestTime=best;harborSplit.medal=medal;splitVehicle=-1;splitDamageCooldown=0;
@@ -390,10 +426,15 @@ Vec3 Game::cameraEye() const {
     float distance=occupied>=0?8.0f:(aiming?3.0f:5.5f);
     if(occupied>=0&&size_t(occupied)<vehicles.size()){if(vehicles[size_t(occupied)].kind==VehicleKind::Aircraft)distance=15;else if(vehicles[size_t(occupied)].kind==VehicleKind::Boat)distance=10;}
     Vec3 desired=anchor-direction*distance+right(yaw)*(aiming?.67f:.32f);
-    Vec3 delta=desired-anchor;float maximum=length(delta);Vec3 ray=normalized(delta);
-    for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids){Box expanded{box.min-Vec3{.20f,.20f,.20f},box.max+Vec3{.20f,.20f,.20f}};maximum=std::min(maximum,rayBox(anchor,ray,expanded,maximum));}
-    Vec3 result=anchor+ray*std::max(.35f,maximum-.15f);
-    result.y=std::max(result.y,world.height(result.x,result.z)+.35f);
+    desired.y=std::max(desired.y,world.height(desired.x,desired.z)+.35f);
+    const auto clipCamera=[&](Vec3 point){
+        const Vec3 delta=point-anchor,ray=normalized(delta);float maximum=length(delta);
+        for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids){Box expanded{box.min-Vec3{.20f,.20f,.20f},box.max+Vec3{.20f,.20f,.20f}};maximum=std::min(maximum,rayBox(anchor,ray,expanded,maximum));}
+        return anchor+ray*std::max(0.0f,maximum-.15f);
+    };
+    Vec3 result=clipCamera(desired);
+    const float floor=world.height(result.x,result.z)+.35f;
+    if(result.y<floor)result=clipCamera({result.x,floor,result.z});
     return result;
 }
 Vec3 Game::cameraTarget() const {
@@ -429,24 +470,37 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             else {
                 bool found=false,hasWaterExit=false,swimmingExit=false;Vec3 waterExit;
                 const float scale=roadVehicle(v.kind)?1.0f:1.9f;
+                const auto safeExit=[&](Vec3 exit){
+                    if(world.blocked(exit,.35f)||!passengerPathClear(world,v.position,exit))return false;
+                    for(size_t i=0;i<vehicles.size();++i){
+                        if(int(i)==occupied||std::abs(vehicles[i].position.y-exit.y)>2.5f)continue;
+                        const float clearance=roadVehicle(vehicles[i].kind)?1.15f:2.1f;
+                        if(planarDistance(exit,vehicles[i].position)<clearance)return false;
+                    }
+                    return true;
+                };
                 for(Vec3 offset:std::array<Vec3,6>{{{-2.0f,0,0},{2.0f,0,0},{0,0,-3.0f},{0,0,3.0f},{-3.0f,0,0},{3.0f,0,0}}}){
                     Vec3 exit=atGround(world,v.position+rotate(offset*scale,v.yaw));
                     if(v.kind==VehicleKind::Boat&&exit.y<World::WaterLevel+.05f)continue;
                     if(v.kind==VehicleKind::Aircraft&&world.waterDepth(exit.x,exit.z)>.9f&&exit.y<World::WaterLevel){
                         exit.y=World::WaterLevel-1.1f;
-                        if(!hasWaterExit&&!world.blocked(exit,.35f)){waterExit=exit;hasWaterExit=true;}
+                        if(!hasWaterExit&&safeExit(exit)){waterExit=exit;hasWaterExit=true;}
                         continue;
                     }
-                    if(!world.blocked(exit,.35f)){player=exit;found=true;break;}
+                    if(safeExit(exit)){player=exit;found=true;break;}
                 }
                 if(!found&&hasWaterExit){player=waterExit;found=true;swimmingExit=true;}
-                if(!found&&v.kind==VehicleKind::Boat){player=v.position+right(v.yaw)*2.0f;player.y=World::WaterLevel-1.1f;found=true;}
-                if(found){v.parked=true;v.speed=0;v.velocity={};v.throttle=0;occupied=-1;verticalSpeed=0;grounded=!swimmingExit;message=swimmingExit?"In the water. Swim with WASD; hold Shift for a faster stroke.":v.kind==VehicleKind::Boat?"Left the helm. Swim with WASD; hold Shift for a faster stroke. E boards a nearby boat.":"On foot. Hold right mouse to aim; left mouse fires.";messageTime=5;}
+                if(!found&&v.kind==VehicleKind::Boat)for(Vec3 offset:std::array<Vec3,4>{{{2,0,0},{-2,0,0},{0,0,-4},{0,0,4}}}){
+                    Vec3 exit=v.position+rotate(offset,v.yaw);const float depth=world.waterDepth(exit.x,exit.z);
+                    exit.y=std::max(world.height(exit.x,exit.z),World::WaterLevel-1.1f);
+                    if(depth>.05f&&safeExit(exit)){player=exit;found=true;swimmingExit=depth>.9f&&exit.y<World::WaterLevel+.25f;break;}
+                }
+                if(found){v.parked=true;v.speed=0;v.velocity={};v.throttle=0;occupied=-1;verticalSpeed=0;grounded=!swimmingExit;message=swimmingExit?"In the water. Swim with WASD; hold Shift for a faster stroke.":v.kind==VehicleKind::Boat?"On the landing. E boards a nearby boat.":"On foot. Hold right mouse to aim; left mouse fires.";messageTime=5;}
                 else {message="Both doors are obstructed. Move the vehicle to open ground.";messageTime=3;}
             }
         }else{
             float nearest=6.0f;int index=-1;
-            for(size_t i=0;i<vehicles.size();++i)if(vehicles[i].health>0&&std::abs(vehicles[i].speed)<6&&std::abs(player.y-vehicles[i].position.y)<3.2f){float distance=planarDistance(player,vehicles[i].position);if(distance<nearest){nearest=distance;index=int(i);}}
+            for(size_t i=0;i<vehicles.size();++i)if(vehicles[i].health>0&&std::abs(vehicles[i].speed)<6&&std::abs(player.y-vehicles[i].position.y)<3.2f){float distance=planarDistance(player,vehicles[i].position);if(distance<nearest&&passengerPathClear(world,player,vehicles[i].position)){nearest=distance;index=int(i);}}
             if(index>=0){occupied=index;Vehicle& v=vehicles[size_t(index)];v.parked=false;player=v.position;verticalSpeed=0;grounded=true;reloadTimer=0;cameraFollowDelay=0;yaw=v.yaw;
                 if(v.police){wanted=std::max(wanted,2);wantedTimer=28;message="Patrol vehicle taken. Dispatch has your description.";}
                 else if(v.kind==VehicleKind::Boat)message="RUNABOUT  /  W/S thrust and reverse  A/D rudder  Space slow  E leave helm";
@@ -639,7 +693,18 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             if(supplied){activeMission=chapter;missionStage=0;missionHold=0;missionTimer=chapter==1?180.0f:(chapter==2||chapter==4?240.0f:(chapter==5?360.0f:0.0f));message=missions()[size_t(chapter)].briefing;if(chapter>=4)message+=chapter==4?" A serviced blue loan runabout is ready at the berth.":" A serviced cream survey plane is ready on the runway.";messageTime=14;}
             else {message="The loan craft needs a clear berth. Move your current vehicle aside and contact the crew again.";messageTime=6;}
         }
-        else if(planarDistance(player,Garage)<16){if(money>=75){money-=75;health=100;if(occupied>=0)vehicles[size_t(occupied)].health=100;message="Harbor garage  /  repaired and treated  -$75";}else message="Harbor garage  /  repairs cost $75";messageTime=5;}
+        else if(const char* instruction=workshopInstruction()){
+            const GarageSite site=World::garageSite();message=instruction;
+            if(wanted==0&&occupied>=0){
+                Vehicle& vehicle=vehicles[size_t(occupied)];
+                if(roadVehicle(vehicle.kind)&&insideServiceArea(vehicle.position,site.serviceBay,site.floorHeight)&&std::abs(vehicle.speed)<=.5f&&length(vehicle.velocity)<=.6f&&vehicle.health<99.99f&&money>=75){
+                    money-=75;vehicle.health=100;message="HARBOR MOTOR WORKS / Vehicle repaired. Parts and labor -$75.";
+                }
+            }else if(wanted==0&&occupied<0&&insideServiceArea(player,site.customerArea,site.floorHeight)&&health>0&&health<99.99f&&money>=25){
+                money-=25;health=100;message="HARBOR MOTOR WORKS / First aid supplied. Treatment -$25.";
+            }
+            messageTime=6;
+        }
         else if(planarDistance(player,Outfitter)<16){if(money>=60&&reserveAmmo<=9910){money-=60;reserveAmmo+=90;message="Outfitter  /  90 rounds  -$60";}else message="Outfitter  /  ammunition costs $60";messageTime=5;}
         else if(activeMission<0){message=completedMissions<int(missions().size())?"Meet your contact at the amber marker to begin the next job.":"The harbor story is complete. Explore the coast, ride the city, or visit the garage and outfitter.";messageTime=5;}
         else {message=missions()[size_t(activeMission)].briefing;messageTime=8;}
