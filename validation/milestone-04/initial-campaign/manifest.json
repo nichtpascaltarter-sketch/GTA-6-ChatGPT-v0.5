@@ -1,0 +1,52 @@
+{
+  "sourceCommit": "88a2cf6e24f3c7037581142915f757d8a49fa5e0",
+  "workflowRun": 36947303166,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36947303166",
+  "workflowConclusion": "success",
+  "releaseArtifact": 11202656698,
+  "debugArtifact": 11202308478,
+  "executables": {
+    "release": {
+      "bytes": 731136,
+      "sha256": "93e6fc058d80793d39eb09e7f61c61d7317b3d2e745a7884c4bbd6fff8081897"
+    },
+    "debug": {
+      "bytes": 2009088,
+      "sha256": "53e22329e8d77702f7f60daceee157069e8c48cbd7cdac16784f3e8c2c2fad98"
+    }
+  },
+  "nativeConfigurations": [
+    "Release",
+    "Debug"
+  ],
+  "nativeTestSuites": [
+    "world",
+    "game (28/28)",
+    "procedural audio",
+    "cinematics"
+  ],
+  "precompiledShaderVariants": 9,
+  "compileWarningsObserved": 0,
+  "releaseAdditionalScenes": 15,
+  "standaloneLaunches": 20,
+  "renderedFramesTotal": 720,
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "releaseSampleCount": 4,
+  "debugSampleCountsValidated": [
+    1,
+    2,
+    4
+  ],
+  "debugLayer": "D3D12 debug layer and corruption/error validation enabled in all four Debug launches; no errors reported",
+  "lifecycleValidation": "Each sample count completed 120 frames; verified clients 976x657 at frame 30, 1024x768 fullscreen at frame 60, 976x657 restored at frame 90; captured images match restored client dimensions",
+  "newSceneInspection": {
+    "rescue": "Both boats, Leena on the disabled clinic launch, transfer-radius ring, hold-still dialogue and objective/countdown are visible and legible",
+    "survey": "Airborne survey gate, aircraft, terrain-relative altitude and objective/countdown are visible and legible; existing finite terrain coverage remains apparent"
+  },
+  "knownDefectAtSnapshot": "After this snapshot, review identified missing rescued-patient visibility in car, motorcycle and aircraft. The corrected passenger geometry and dedicated passenger captures are pending native validation together with incremental streaming.",
+  "releaseCityElapsedSeconds": 19.165,
+  "runtimeDependencies": "Each smoke executable launched alone from a fresh temporary directory; import audit permits Windows system DLLs only",
+  "nativeRendering": "D3D12 WARP; hardware DXR and RTX 4070 frame rates remain unverified",
+  "audio": "Procedural synthesis tested; native WASAPI listening not verified",
+  "archiveContents": "Original artifact reports and nonempty session/diagnostic logs, executable hashes/import reports and metadata; no executable or BMP files"
+}

@@ -1,0 +1,21 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "survey",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 0.99,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 944,
+  "executableSha256": "93e6fc058d80793d39eb09e7f61c61d7317b3d2e745a7884c4bbd6fff8081897",
+  "screenshotSha256": "f715ddb371521badaa33b326542aa1d5f7b609846edb5f85322a10db121dcd9c"
+}
