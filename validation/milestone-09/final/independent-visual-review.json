@@ -1,0 +1,18 @@
+{
+  "reviewers": [
+    "root",
+    "renderer"
+  ],
+  "accepted": true,
+  "independentViews": [
+    "market-day",
+    "market-night",
+    "market-citrus",
+    "market-tea",
+    "market-bread",
+    "residents-work"
+  ],
+  "findings": "Stock, signs and supported canopies are readable. Existing night fixtures light the stalls without blown highlights. The Work head, arms, pencil, clipboard and grounded legs remain visible. No new blocking geometry, framing or lighting defect found.",
+  "rootRegressionReview": "All 15 changed common BMPs inspected: city, drive, map, night, all six residents, storm, streaming, trial-map, trial-run and workshop. Other 22 common BMPs are byte-identical.",
+  "limitations": "Fruit and bread are conspicuously coarse meshes; buildings and plaza remain repetitive and sparse. Existing seated hair/forehead bright band is tracked in the next character pass; market did not change character source."
+}

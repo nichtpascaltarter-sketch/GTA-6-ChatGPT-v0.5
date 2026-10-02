@@ -1,0 +1,395 @@
+﻿2026-10-02T02:04:48.9493390Z Current runner version: '2.337.0'
+2026-10-02T02:04:48.9526082Z ##[group]Runner Image Provisioner
+2026-10-02T02:04:48.9527320Z Hosted Compute Agent
+2026-10-02T02:04:48.9528272Z Version: 20260901.588
+2026-10-02T02:04:48.9529231Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+2026-10-02T02:04:48.9530353Z Build Date: 2026-09-01T19:56:44Z
+2026-10-02T02:04:48.9531457Z Worker ID: {e82b2b00-97a2-46df-918a-c081c0eaf72e}
+2026-10-02T02:04:48.9532549Z Azure Region: eastus
+2026-10-02T02:04:48.9533494Z ##[endgroup]
+2026-10-02T02:04:48.9535481Z ##[group]Operating System
+2026-10-02T02:04:48.9536446Z Microsoft Windows Server 2022
+2026-10-02T02:04:48.9537362Z 10.0.20348
+2026-10-02T02:04:48.9538141Z Datacenter
+2026-10-02T02:04:48.9538930Z ##[endgroup]
+2026-10-02T02:04:48.9539716Z ##[group]Runner Image
+2026-10-02T02:04:48.9540569Z Image: windows-2022
+2026-10-02T02:04:48.9541436Z Version: 20260927.320.1
+2026-10-02T02:04:48.9543483Z Included Software: https://github.com/actions/runner-images/blob/win22/20260927.320/images/windows/Windows2022-Readme.md
+2026-10-02T02:04:48.9546009Z Image Release: https://github.com/actions/runner-images/releases/tag/win22%2F20260927.320
+2026-10-02T02:04:48.9547605Z ##[endgroup]
+2026-10-02T02:04:48.9549272Z ##[group]GITHUB_TOKEN Permissions
+2026-10-02T02:04:48.9551719Z Contents: read
+2026-10-02T02:04:48.9552588Z Metadata: read
+2026-10-02T02:04:48.9553367Z ##[endgroup]
+2026-10-02T02:04:48.9556286Z Secret source: Actions
+2026-10-02T02:04:48.9557721Z Cache mode: write
+2026-10-02T02:04:48.9558852Z Prepare workflow directory
+2026-10-02T02:04:49.0008256Z Prepare all required actions
+2026-10-02T02:04:49.0078405Z Getting action download info
+2026-10-02T02:04:49.1772608Z Download action repository 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a' (SHA:043fb46d1a93c77aae656e7c1c64a875d1fc6a0a)
+2026-10-02T02:04:49.3974440Z Complete job name: windows (Debug)
+2026-10-02T02:04:49.5714118Z ##[group]Run $ErrorActionPreference = 'Stop'
+2026-10-02T02:04:49.5715088Z [36;1m$ErrorActionPreference = 'Stop'[0m
+2026-10-02T02:04:49.5715787Z [36;1mgit init .[0m
+2026-10-02T02:04:49.5716418Z [36;1mif ($LASTEXITCODE) { throw 'git init failed' }[0m
+2026-10-02T02:04:49.5717486Z [36;1mgit remote add origin "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.git"[0m
+2026-10-02T02:04:49.5718504Z [36;1mif ($LASTEXITCODE) { throw 'git remote failed' }[0m
+2026-10-02T02:04:49.5719558Z [36;1mgit -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA[0m
+2026-10-02T02:04:49.5720588Z [36;1mif ($LASTEXITCODE) { throw 'git fetch failed' }[0m
+2026-10-02T02:04:49.5721337Z [36;1mgit checkout --detach FETCH_HEAD[0m
+2026-10-02T02:04:49.5722100Z [36;1mif ($LASTEXITCODE) { throw 'git checkout failed' }[0m
+2026-10-02T02:04:49.5838471Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:04:49.5839572Z ##[endgroup]
+2026-10-02T02:04:50.3226195Z Initialized empty Git repository in D:/a/GTA-6-ChatGPT-v0.5/GTA-6-ChatGPT-v0.5/.git/
+2026-10-02T02:04:58.8727451Z From https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5
+2026-10-02T02:04:58.8728781Z  * branch            8b166eee5b7e9d028d48ed10eede343815a40d40 -> FETCH_HEAD
+2026-10-02T02:04:59.4071114Z HEAD is now at 8b166ee Archive complete market integration gate and stable source hashes
+2026-10-02T02:04:59.5563105Z ##[group]Run build.bat Debug
+2026-10-02T02:04:59.5563577Z [36;1mbuild.bat Debug[0m
+2026-10-02T02:04:59.5588009Z shell: C:\Windows\system32\cmd.EXE /D /E:ON /V:OFF /S /C "CALL "{0}""
+2026-10-02T02:04:59.5588431Z ##[endgroup]
+2026-10-02T02:05:06.0738676Z Compiling shader world_vs (vs_6_0)
+2026-10-02T02:05:07.3655161Z Compiling shader world_ps (ps_6_0)
+2026-10-02T02:05:07.5419074Z Compiling shader world_far_ps (ps_6_0)
+2026-10-02T02:05:07.6408815Z Compiling shader world_rt_ps (ps_6_5)
+2026-10-02T02:05:07.7921072Z Compiling shader shadow_vs (vs_6_0)
+2026-10-02T02:05:07.8235991Z Compiling shader ui_vs (vs_6_0)
+2026-10-02T02:05:07.8455326Z Compiling shader ui_ps (ps_6_0)
+2026-10-02T02:05:07.8656519Z Compiling shader sky_vs (vs_6_0)
+2026-10-02T02:05:07.8880750Z Compiling shader sky_ps (ps_6_0)
+2026-10-02T02:05:07.9436681Z Compiling shader post_ps (ps_6_0)
+2026-10-02T02:05:07.9814050Z Building Debug x64 executable with static C/C++ runtime
+2026-10-02T02:05:08.1507704Z main.cpp
+2026-10-02T02:05:15.1619516Z world.cpp
+2026-10-02T02:05:16.1899455Z world_geometry.cpp
+2026-10-02T02:05:17.1074387Z world_streamer.cpp
+2026-10-02T02:05:18.0897291Z game.cpp
+2026-10-02T02:05:20.2773936Z pedestrians.cpp
+2026-10-02T02:05:21.2266136Z visuals.cpp
+2026-10-02T02:05:22.0121205Z renderer.cpp
+2026-10-02T02:05:24.9359891Z audio.cpp
+2026-10-02T02:05:26.2687825Z Generating Code...
+2026-10-02T02:05:31.3989076Z Windows x64 PE; inbox Windows imports only:
+2026-10-02T02:05:31.3989680Z d3d12.dll
+2026-10-02T02:05:31.3991349Z dxgi.dll
+2026-10-02T02:05:31.3992047Z kernel32.dll
+2026-10-02T02:05:31.3992465Z ole32.dll
+2026-10-02T02:05:31.3994204Z shell32.dll
+2026-10-02T02:05:31.3994521Z user32.dll
+2026-10-02T02:05:31.3994905Z xinput9_1_0.dll
+2026-10-02T02:05:31.4070230Z Building and running world tests
+2026-10-02T02:05:31.4243468Z world_tests.cpp
+2026-10-02T02:05:32.2915151Z world.cpp
+2026-10-02T02:05:33.3023569Z world_geometry.cpp
+2026-10-02T02:05:34.1949741Z Generating Code...
+2026-10-02T02:05:45.4223922Z Central light sources: 588 street lamps, 129 shop/market downlights
+2026-10-02T02:05:45.4225125Z Clinic launch: 1330 owner-chunk triangles, four collision sections, attached red hazard beacon
+2026-10-02T02:05:45.4226491Z Bench collision: 8 seats, clear front/side shots and cameras, solid backrests/seats/legs
+2026-10-02T02:05:45.4228120Z Harbor Motor Works: 1408 clear route samples, 8 all-day lights, 11995 owner triangles, 347447 loaded triangles
+2026-10-02T02:05:45.4229881Z Central 49 chunks: 737973 vertices, 349211 triangles, 108 collision solids in block 0,0
+2026-10-02T02:05:45.4230804Z Countryside: 221134 triangles, 861 collision solids, 1776 clear road samples, 3112 clear paths
+2026-10-02T02:05:45.4232570Z Wetlands: 294430 triangles, 861 collision solids, 2802 clear road samples, 4831 clear paths
+2026-10-02T02:05:45.4233446Z Island: 132888 triangles, 685 collision solids, 1035 clear road samples, 1858 clear paths
+2026-10-02T02:05:45.4234136Z Coast: 140226 triangles, 543 collision solids, 2586 clear road samples, 4213 clear paths
+2026-10-02T02:05:45.4234847Z Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions
+2026-10-02T02:05:45.4235660Z Ground surfaces: paved roads, sidewalks and 360 path triangles; wood, soil, grass and sand independent of streaming
+2026-10-02T02:05:45.4236579Z Pedestrian neighborhood: 54 reachable places, 252 nodes, 369 edges, 24 painted crossings, 9987 clear path samples
+2026-10-02T02:05:45.4237187Z World tests passed.
+2026-10-02T02:05:45.4270286Z Building and running market tests
+2026-10-02T02:05:45.4409235Z market_tests.cpp
+2026-10-02T02:05:46.1791467Z world.cpp
+2026-10-02T02:05:47.2117434Z world_geometry.cpp
+2026-10-02T02:05:48.0956002Z Generating Code...
+2026-10-02T02:05:49.4605199Z Unchanged neighborhood: 54 places, 252 nodes, 369 edges, 24 crossings, 8 seat surfaces, 19343 clear samples
+2026-10-02T02:05:49.4609746Z Market circulation: 714 clear player samples; three solid countertops and grounded fruit, tea and bread displays
+2026-10-02T02:05:49.4611320Z Market LOD triangles: 8822/1478/1246; owner capacity bytes 1048296/125856/111872; loaded triangles 349211, net +1470
+2026-10-02T02:05:49.4613065Z Tide Hall Market tests passed.
+2026-10-02T02:05:49.4650977Z Building and running world_streamer tests
+2026-10-02T02:05:49.4782136Z world_streamer_tests.cpp
+2026-10-02T02:05:51.0887027Z world.cpp
+2026-10-02T02:05:52.1029819Z world_geometry.cpp
+2026-10-02T02:05:52.9849269Z world_streamer.cpp
+2026-10-02T02:05:53.9569922Z Generating Code...
+2026-10-02T02:06:00.1584650Z Request protocol: stable overlap tickets, stale epochs, duplicate rejection, atomic 49-chunk publication
+2026-10-02T02:06:00.1585475Z Worker publication: 7 scheduled, 7 installed, no synchronous fallback
+2026-10-02T02:06:00.1619868Z Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction
+2026-10-02T02:06:00.1620605Z Reset and teleport: blocked old workers rejected; synchronous collision recovery immediately complete
+2026-10-02T02:06:00.1621283Z Backpressure: cancellation and destruction drain a full queue without publishing partial chunks
+2026-10-02T02:06:00.1621944Z Builder failures: oversized capacities, exceptions and mismatched identities report bounded errors
+2026-10-02T02:06:00.1622476Z World streamer tests passed.
+2026-10-02T02:06:00.1622891Z Building and running world_lod_geometry tests
+2026-10-02T02:06:00.1746239Z world_lod_geometry_tests.cpp
+2026-10-02T02:06:01.1135377Z world.cpp
+2026-10-02T02:06:02.1193533Z world_geometry.cpp
+2026-10-02T02:06:03.0064144Z Generating Code...
+2026-10-02T02:06:06.6425822Z Terrain: 512/160/80 triangles, canonical eight-metre boundaries, 288 mixed-LOD seams; no unmatched interior edges
+2026-10-02T02:06:06.6427340Z Chunks: deterministic geometry and bounds in 16 regions; visual-only LODs stay within per-tile capacity budget
+2026-10-02T02:06:06.6428561Z Skyline: all six city styles and suburban chimney/roof maxima preserved across 21 LOD samples
+2026-10-02T02:06:06.6429630Z Landmarks: exchange spire, clock pavilion, market roofs, hangar, dock and clinic launch retain defining geometry at every LOD
+2026-10-02T02:06:06.6430950Z Vegetation: 374 coarse trunk anchors match deterministic descriptors and detail collision across all four tree kinds
+2026-10-02T02:06:06.6432397Z Road visibility: 19800 triangle centroids across 119 regional chunks retain at least 0.024999 m terrain clearance
+2026-10-02T02:06:06.6433376Z Workshop LODs: 11995/1012/636 triangles, 1496856/79824/51312 capacity bytes; open entrances and matched roof 7.76m
+2026-10-02T02:06:06.6434333Z Prefetch cache (0,0): 1450 visual tiles, 735976 triangles, 54678272 capacity bytes; largest tile 125856 bytes
+2026-10-02T02:06:06.6435041Z   Downtown: Medium 13765168B/225 tiles, Far 16851616B/420 tiles
+2026-10-02T02:06:06.6435515Z   Residential: Medium 0B/0 tiles, Far 20829184B/664 tiles
+2026-10-02T02:06:06.6435963Z   Countryside: Medium 0B/0 tiles, Far 1850524B/88 tiles
+2026-10-02T02:06:06.6436395Z   Wetland: Medium 0B/0 tiles, Far 1116672B/39 tiles
+2026-10-02T02:06:06.6436786Z   Beach: Medium 0B/0 tiles, Far 254164B/13 tiles
+2026-10-02T02:06:06.6437156Z   Island: Medium 0B/0 tiles, Far 0B/0 tiles
+2026-10-02T02:06:06.6437517Z   Ocean: Medium 0B/0 tiles, Far 10944B/1 tiles
+2026-10-02T02:06:08.0169548Z Prefetch cache (-4,4): 1450 visual tiles, 739234 triangles, 56682928 capacity bytes; largest tile 125856 bytes
+2026-10-02T02:06:09.2449636Z Prefetch cache (5,5): 1450 visual tiles, 679471 triangles, 50001292 capacity bytes; largest tile 125856 bytes
+2026-10-02T02:06:10.6141073Z Prefetch cache (-8,-5): 1450 visual tiles, 716391 triangles, 53041412 capacity bytes; largest tile 111872 bytes
+2026-10-02T02:06:11.5594983Z Prefetch cache (20,0): 1450 visual tiles, 394993 triangles, 26166236 capacity bytes; largest tile 75920 bytes
+2026-10-02T02:06:13.0312950Z Prefetch cache (-32,15): 1450 visual tiles, 570404 triangles, 35691208 capacity bytes; largest tile 58120 bytes
+2026-10-02T02:06:14.2258195Z Prefetch cache (8,-22): 1450 visual tiles, 475688 triangles, 29683096 capacity bytes; largest tile 71968 bytes
+2026-10-02T02:06:15.1951186Z Prefetch cache (20,6): 1450 visual tiles, 400715 triangles, 26644740 capacity bytes; largest tile 75920 bytes
+2026-10-02T02:06:15.9109195Z Prefetch cache (32,-2): 1450 visual tiles, 242798 triangles, 13874936 capacity bytes; largest tile 69328 bytes
+2026-10-02T02:06:17.3831339Z Prefetch cache (-32,16): 1450 visual tiles, 569748 triangles, 35539696 capacity bytes; largest tile 58120 bytes
+2026-10-02T02:06:17.3832977Z World LOD geometry tests passed
+2026-10-02T02:06:17.3875822Z Building and running world_lod_streaming tests
+2026-10-02T02:06:17.4009411Z world_lod_streaming_tests.cpp
+2026-10-02T02:06:19.0656228Z world.cpp
+2026-10-02T02:06:20.0775272Z world_geometry.cpp
+2026-10-02T02:06:20.9657418Z world_streamer.cpp
+2026-10-02T02:06:21.9243085Z Generating Code...
+2026-10-02T02:06:26.5896656Z LOD default/readiness: unchanged detail49; exact off-center missing-cell distance; disable clears visuals
+2026-10-02T02:06:26.5897957Z LOD requests: overlap tickets stable; stale epochs, wrong LOD/ticket, malformed and duplicate results rejected
+2026-10-02T02:06:26.5899231Z LOD handover: detail publishes atomically, wins overlapping cells, and remains until coarse coverage arrives
+2026-10-02T02:06:26.5900468Z LOD fallback cap: oversized departing detail is replaced with generated Far geometry without coverage holes
+2026-10-02T02:06:26.5901677Z LOD saturated handover: eviction preserves departing cells' sole coarse coverage after detail publication
+2026-10-02T02:06:26.5902844Z LOD cache cap: capacity-based accounting defers over-budget work and preserves installed coverage
+2026-10-02T02:06:26.5903917Z LOD world edge: genuine Far chunks cover the prefetch envelope beyond old detail-only limits
+2026-10-02T02:06:26.5905067Z LOD workers: blocked old-world jobs cannot install after replacement; teleport restores collision49 immediately
+2026-10-02T02:06:26.5906257Z LOD cancellation: disabling during blocked coarse builds discards queued and in-flight visual work
+2026-10-02T02:06:26.5907329Z LOD real warmup: 1450 cached tiles, 49/176/864 selected LODs, 2056m ready, 54678272 cache bytes
+2026-10-02T02:06:26.5908388Z LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates
+2026-10-02T02:06:26.5908925Z World LOD streaming tests passed.
+2026-10-02T02:06:26.5933504Z Building and running render_visibility tests
+2026-10-02T02:06:26.6063082Z render_visibility_tests.cpp
+2026-10-02T02:06:29.4446248Z Culling math: 200000 perspective (half reverse-Z) + 200000 shadow cases passed; 8-corner supports matched; no false culls against float clip oracle.
+2026-10-02T02:06:29.4448114Z Perspective oracle-visible=120022; extra conservative draws=2292 (padding/roundoff).
+2026-10-02T02:06:29.4450372Z Explicit cases passed: camera inside, near-plane intersection, edge-on zero-volume box, outside side/far planes, shadow depth-disabled caster, invalid input fallback, reverse-Z near=1/far=0 and monotonic depth.
+2026-10-02T02:06:29.4482604Z Building and running render_timing tests
+2026-10-02T02:06:29.4610282Z render_timing_tests.cpp
+2026-10-02T02:06:30.0405799Z Render timing: measured frame rates, startup/wake/reset intervals, timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.
+2026-10-02T02:06:30.0445493Z Building and running game tests
+2026-10-02T02:06:30.0570093Z game_tests.cpp
+2026-10-02T02:06:32.4850825Z game.cpp
+2026-10-02T02:06:34.6909204Z pedestrians.cpp
+2026-10-02T02:06:35.6537150Z world.cpp
+2026-10-02T02:06:36.6539708Z world_geometry.cpp
+2026-10-02T02:06:37.5382672Z visuals.cpp
+2026-10-02T02:06:38.3306610Z Generating Code...
+2026-10-02T02:09:32.0583381Z Dynamic mesh triangles: spawn 37086, urban teleport 47098
+2026-10-02T02:09:32.0584406Z PASS initialization and geometry
+2026-10-02T02:09:32.0585530Z PASS lighting activation and vehicle transforms
+2026-10-02T02:09:32.0586310Z PASS lighting capacity, range, and order
+2026-10-02T02:09:32.0587046Z PASS movement, pause, and timestep bounds
+2026-10-02T02:09:32.0588091Z PASS movement sound follows displacement and contact
+2026-10-02T02:09:32.0589023Z PASS vehicle interaction
+2026-10-02T02:09:32.0589662Z PASS vehicle boarding respects walls
+2026-10-02T02:09:32.0590475Z PASS vehicle exit requires a clear path
+2026-10-02T02:09:32.0591147Z PASS workshop bay repairs
+2026-10-02T02:09:32.0591742Z PASS workshop service boundaries
+2026-10-02T02:09:32.0592636Z PASS workshop counter first aid
+2026-10-02T02:09:32.0593125Z Populated workshop visit: 8.73333 s drive, 11.25 s walk, repair and first aid $100
+2026-10-02T02:09:32.0593986Z PASS workshop populated service visit
+2026-10-02T02:09:32.0594606Z PASS workshop interior save round trip
+2026-10-02T02:09:32.0594949Z PASS camera close walls and workshop sweep
+2026-10-02T02:09:32.0595376Z PASS boat handling and swimming
+2026-10-02T02:09:32.0595851Z PASS aircraft flight, stall, and landing
+2026-10-02T02:09:32.0596219Z PASS hard aircraft landings across frame offsets
+2026-10-02T02:09:32.0596599Z PASS aircraft altitude separates road contacts
+2026-10-02T02:09:32.0596948Z PASS ditched aircraft exit and swimming
+2026-10-02T02:09:32.0597271Z PASS aircraft exit prefers a clear dock
+2026-10-02T02:09:32.0597572Z PASS weapons and radio
+2026-10-02T02:09:32.0597835Z PASS shoulder aim and nearest hit
+2026-10-02T02:09:32.0598135Z PASS police damage respects solid walls
+2026-10-02T02:09:32.0598466Z PASS patrol detection uses altitude
+2026-10-02T02:09:32.0598772Z PASS officer detection uses altitude
+2026-10-02T02:09:32.0599109Z PASS road campaign progression and rescue unlock
+2026-10-02T02:09:32.0599457Z PASS delivery deadline and retry
+2026-10-02T02:09:32.0599750Z PASS save round trip and corruption
+2026-10-02T02:09:32.0600048Z PASS version 1 save migration
+2026-10-02T02:09:32.0600319Z PASS version 2 save migration
+2026-10-02T02:09:32.0600594Z PASS version 3 save migration
+2026-10-02T02:09:32.0600934Z PASS version 4 save migration
+2026-10-02T02:09:32.0601343Z Legacy original population: 84 -> 84
+2026-10-02T02:09:32.0601829Z Migrated neighborhood: 84 people, 50 vehicles, 16 residents travelled, 15 reached work in 150 s
+2026-10-02T02:09:32.0602339Z Legacy distant population: 84 -> 100
+2026-10-02T02:09:32.0602835Z Migrated neighborhood: 100 people, 50 vehicles, 16 residents travelled, 16 reached work in 150 s
+2026-10-02T02:09:32.0603356Z PASS authentic legacy population migration
+2026-10-02T02:09:32.0603702Z PASS resident routines save and corruption
+2026-10-02T02:09:32.0604022Z PASS seated resident save validation
+2026-10-02T02:09:32.0604337Z PASS resident save away from neighborhood
+2026-10-02T02:09:32.0604664Z PASS rescue contract and hold persistence
+2026-10-02T02:09:32.0605005Z PASS survey contract flight and landing
+2026-10-02T02:09:32.0605322Z PASS craft contract failure and recovery
+2026-10-02T02:09:32.0605652Z PASS craft loans preserve occupied vehicles
+2026-10-02T02:09:32.0605979Z PASS craft contract visuals survive load
+2026-10-02T02:09:32.0606295Z PASS Harbor Split start and objectives
+2026-10-02T02:09:32.0606633Z PASS Harbor Split failure and loan recovery
+2026-10-02T02:09:32.0606983Z PASS Harbor Split ordered gates and medal rewards
+2026-10-02T02:09:32.0607333Z PASS Harbor Split collision penalties
+2026-10-02T02:09:32.0607675Z PASS Harbor Split save interruption and corruption
+2026-10-02T02:09:32.0696587Z Harbor Split driven: 67.8333 s, peak penalty 0 s, path deviation 4.2646 m, bike health 100
+2026-10-02T02:09:32.0697408Z PASS Harbor Split populated control-driven course
+2026-10-02T02:09:32.0698061Z PASS unoccupied aircraft motion and persistence
+2026-10-02T02:09:32.0698674Z PASS thirty second simulation smoke
+2026-10-02T02:09:32.0699147Z 49/49 game tests passed
+2026-10-02T02:09:32.0699568Z Building and running pedestrian tests
+2026-10-02T02:09:32.0808644Z pedestrian_tests.cpp
+2026-10-02T02:09:33.2396938Z game.cpp
+2026-10-02T02:09:35.4375542Z pedestrians.cpp
+2026-10-02T02:09:36.3706309Z world.cpp
+2026-10-02T02:09:37.3631225Z world_geometry.cpp
+2026-10-02T02:09:38.2403167Z visuals.cpp
+2026-10-02T02:09:39.0269420Z Generating Code...
+2026-10-02T02:09:58.2292533Z PASS identities, pause, and unloaded residents
+2026-10-02T02:09:58.2293197Z PASS dense population work budgets
+2026-10-02T02:09:58.2293701Z Natural hour 8 arrivals in 124.667 s
+2026-10-02T02:09:58.2294188Z Natural hour 19 arrivals in 116.267 s
+2026-10-02T02:09:58.2294719Z PASS natural daily arrivals
+2026-10-02T02:09:58.2295212Z PASS physical seat slot occupancy
+2026-10-02T02:09:58.2295823Z PASS conversation interruption and recovery
+2026-10-02T02:09:58.2297953Z PASS crossing wait, commitment, and traffic yield
+2026-10-02T02:09:58.2298513Z PASS initial attachment respects roads
+2026-10-02T02:09:58.2299018Z PASS vehicle threat source and TTC
+2026-10-02T02:09:58.2299513Z PASS gunshot hearing and visibility
+2026-10-02T02:09:58.2300025Z 9/9 pedestrian tests passed
+2026-10-02T02:09:58.2341652Z Building and running workshop_lighting tests
+2026-10-02T02:09:58.2467101Z workshop_lighting_tests.cpp
+2026-10-02T02:09:58.9738276Z game.cpp
+2026-10-02T02:10:01.1627354Z pedestrians.cpp
+2026-10-02T02:10:02.1077958Z world.cpp
+2026-10-02T02:10:03.0998313Z world_geometry.cpp
+2026-10-02T02:10:03.9733815Z visuals.cpp
+2026-10-02T02:10:04.7548201Z Generating Code...
+2026-10-02T02:10:05.8404557Z Authored workshop: 8 powered lights retained at bay, counter and approach by day/night; 416 luminous vertices.
+2026-10-02T02:10:05.8406265Z Workshop lighting: constant fixture energy, ordinary night scaling, weather independence, input validation, range culling, stable 64-light selection, useful beam coverage and nearby attendant passed.
+2026-10-02T02:10:05.8449894Z Building and running pedestrian_visuals tests
+2026-10-02T02:10:05.8579373Z pedestrian_visuals_tests.cpp
+2026-10-02T02:10:06.5982306Z game.cpp
+2026-10-02T02:10:08.7761509Z pedestrians.cpp
+2026-10-02T02:10:09.7189051Z world.cpp
+2026-10-02T02:10:10.7172094Z world_geometry.cpp
+2026-10-02T02:10:11.5922344Z visuals.cpp
+2026-10-02T02:10:12.3727047Z Generating Code...
+2026-10-02T02:10:13.4752682Z Seated contact: 8 authored pelvis anchors at both detail levels, grounded feet and clear thighs passed.
+2026-10-02T02:10:13.4754562Z Pedestrian visuals: stationary feet, displacement-driven stride, conversation/startle/run gestures, stock-check pencil contact and downward gaze, real parcel ownership, stable identity, pose blending and finite normals passed.
+2026-10-02T02:10:13.4794839Z Building and running audio tests
+2026-10-02T02:10:13.4929311Z audio_tests.cpp
+2026-10-02T02:10:14.2880202Z audio.cpp
+2026-10-02T02:10:15.4335636Z Generating Code...
+2026-10-02T02:10:21.3722822Z Procedural audio: stations, stereo, finite peaks, silence, four engines, ambience, five contact surfaces, alternating steps/cadence, water strokes, tire scrub/gating, transitions, weather, siren, shot, pause, gain, device rates and buffer determinism passed.
+2026-10-02T02:10:21.3764647Z Building and running world_audio tests
+2026-10-02T02:10:21.3888103Z world_audio_tests.cpp
+2026-10-02T02:10:23.4637592Z World audio worst mix: rate=8000 samples=23760 render_wall_ms=87.042 process_cpu_ms=87.000 audio_seconds=2.970 cpu_realtime_fraction=0.02929 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=111.531756
+2026-10-02T02:10:23.9253171Z World audio worst mix: rate=44100 samples=132120 render_wall_ms=461.535 process_cpu_ms=461.000 audio_seconds=2.996 cpu_realtime_fraction=0.15388 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=603.361078
+2026-10-02T02:10:24.4252649Z World audio worst mix: rate=48000 samples=144000 render_wall_ms=499.866 process_cpu_ms=500.000 audio_seconds=3.000 cpu_realtime_fraction=0.16667 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=647.002120
+2026-10-02T02:10:25.4163919Z World audio worst mix: rate=96000 samples=288000 render_wall_ms=990.811 process_cpu_ms=991.000 audio_seconds=3.000 cpu_realtime_fraction=0.33033 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=1209.677793
+2026-10-02T02:10:29.2553132Z World audio worst mix: rate=384000 samples=1152000 render_wall_ms=3839.009 process_cpu_ms=3839.000 audio_seconds=3.000 cpu_realtime_fraction=1.27967 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=4710.110256
+2026-10-02T02:10:29.2556381Z World audio: spatial gains, serials, epochs, admission, pause, expiry, deterministic partitions/order, surfaces, transitions, fixed capacities, malformed input, zero allocations and sample rates passed.
+2026-10-02T02:10:29.2590990Z Building and running audio_output tests
+2026-10-02T02:10:29.2715890Z audio_output_tests.cpp
+2026-10-02T02:10:30.3596589Z Audio output: exact PCM endpoints/midpoints, all valid-bit precisions, float identity, mono/surround silence, bounded writes, malformed formats, finite clipping, device-reopen shot priming and coherent publication passed.
+2026-10-02T02:10:30.3629297Z Building and running world_audio_scene tests
+2026-10-02T02:10:30.3752713Z world_audio_scene_tests.cpp
+2026-10-02T02:10:32.4022402Z game.cpp
+2026-10-02T02:10:34.6001706Z pedestrians.cpp
+2026-10-02T02:10:35.5547393Z world.cpp
+2026-10-02T02:10:36.5530307Z world_geometry.cpp
+2026-10-02T02:10:37.4351898Z visuals.cpp
+2026-10-02T02:10:38.2178218Z Generating Code...
+2026-10-02T02:10:42.7780066Z PASS actual displacement, alternating landings, interpolated age, blocked/pause/seat/air/death suppression
+2026-10-02T02:10:42.7781462Z PASS heartbeat, source teleport, residency loss, load epoch, camera cut and malformed listener
+2026-10-02T02:10:42.7782891Z PASS nearest eight, reorder identity, equal-power pan, cutoff, occupied/parked/dead filtering and four kinds
+2026-10-02T02:10:42.7784529Z PASS near-tie nearest-source turnover, DSP admission and retained-tail readmission without replay
+2026-10-02T02:10:42.7786012Z PASS pier contact, swimming suppression, bounded capacity, duplicate rejection and 1000 allocation-free updates (39080 bytes tracker)
+2026-10-02T02:10:42.7787619Z PASS vehicle initialization, stable update, byte-identical saves, fresh load, traffic recycle and trial replacement
+2026-10-02T02:10:42.7824519Z Building and running world_audio_integration tests
+2026-10-02T02:10:42.7952125Z world_audio_integration_tests.cpp
+2026-10-02T02:10:44.7711291Z game.cpp
+2026-10-02T02:10:46.9420702Z pedestrians.cpp
+2026-10-02T02:10:47.8895489Z world.cpp
+2026-10-02T02:10:48.9029576Z world_geometry.cpp
+2026-10-02T02:10:49.7836057Z visuals.cpp
+2026-10-02T02:10:50.5739546Z Generating Code...
+2026-10-02T02:11:01.6842903Z Live scene audio passed: people=84; vehicles=50; audioFrames=843200; maximumEngines=6; maximumFeet=2; contacts=1616; playedStrikes=52; peak=0.0188868; energy=13.307; fingerprint=11011803845137790975
+2026-10-02T02:11:01.6890669Z Building and running cinematics tests
+2026-10-02T02:11:01.7027311Z cinematics_tests.cpp
+2026-10-02T02:11:02.3955425Z world.cpp
+2026-10-02T02:11:03.4158290Z world_geometry.cpp
+2026-10-02T02:11:04.3002896Z Generating Code...
+2026-10-02T02:11:06.0626900Z Cinematic timing, dialogue, camera and skip tests passed.
+2026-10-02T02:11:06.1601163Z Built D:\a\GTA-6-ChatGPT-v0.5\GTA-6-ChatGPT-v0.5\build\Debug\MeridianCoast.exe
+2026-10-02T02:11:06.1609971Z SHA256 428247ac6eed4840c5369edc0ace218d33ec3000f8f071d2e4dcf339a63555b3
+2026-10-02T02:11:06.1989698Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -RequireTiming -RequireSpatialAudio
+2026-10-02T02:11:06.1990642Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:11:06.2033927Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:11:06.2034342Z ##[endgroup]
+2026-10-02T02:11:44.9371364Z WARP city smoke passed: 120 frames; 960 x 541 screenshot; 785 sampled colors.
+2026-10-02T02:11:44.9734894Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene streaming -RequireTiming -RequireSpatialAudio
+2026-10-02T02:11:44.9736070Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene streaming -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:11:44.9776062Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:11:44.9776465Z ##[endgroup]
+2026-10-02T02:12:17.4008899Z WARP streaming smoke passed: 120 frames; 960 x 541 screenshot; 755 sampled colors.
+2026-10-02T02:12:17.4356181Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 320 -Scene lod -TimeoutSeconds 300 -RequireTiming -RequireSpatialAudio
+2026-10-02T02:12:17.4357405Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 320 -Scene lod -TimeoutSeconds 300 -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:12:17.4415736Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:12:17.4416414Z ##[endgroup]
+2026-10-02T02:13:19.3485247Z WARP lod smoke passed: 320 frames; 960 x 541 screenshot; 488 sampled colors.
+2026-10-02T02:13:19.3805001Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -RequireTiming -RequireSpatialAudio
+2026-10-02T02:13:19.3806095Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:13:19.3844089Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:13:19.3844446Z ##[endgroup]
+2026-10-02T02:14:01.5210465Z WARP lifecycle smoke passed: 120 frames; 976 x 657 screenshot; 835 sampled colors.
+2026-10-02T02:14:01.5586143Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 1 -RequireTiming -RequireSpatialAudio
+2026-10-02T02:14:01.5587453Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 1 -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:14:01.5626145Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:14:01.5626558Z ##[endgroup]
+2026-10-02T02:14:37.7398203Z WARP lifecycle smoke passed: 120 frames; 976 x 657 screenshot; 790 sampled colors.
+2026-10-02T02:14:37.7714073Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 2 -RequireTiming -RequireSpatialAudio
+2026-10-02T02:14:37.7715399Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 2 -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:14:37.7755454Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:14:37.7755870Z ##[endgroup]
+2026-10-02T02:15:16.9229856Z WARP lifecycle smoke passed: 120 frames; 976 x 657 screenshot; 819 sampled colors.
+2026-10-02T02:15:16.9534471Z ##[group]Run ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -DisableGpuTimestamps -RequireTiming -RequireSpatialAudio
+2026-10-02T02:15:16.9535797Z [36;1m./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -DisableGpuTimestamps -RequireTiming -RequireSpatialAudio[0m
+2026-10-02T02:15:16.9574447Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+2026-10-02T02:15:16.9574808Z ##[endgroup]
+2026-10-02T02:15:59.1304390Z WARP lifecycle smoke passed: 120 frames; 976 x 657 screenshot; 835 sampled colors.
+2026-10-02T02:15:59.1668946Z ##[group]Run actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+2026-10-02T02:15:59.1669471Z with:
+2026-10-02T02:15:59.1669685Z   name: MeridianCoast-Windows-x64-Debug
+2026-10-02T02:15:59.1669962Z   if-no-files-found: warn
+2026-10-02T02:15:59.1670903Z   path: build/Debug/MeridianCoast.exe
+build/Debug/MeridianCoast.exe.sha256
+build/Debug/MeridianCoast.exe.imports.txt
+build/Debug/smoke*.bmp
+build/Debug/smoke*-report.json
+build/Debug/smoke-*.log
+build/Debug/visual-sweep.json
+
+2026-10-02T02:15:59.1671857Z   compression-level: 6
+2026-10-02T02:15:59.1672078Z   overwrite: false
+2026-10-02T02:15:59.1672287Z   include-hidden-files: false
+2026-10-02T02:15:59.1672503Z   archive: true
+2026-10-02T02:15:59.1672678Z ##[endgroup]
+2026-10-02T02:15:59.3806012Z With the provided path, there will be 38 files uploaded
+2026-10-02T02:15:59.3811397Z Artifact name is valid!
+2026-10-02T02:15:59.3813101Z Root directory input is valid!
+2026-10-02T02:15:59.5713669Z Uploading artifact: MeridianCoast-Windows-x64-Debug.zip
+2026-10-02T02:15:59.5760628Z Beginning upload of artifact content to blob storage
+2026-10-02T02:16:00.4685431Z Uploaded bytes 3437117
+2026-10-02T02:16:00.4856722Z Finished uploading artifact content to blob storage!
+2026-10-02T02:16:00.4858815Z SHA256 digest of uploaded artifact is b69e586ef47aafbb184139b9a89a9a08864b217816445531a6b8b1f4699bcc7f
+2026-10-02T02:16:00.4860532Z Finalizing artifact upload
+2026-10-02T02:16:00.6885825Z Artifact MeridianCoast-Windows-x64-Debug successfully finalized. Artifact ID 11206035485
+2026-10-02T02:16:00.6887442Z Artifact MeridianCoast-Windows-x64-Debug has been successfully uploaded! Final size is 3437117 bytes. Artifact ID is 11206035485
+2026-10-02T02:16:00.6893401Z Artifact download URL: https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36953945222/artifacts/11206035485
+2026-10-02T02:16:00.7097590Z Cleaning up orphan processes
+2026-10-02T02:16:00.7328746Z Terminate orphan process: pid (7784) (vctip)
+

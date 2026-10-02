@@ -1,0 +1,10 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Market capture: scene=market-tea; hour=14; people=84; eye=81.8,2.35,50.9; target=87.35,1.38,54
+Smoke scene: market-tea
+Distant startup: ms=197.637; ready=2059.76; cacheTiles=1450; cacheBytes=54678272; selected=1089
+World revision 1 / render 1453: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=8; completed=8; pending=0; samples=8; gpuSamples=8; invalid=0; latest=8; cpuMean=151.677787; cpuMax=241.685000; waitMean=128.045725; prepareMean=1.115650; recordMean=18.687712; presentMean=3.827925; gpuMean=248.874650; gpuMax=285.993200; worldCalls=1; worldMean=37.435700; worldMax=37.435700
+Spatial audio: snapshots=8; engineHistories=27; footHistories=84; contacts=0; renewals=0; rejected=0; duplicateIds=0; capacityDrops=0
+Exit 0 after 8 frames

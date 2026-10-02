@@ -21,9 +21,9 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `6faf9dcfb339a06a5a8a436b7fc7f2e319dc4045`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 08 below.
-- Native Release/Debug, system-import audits, 49 gameplay suites, 34 additional
+- Latest verified executable: `8b166eee5b7e9d028d48ed10eede343815a40d40`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 09 below.
+- Native Release/Debug, system-import audits, 49 gameplay suites, 39 additional
   scene captures, timing fallback and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
 - This remains a very early game, far below the full target. No claim of AAA
@@ -151,11 +151,10 @@ part of the game distribution.
     Its three distinct stocked stalls, supported canopies, fountain sculpture,
     circulation inlays and night fixtures pass focused geometry, navigation,
     lighting and five-camera checks. Source `fad1a20` passed the complete
-    17-target portable gate. It is now integrated as native candidate
-    `8b166eee5b7e9d028d48ed10eede343815a40d40`, running Windows workflow
-    `36953945222`; all 55 source hashes still match the portable gate. The loaded
-    origin contains 349,211 triangles, 1,470 above the resident source. Keep the
-    verified Milestone 08 executable until native and visual acceptance pass.
+    17-target portable gate. Source `8b166eee5b7e9d028d48ed10eede343815a40d40`
+    passed Windows workflow `36953945222` and independent visual acceptance;
+    it is promoted as Milestone 09. All 55 source hashes match the portable gate.
+    The loaded origin contains 349,211 triangles, 1,470 above the resident source.
 13. Police source checkpoint `901f56f` repairs all four lamp-overlapping officer
     starts, preserves real gunshot evidence during bounded legacy recovery, and
     passes all 92 strict and all 92 ASan/UBSan/leak checks (14 integrated / 49
@@ -163,23 +162,31 @@ part of the game distribution.
     onto market/main; frozen source `e048adf` includes natural aim/fire/reload
     captures with all 84 people and 50 vehicles retained. A per-frame guard
     preserves the captured pose and actual shot without changing normal pause.
-    Its complete 23-target gate is running. Fresh-source compatibility evidence
+    Its complete 23-target gate passes without warnings; all 70 source hashes
+    remain unchanged. Evidence is committed as `875678e`. Native validation is
+    next. Fresh-source compatibility evidence
     `b42b180` passes all six resident and five market preparations, including
     28 framed/clear sample points. Original pre-rebase history remains on
     `archive/police-before-market-28a917e`.
-14. The next authored face/material pass is isolated in
-    `/workspace/GTA-6-ChatGPT-v0.5-characters`, branch
-    `development/character-presentation`, based on police checkpoint `afe706d`.
-    Preserve all pose/prop anchors and far topology while improving near heads,
-    eyelids and stable skin/cloth/hair/eye materials. Native acceptance remains
-    a later step after local mesh, pose and shader checks.
-15. Audio device recovery is isolated in
-    `/workspace/GTA-6-ChatGPT-v0.5-audio-devices`, branch
-    `development/audio-device-recovery`, based on `e048adf`. Repair initial
-    absence of a playback device and default-device switching while the former
-    endpoint remains alive. Keep callbacks bounded, shutdown safe, and reopened
-    synthesis primed against historical gunfire/footstep replay. Device hardware
-    behavior remains unverified until it can be exercised natively.
+14. Character source `73871ac` and device-recovery source `d1f4053` are now
+    combined in `/workspace/GTA-6-ChatGPT-v0.5-presentation`, branch
+    `development/character-device-presentation`, as `4bf9242` and `216d727`.
+    Root adds four real-player portrait captures; new head, composed-pose and
+    device-state targets bring the subsequent gate to 26 targets. Character
+    strict/sanitizer checks preserve live/seated/Work/police/passenger poses and
+    repair the corpse head transform. Paired CPU initialized-scene mesh cost
+    rises by 0.073 ms; the 85-near-person stress rises by 2.110 ms. Native shader,
+    image and GPU performance acceptance remain pending.
+15. Device recovery retries initial endpoint absence and observes live default
+    changes. Callbacks retain safe wake-handle ownership, teardown unregisters
+    and joins safely, and fresh synthesis primes historical transients. Strict,
+    sanitizer, concurrency and prior audio checks pass. Independent backend
+    review finds no blocker; native compilation and physical device behavior
+    remain unverified.
+16. Build-object reuse is isolated on `development/build-object-reuse` based on
+    `216d727`. Compile shared units once per invocation while preserving separate
+    assertion-enabled test objects, application flags and clean output. Do not
+    alter the frozen police native candidate; integrate after portable review.
 
 ### Integrated workshop source (verified in Milestone 07)
 
@@ -780,3 +787,48 @@ that with improved authored faces and stable character material response.
 | Missions and story | 0.5/10 | Six contracts and a repeatable trial persist correctly, but campaign scale, characterization and cinematic production remain small. |
 | Audio | 0.5/10 | Bounded spatial engines and actual pedestrian contacts pass native publication and synthesis tests; voices, rich acoustics and native listening remain absent or unverified. |
 | Performance and stability | 0.5/10 | Forty-four native launches and all graphics lifecycle checks pass, but hardware target performance and extended crash-free play are not established. |
+
+## Milestone 09 — Tide Hall Market, 2026-10-02
+
+Source `8b166eee5b7e9d028d48ed10eede343815a40d40` passes native workflow
+`36953945222` and independent visual review. The promoted single executable is
+1,131,520 bytes, SHA256
+`aba26acb90e36a909ccfd2cb592eecfff95b788f06855939a409cc9d7eddb4bd`.
+It is a PE32+ AMD64 image, with embedded shaders and the same seven Windows
+system imports. Evidence and publication provenance are in
+`validation/milestone-09/final/`.
+
+The authored plaza gains three stocked stalls, supported copper canopies,
+stone circulation inlays, a fountain sculpture and warm night fixtures. Resident
+destinations and routes remain intact. Both reviewers accepted five new market
+views and the changed Work view; root inspected all fifteen changed common
+captures. Twenty-two other captures are byte-identical to Milestone 08. Coarse
+fruit/bread meshes, simple materials, sparse activity and repeated city blocks
+remain visible quality limits.
+
+Both configurations compile ten embedded shader variants and pass all seventeen
+test targets without compiler warnings. Release passes 42 launches / 872 frames;
+Debug passes seven launches / 1,040 frames, for 49 launches / 1,912 frames total.
+Both streaming routes, actual debug-layer checks, 4x/1x/2x lifecycle paths and
+disabled GPU timing pass. Each rendered frame has exactly one spatial-audio
+publication, with bounded histories and no malformed, duplicate or dropped
+sources. Graphics smoke deliberately leaves the audio device unopened.
+
+Release city / legacy streaming / LOD processes take 28.918 / 23.283 / 41.683
+seconds; the city GPU timestamp mean is 230.588 ms on WARP. These scopes differ,
+and cross-run variation prevents claiming a speedup. Hardware DXR, RTX 4070
+1440p/60, physical audio/device switching, controllers, clean Windows 10 and
+long native soaks remain unverified. Next is native validation of observed
+police behavior and physical gunfire, followed by the character/device candidate.
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | The large procedural world gains a distinct authored market, but repetitive blocks and sparse interiors remain far below the benchmark. |
+| Visual fidelity | 0.5/10 | Inspected stalls, supports and night lights work; coarse props, basic faces, materials and atmosphere remain visibly rudimentary. |
+| World density and life | 0.5/10 | Resident routines persist through the plaza changes, while crowds and ambient activity remain sparse. |
+| Vehicles and driving | 1/10 | Four vehicle classes, the trial and workshop remain validated, with limited handling, damage and traffic interaction. |
+| On-foot and combat | 0.5/10 | Existing movement and weapon actions function; the new physical police encounters await native acceptance. |
+| NPC and police AI | 0.5/10 | Resident routes and reactions remain tested, while the more grounded police simulation is still outside the promoted build. |
+| Missions and story | 0.5/10 | Six contracts and a repeatable trial remain a small campaign without the benchmark's narrative breadth or performances. |
+| Audio | 0.5/10 | Generated radio and spatial world sounds pass tests; voice acting, rich acoustics and native listening remain absent or unverified. |
+| Performance and stability | 0.5/10 | Forty-nine isolated native launches pass, but target hardware performance and extended crash-free play are not established. |

@@ -1,0 +1,126 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Smoke scene: lod
+World revision 1 / render 58: 737973 detailed vertices, 349211 detailed triangles; selected tiles=104
+World revision 1 / render 148: 737973 detailed vertices, 349211 detailed triangles; selected tiles=194
+World revision 1 / render 180: 737973 detailed vertices, 349211 detailed triangles; selected tiles=226
+World revision 1 / render 214: 737973 detailed vertices, 349211 detailed triangles; selected tiles=260
+World revision 1 / render 248: 737973 detailed vertices, 349211 detailed triangles; selected tiles=294
+World revision 1 / render 292: 737973 detailed vertices, 349211 detailed triangles; selected tiles=338
+World revision 1 / render 326: 737973 detailed vertices, 349211 detailed triangles; selected tiles=372
+World revision 1 / render 368: 737973 detailed vertices, 349211 detailed triangles; selected tiles=414
+World revision 1 / render 400: 737973 detailed vertices, 349211 detailed triangles; selected tiles=446
+World revision 1 / render 434: 737973 detailed vertices, 349211 detailed triangles; selected tiles=480
+World revision 1 / render 468: 737973 detailed vertices, 349211 detailed triangles; selected tiles=514
+World revision 1 / render 502: 737973 detailed vertices, 349211 detailed triangles; selected tiles=548
+World revision 1 / render 536: 737973 detailed vertices, 349211 detailed triangles; selected tiles=582
+World revision 1 / render 570: 737973 detailed vertices, 349211 detailed triangles; selected tiles=616
+World revision 1 / render 612: 737973 detailed vertices, 349211 detailed triangles; selected tiles=658
+World revision 1 / render 646: 737973 detailed vertices, 349211 detailed triangles; selected tiles=692
+World revision 1 / render 688: 737973 detailed vertices, 349211 detailed triangles; selected tiles=734
+World revision 1 / render 720: 737973 detailed vertices, 349211 detailed triangles; selected tiles=766
+World revision 1 / render 754: 737973 detailed vertices, 349211 detailed triangles; selected tiles=800
+World revision 1 / render 788: 737973 detailed vertices, 349211 detailed triangles; selected tiles=834
+World revision 1 / render 836: 737973 detailed vertices, 349211 detailed triangles; selected tiles=882
+World revision 1 / render 882: 737973 detailed vertices, 349211 detailed triangles; selected tiles=928
+World revision 1 / render 916: 737973 detailed vertices, 349211 detailed triangles; selected tiles=962
+World revision 1 / render 952: 737973 detailed vertices, 349211 detailed triangles; selected tiles=998
+World revision 1 / render 988: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1034
+World revision 1 / render 1024: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1070
+World revision 1 / render 1052: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1088: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1124: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1168: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1200: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1234: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1270: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1311: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1344: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1378: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1411: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1444: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+World revision 1 / render 1453: 737973 detailed vertices, 349211 detailed triangles; selected tiles=1089
+LOD phase 0: center=0,0; epoch=1; detail=49; medium=176; far=864; ready=2051.77; fogEnd=2000; cacheBytes=54678272; fallbackBytes=0; residentBytes=72448468; uploaded=1265; uploadedDetail=49; uploadedMedium=176; uploadedFar=1040; tlasBuilds=0; rayInstances=0; mainDrawn=324; mainCulled=765; shadowDrawn=36; shadowCulled=189; batches=0; retiredBytes=0; ordinaryWaits=0; pressureWaits=0; repacks=0; frame=39
+World revision 2 / render 1466: 734691 detailed vertices, 347447 detailed triangles; selected tiles=1089
+World revision 2 / render 1502: 734691 detailed vertices, 347447 detailed triangles; selected tiles=1089
+World revision 2 / render 1506: 734691 detailed vertices, 347447 detailed triangles; selected tiles=1089
+LOD phase 1: center=1,0; epoch=1; detail=49; medium=191; far=849; ready=2051.77; fogEnd=2000; cacheBytes=54852224; fallbackBytes=0; residentBytes=71975116; uploaded=1327; uploadedDetail=56; uploadedMedium=198; uploadedFar=1073; tlasBuilds=0; rayInstances=0; mainDrawn=324; mainCulled=765; shadowDrawn=38; shadowCulled=202; batches=0; retiredBytes=0; ordinaryWaits=0; pressureWaits=0; repacks=0; frame=43
+World revision 3 / render 1525: 468014 detailed vertices, 202986 detailed triangles; selected tiles=297
+World revision 3 / render 1573: 468014 detailed vertices, 202986 detailed triangles; selected tiles=345
+World revision 3 / render 1652: 468014 detailed vertices, 202986 detailed triangles; selected tiles=424
+World revision 3 / render 1684: 468014 detailed vertices, 202986 detailed triangles; selected tiles=456
+World revision 3 / render 1718: 468014 detailed vertices, 202986 detailed triangles; selected tiles=490
+World revision 3 / render 1749: 468014 detailed vertices, 202986 detailed triangles; selected tiles=521
+World revision 3 / render 1785: 468014 detailed vertices, 202986 detailed triangles; selected tiles=557
+World revision 3 / render 1818: 468014 detailed vertices, 202986 detailed triangles; selected tiles=590
+World revision 3 / render 1858: 468014 detailed vertices, 202986 detailed triangles; selected tiles=630
+World revision 3 / render 1899: 468014 detailed vertices, 202986 detailed triangles; selected tiles=671
+World revision 3 / render 1945: 468014 detailed vertices, 202986 detailed triangles; selected tiles=717
+World revision 3 / render 1983: 468014 detailed vertices, 202986 detailed triangles; selected tiles=755
+World revision 3 / render 2021: 468014 detailed vertices, 202986 detailed triangles; selected tiles=793
+World revision 3 / render 2060: 468014 detailed vertices, 202986 detailed triangles; selected tiles=832
+World revision 3 / render 2094: 468014 detailed vertices, 202986 detailed triangles; selected tiles=866
+World revision 3 / render 2133: 468014 detailed vertices, 202986 detailed triangles; selected tiles=905
+World revision 3 / render 2169: 468014 detailed vertices, 202986 detailed triangles; selected tiles=941
+World revision 3 / render 2210: 468014 detailed vertices, 202986 detailed triangles; selected tiles=982
+World revision 3 / render 2256: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1028
+World revision 3 / render 2286: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1058
+World revision 3 / render 2321: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2351: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2385: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2421: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2441: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2475: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2505: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2535: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2569: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2599: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2633: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2664: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+World revision 3 / render 2689: 468014 detailed vertices, 202986 detailed triangles; selected tiles=1089
+LOD phase 2: center=-25,-5; epoch=1; detail=49; medium=176; far=864; ready=2048.31; fogEnd=2000; cacheBytes=41114632; fallbackBytes=0; residentBytes=51000680; uploaded=2396; uploadedDetail=105; uploadedMedium=374; uploadedFar=1917; tlasBuilds=0; rayInstances=0; mainDrawn=359; mainCulled=730; shadowDrawn=38; shadowCulled=187; batches=0; retiredBytes=0; ordinaryWaits=0; pressureWaits=0; repacks=0; frame=76
+World revision 4 / render 2708: 276656 detailed vertices, 120372 detailed triangles; selected tiles=65
+World revision 4 / render 2734: 276656 detailed vertices, 120372 detailed triangles; selected tiles=91
+World revision 4 / render 2802: 276656 detailed vertices, 120372 detailed triangles; selected tiles=159
+World revision 4 / render 2851: 276656 detailed vertices, 120372 detailed triangles; selected tiles=208
+World revision 4 / render 2902: 276656 detailed vertices, 120372 detailed triangles; selected tiles=259
+World revision 4 / render 2941: 276656 detailed vertices, 120372 detailed triangles; selected tiles=298
+World revision 4 / render 2979: 276656 detailed vertices, 120372 detailed triangles; selected tiles=336
+World revision 4 / render 3031: 276656 detailed vertices, 120372 detailed triangles; selected tiles=388
+World revision 4 / render 3081: 276656 detailed vertices, 120372 detailed triangles; selected tiles=438
+World revision 4 / render 3115: 276656 detailed vertices, 120372 detailed triangles; selected tiles=472
+World revision 4 / render 3162: 276656 detailed vertices, 120372 detailed triangles; selected tiles=519
+World revision 4 / render 3206: 276656 detailed vertices, 120372 detailed triangles; selected tiles=563
+World revision 4 / render 3242: 276656 detailed vertices, 120372 detailed triangles; selected tiles=599
+World revision 4 / render 3294: 276656 detailed vertices, 120372 detailed triangles; selected tiles=651
+World revision 4 / render 3336: 276656 detailed vertices, 120372 detailed triangles; selected tiles=693
+World revision 4 / render 3384: 276656 detailed vertices, 120372 detailed triangles; selected tiles=741
+World revision 4 / render 3424: 276656 detailed vertices, 120372 detailed triangles; selected tiles=781
+World revision 4 / render 3468: 276656 detailed vertices, 120372 detailed triangles; selected tiles=825
+World revision 4 / render 3508: 276656 detailed vertices, 120372 detailed triangles; selected tiles=865
+World revision 4 / render 3548: 276656 detailed vertices, 120372 detailed triangles; selected tiles=905
+World revision 4 / render 3580: 276656 detailed vertices, 120372 detailed triangles; selected tiles=937
+World revision 4 / render 3624: 276656 detailed vertices, 120372 detailed triangles; selected tiles=981
+World revision 4 / render 3656: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1013
+World revision 4 / render 3680: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1037
+World revision 4 / render 3713: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1070
+World revision 4 / render 3745: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3787: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3821: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3857: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3901: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3935: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 3971: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 4013: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 4053: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 4100: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 4136: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+World revision 4 / render 4142: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+LOD phase 3: center=19,2; epoch=1; detail=49; medium=176; far=864; ready=2050.8; fogEnd=2000; cacheBytes=27782736; fallbackBytes=0; residentBytes=33186716; uploaded=3661; uploadedDetail=154; uploadedMedium=550; uploadedFar=2957; tlasBuilds=0; rayInstances=0; mainDrawn=336; mainCulled=753; shadowDrawn=37; shadowCulled=188; batches=0; retiredBytes=0; ordinaryWaits=0; pressureWaits=0; repacks=0; frame=113
+World revision 4 / render 4142: 276656 detailed vertices, 120372 detailed triangles; selected tiles=1089
+LOD phase 4: center=19,2; epoch=2; detail=49; medium=176; far=864; ready=2050.8; fogEnd=2000; cacheBytes=27782736; fallbackBytes=0; residentBytes=33186716; uploaded=4750; uploadedDetail=203; uploadedMedium=726; uploadedFar=3821; tlasBuilds=0; rayInstances=0; mainDrawn=336; mainCulled=753; shadowDrawn=37; shadowCulled=188; batches=0; retiredBytes=0; ordinaryWaits=0; pressureWaits=0; repacks=0; frame=117
+LOD verified: 5 settled phases; coverage, residency, culling and epoch reset passed
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=320; completed=320; pending=0; samples=120; gpuSamples=120; invalid=0; latest=320; cpuMean=108.167922; cpuMax=116.070200; waitMean=106.040197; prepareMean=0.115216; recordMean=1.912896; presentMean=0.099053; gpuMean=109.386383; gpuMax=117.321100; worldCalls=113; worldMean=13.838123; worldMax=60.223900
+Spatial audio: snapshots=320; engineHistories=0; footHistories=0; contacts=0; renewals=0; rejected=0; duplicateIds=0; capacityDrops=0
+Exit 0 after 320 frames

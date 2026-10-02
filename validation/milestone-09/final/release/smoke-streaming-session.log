@@ -1,0 +1,24 @@
+Meridian Coast session
+Adapter: Microsoft Basic Render Driver
+DXR available: 0
+Smoke scene: streaming
+World revision 1 / render 1: 737973 detailed vertices, 349211 detailed triangles; selected tiles=49
+Streaming phase 0: center=0,0; epoch=1; chunks=49; uploaded=49; expected=49; retained=0; cpuPending=0; batches=0; fallbacks=0; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33709452; retiredBytes=0; scheduled=0; built=0; installed=0
+World revision 2 / render 2: 734691 detailed vertices, 347447 detailed triangles; selected tiles=49
+Streaming phase 1: center=1,0; epoch=1; chunks=49; uploaded=7; expected=7; retained=42; cpuPending=0; batches=0; fallbacks=0; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33557004; retiredBytes=0; scheduled=7; built=7; installed=7
+World revision 3 / render 3: 728075 detailed vertices, 344215 detailed triangles; selected tiles=49
+Streaming phase 2: center=2,0; epoch=1; chunks=49; uploaded=7; expected=7; retained=42; cpuPending=0; batches=0; fallbacks=0; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33253580; retiredBytes=0; scheduled=7; built=7; installed=7
+World revision 4 / render 4: 719919 detailed vertices, 339779 detailed triangles; selected tiles=49
+Streaming phase 3: center=3,1; epoch=1; chunks=49; uploaded=13; expected=13; retained=36; cpuPending=0; batches=0; fallbacks=0; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=32874108; retiredBytes=0; scheduled=13; built=13; installed=13
+World revision 5 / render 5: 737973 detailed vertices, 349211 detailed triangles; selected tiles=49
+Streaming phase 4: center=0,0; epoch=1; chunks=49; uploaded=25; expected=25; retained=24; cpuPending=0; batches=0; fallbacks=1; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33709452; retiredBytes=0; scheduled=0; built=0; installed=0
+World revision 6 / render 6: 276656 detailed vertices, 120372 detailed triangles; selected tiles=49
+Streaming phase 5: center=19,2; epoch=1; chunks=49; uploaded=49; expected=49; retained=0; cpuPending=0; batches=0; fallbacks=2; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=12510704; retiredBytes=0; scheduled=0; built=0; installed=0
+World revision 7 / render 7: 737973 detailed vertices, 349211 detailed triangles; selected tiles=49
+Streaming phase 6: center=0,0; epoch=1; chunks=49; uploaded=49; expected=49; retained=0; cpuPending=0; batches=0; fallbacks=3; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33709452; retiredBytes=0; scheduled=0; built=0; installed=0
+World revision 7 / render 7: 737973 detailed vertices, 349211 detailed triangles; selected tiles=49
+Streaming phase 7: center=0,0; epoch=2; chunks=49; uploaded=49; expected=49; retained=0; cpuPending=0; batches=0; fallbacks=3; ordinaryWaits=0; pressureWaits=0; repacks=0; residentBytes=33709452; retiredBytes=0; scheduled=0; built=0; installed=0
+Streaming verified: 8 settled phases; incremental uploads and epoch reset passed
+Render timing: cpu=1; gpu=1; frequency=10000000; submitted=120; completed=120; pending=0; samples=120; gpuSamples=120; invalid=0; latest=120; cpuMean=180.454544; cpuMax=205.956900; waitMean=179.211423; prepareMean=0.373107; recordMean=0.763718; presentMean=0.105498; gpuMean=191.525248; gpuMax=227.759000; worldCalls=8; worldMean=23.982500; worldMax=85.032300
+Spatial audio: snapshots=120; engineHistories=27; footHistories=84; contacts=0; renewals=0; rejected=0; duplicateIds=0; capacityDrops=0
+Exit 0 after 120 frames
