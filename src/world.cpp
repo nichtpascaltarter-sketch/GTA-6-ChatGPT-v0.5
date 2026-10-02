@@ -466,6 +466,80 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,int kind) {
     }
     for(int i=0;i<4;++i) bench(m,{x+26+i*25,h+.08f,z+41},0);
 }
+void clinicLaunch(Chunk& c) {
+    Mesh& m=c.mesh;const Vec3 origin{3090,World::WaterLevel,1080};
+    const Vec3 hullColor{.76f,.77f,.67f},trim{.18f,.25f,.24f},rescueRed{.70f,.15f,.10f};
+    constexpr float stations[]={-4.25f,-3.0f,-.8f,1.3f,3.25f,4.5f};
+    constexpr float widths[]={1.27f,1.62f,1.62f,1.48f,.95f,.07f};
+    Vec3 hull[6][6];
+    for(int row=0;row<6;++row) {
+        float bow=row/5.0f,top=.93f+.23f*bow*bow;
+        hull[row][0]=origin+Vec3{-widths[row],top,stations[row]};
+        hull[row][1]=origin+Vec3{-widths[row]*.80f,-.08f,stations[row]};
+        hull[row][2]=origin+Vec3{-widths[row]*.12f,-.56f+.28f*bow*bow,stations[row]};
+        hull[row][3]=origin+Vec3{widths[row]*.12f,-.56f+.28f*bow*bow,stations[row]};
+        hull[row][4]=origin+Vec3{widths[row]*.80f,-.08f,stations[row]};
+        hull[row][5]=origin+Vec3{widths[row],top,stations[row]};
+    }
+    for(int row=0;row<5;++row) {
+        for(int face=0;face<5;++face)addQuad(m,hull[row][face],hull[row][face+1],hull[row+1][face+1],hull[row+1][face],face==2?trim:hullColor);
+        for(float side:{-1.0f,1.0f}) {
+            Vec3 a=origin+Vec3{side*widths[row],hull[row][0].y-origin.y,stations[row]};
+            Vec3 b=origin+Vec3{side*widths[row+1],hull[row+1][0].y-origin.y,stations[row+1]};
+            branch(m,a,b,.045f,.045f,trim,5);
+            Vec3 lowA=a+Vec3{0,-.29f,0},lowB=b+Vec3{0,-.29f,0};
+            if(side<0)addQuad(m,a,lowA,lowB,b,rescueRed);
+            else addQuad(m,b,lowB,lowA,a,rescueRed);
+            Vec3 innerA=origin+Vec3{side*widths[row]*.88f,.62f,stations[row]},innerB=origin+Vec3{side*widths[row+1]*.88f,.62f,stations[row+1]};
+            if(side<0)addQuad(m,a,b,innerB,innerA,hullColor*.88f);
+            else addQuad(m,innerA,innerB,b,a,hullColor*.88f);
+        }
+        float deckHeight=row<3?.58f:1.04f;
+        addQuad(m,origin+Vec3{-widths[row]*.88f,deckHeight,stations[row]},origin+Vec3{-widths[row+1]*.88f,deckHeight,stations[row+1]},origin+Vec3{widths[row+1]*.88f,deckHeight,stations[row+1]},origin+Vec3{widths[row]*.88f,deckHeight,stations[row]},hullColor*.79f);
+    }
+    for(int end:{0,5})for(int k=1;k<5;++k) {
+        if(end==0)tri(m,hull[end][0],hull[end][k+1],hull[end][k],hullColor);
+        else tri(m,hull[end][0],hull[end][k],hull[end][k+1],hullColor);
+    }
+    // Empty treatment benches and a narrow helm leave space for mission-specific occupants.
+    for(float side:{-1.0f,1.0f}) {
+        addBox(m,origin+Vec3{side*1.03f,.76f,-1.55f},{.36f,.18f,1.25f},{.31f,.43f,.39f});
+        addBox(m,origin+Vec3{side*1.35f,1.05f,-1.55f},{.09f,.22f,1.25f},{.37f,.48f,.42f});
+        for(float z:{-2.50f,.85f})branch(m,origin+Vec3{side*1.18f,.66f,z},origin+Vec3{side*1.18f,2.56f,z},.038f,.032f,trim,5);
+    }
+    addBox(m,origin+Vec3{0,2.58f,-.80f},{1.32f,.09f,1.93f},{.81f,.80f,.67f});
+    addBox(m,origin+Vec3{0,2.60f,-2.74f},{1.33f,.12f,.06f},rescueRed);
+    addBox(m,origin+Vec3{0,1.06f,.64f},{.52f,.45f,.42f},hullColor);
+    addQuad(m,origin+Vec3{-.53f,1.44f,.99f},origin+Vec3{.53f,1.44f,.99f},origin+Vec3{.48f,1.98f,.74f},origin+Vec3{-.48f,1.98f,.74f},{.13f,.29f,.31f},1);
+    for(float side:{-1.0f,1.0f})branch(m,origin+Vec3{side*.53f,1.44f,.99f},origin+Vec3{side*.48f,1.98f,.74f},.027f,.027f,trim,5);
+    addBox(m,origin+Vec3{0,1.44f,.205f},{.33f,.05f,.055f},trim);
+    for(int spoke=0;spoke<8;++spoke) {
+        float a=2*Pi*spoke/8,b=2*Pi*(spoke+1)/8;
+        branch(m,origin+Vec3{std::cos(a)*.20f,1.26f+std::sin(a)*.20f,.17f},origin+Vec3{std::cos(b)*.20f,1.26f+std::sin(b)*.20f,.17f},.022f,.022f,trim,4);
+    }
+    // A tilted, uncovered outboard and dark propeller identify the disabled craft.
+    addBox(m,origin+Vec3{.58f,.46f,-4.53f},{.32f,.37f,.32f},trim,.24f,1);
+    addBox(m,origin+Vec3{.58f,.89f,-4.55f},{.39f,.11f,.37f},{.44f,.49f,.44f},-.32f,1);
+    branch(m,origin+Vec3{.58f,.24f,-4.53f},origin+Vec3{.58f,-.39f,-4.92f},.09f,.06f,trim,6);
+    addBox(m,origin+Vec3{.58f,-.39f,-4.95f},{.31f,.055f,.045f},trim,.38f,1);
+    for(int scar=0;scar<5;++scar)addBox(m,origin+Vec3{-1.62f,.31f+scar*.035f,-1.9f+scar*.27f},{.015f,.021f,.29f},{.36f,.37f,.29f});
+    for(float side:{-1.0f,1.0f}) {
+        Vec3 badge=origin+Vec3{side*1.337f,2.57f,-.8f};
+        addBox(m,badge,{.035f,.13f,1.62f},rescueRed);
+        signText(m,badge+Vec3{side*.041f,-.094f,0},{0,0,side},"COAST CARE",.032f,{.96f,.92f,.77f});
+    }
+    Vec3 mast=origin+Vec3{1.05f,2.66f,-2.25f};
+    branch(m,mast,mast+Vec3{-.18f,.56f,.12f},.045f,.038f,trim,5);
+    Vec3 lens=mast+Vec3{-.18f,.56f,.12f};
+    addCylinder(m,lens,.14f,.23f,{1,.12f,.055f},8,2);
+    addCylinder(m,lens+Vec3{0,.23f,0},.16f,.035f,trim,8,1);
+    c.lights.push_back({lens,18,{1,.12f,.055f},32,{0,-1,0},-1});
+    c.solids.push_back({origin+Vec3{-1.29f,-.65f,-5.02f},origin+Vec3{1.29f,1.20f,-3.0f}});
+    c.solids.push_back({origin+Vec3{-1.64f,-.65f,-3.0f},origin+Vec3{1.64f,2.71f,1.4f}});
+    c.solids.push_back({origin+Vec3{-1.15f,-.65f,1.4f},origin+Vec3{1.15f,1.18f,3.5f}});
+    c.solids.push_back({origin+Vec3{-.47f,-.40f,3.5f},origin+Vec3{.47f,1.18f,4.5f}});
+}
+
 void transportSites(Chunk& c,const World& world) {
     float x0=c.x*World::ChunkSize,z0=c.z*World::ChunkSize,x1=x0+World::ChunkSize,z1=z0+World::ChunkSize;
     auto owns=[&](float x,float z){return x>=x0&&x<x1&&z>=z0&&z<z1;};
@@ -739,6 +813,7 @@ Chunk World::generate(int cx,int cz) const {
         }
     }
     transportSites(c,*this);
+    if(cx==24&&cz==8)clinicLaunch(c);
     return c;
 }
 
@@ -833,7 +908,7 @@ const char* World::district(Vec3 p) const {
     return "MERIDIAN COAST";
 }
 const std::vector<Landmark>& World::landmarks() {
-    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,5.2f,0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"}};
+    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,5.2f,0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"},{{3090,WaterLevel,1080},"Leena's Launch"}};
     return places;
 }
 }

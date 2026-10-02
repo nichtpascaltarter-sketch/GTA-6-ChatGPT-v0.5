@@ -208,6 +208,29 @@ void lighting() {
     assert(w.blocked({11,0,24},.2f));assert(!w.blocked({12,0,24},.45f));
     std::printf("Central light sources: %zu street lamps, %zu shop/market downlights\n",lamps,shops);
 }
+void rescueLaunch() {
+    const Vec3 position{3090,World::WaterLevel,1080};World world;world.stream(position);
+    const Chunk& owner=find(world,24,8);assert(owner.solids.size()==4&&owner.lights.size()==1);validateMesh(owner.mesh);
+    assert(world.waterDepth(position.x,position.z)>1&&world.biome(position.x,position.z)==Biome::Ocean);
+    assert(world.blocked(position,1.1f));
+    for(float distance:{9.0f,12.0f,14.0f})for(Vec3 direction:{Vec3{-1,0,0},Vec3{0,0,-1}}) {
+        Vec3 approach=position+direction*distance;assert(!world.blocked(approach,1.2f));
+        assert(world.waterDepth(approach.x,approach.z)>1);
+        Vec3 from=position+direction*22,result=world.move(from,approach-from,1.2f);
+        assert(length(result-approach)<.01f);
+    }
+    const Vec3 westHit=world.move(position+Vec3{-22,0,0},{44,0,0},1.2f);
+    const Vec3 southHit=world.move(position+Vec3{0,0,-22},{0,0,44},1.2f);
+    assert(westHit.x<position.x-2.8f&&westHit.x>position.x-3.0f);
+    assert(southHit.z<position.z-6.2f&&southHit.z>position.z-6.4f);
+    const Light& beacon=owner.lights.front();
+    assert(beacon.radius==18&&beacon.intensity==32&&beacon.cone==-1);
+    assert(sameVector(beacon.color,{1,.12f,.055f}));assert(sourceOnEmissiveFace(owner.mesh,beacon.position));
+    bool mapped=false;for(const Landmark& landmark:World::landmarks())if(std::strcmp(landmark.name,"Leena's Launch")==0){mapped=true;assert(sameVector(landmark.position,position));}
+    assert(mapped);const Chunk snapshot=owner;
+    world.stream({8,0,8});world.stream(position);compareChunks(snapshot,find(world,24,8));
+    std::printf("Clinic launch: %zu owner-chunk triangles, four collision sections, attached red hazard beacon\n",snapshot.mesh.indices.size()/3);
+}
 void streamingAndSeams() {
     World w;assert(w.stream({8,0,8}));assert(w.revision==1);assert(w.chunks.size()==49);
     assert(!w.stream({127.99f,0,127.99f}));assert(w.revision==1);
@@ -262,4 +285,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();lighting();streamingAndSeams();naturalRegions();vehicleSites();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();rescueLaunch();streamingAndSeams();naturalRegions();vehicleSites();collision();std::puts("World tests passed.");}
