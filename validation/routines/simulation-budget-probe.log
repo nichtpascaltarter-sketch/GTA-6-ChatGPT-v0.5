@@ -1,0 +1,4 @@
+scenario=0; people=84; vehicles=50; frames=3600; first_us=3040.129; median_us=1060.234; p95_us=1219.339; p99_us=1414.693; max_us=3347.298; decisions=8; routes=1; expansions=162; sight=2; groups=0; waits=1; fleeing=2
+scenario=1; people=84; vehicles=50; frames=3600; first_us=3121.739; median_us=944.534; p95_us=1089.318; p99_us=1273.080; max_us=4787.105; decisions=8; routes=1; expansions=129; sight=3; groups=0; waits=2; fleeing=4
+scenario=2; people=84; vehicles=50; frames=3600; first_us=3277.121; median_us=968.777; p95_us=1106.632; p99_us=1268.120; max_us=3171.289; decisions=8; routes=1; expansions=145; sight=2; groups=0; waits=2; fleeing=3
+scenario=3; people=84; vehicles=50; frames=3600; first_us=3036.745; median_us=1139.972; p95_us=1304.542; p99_us=1493.112; max_us=7771.602; decisions=8; routes=1; expansions=129; sight=2; groups=0; waits=1; fleeing=10
