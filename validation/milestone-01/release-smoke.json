@@ -1,0 +1,10 @@
+{
+  "adapter": "D3D12 WARP",
+  "requestedFrames": 120,
+  "exitCode": 0,
+  "width": 960,
+  "height": 540,
+  "sampledColors": 889,
+  "executableSha256": "287e7c97cdfde14a16fcf3ed237d152e61824a968daf69757ae2afd6f7a12b2a",
+  "screenshotSha256": "744e10f52e3f46b8e12b325d3a461ccc7788b927c236211f754a3fea14b28469"
+}

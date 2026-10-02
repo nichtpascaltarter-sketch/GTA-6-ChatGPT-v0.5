@@ -21,8 +21,8 @@ part of the game distribution.
 - Working branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Execution environment: Linux, `g++` available, no local Windows SDK, DXC,
   Windows runtime, or GPU validation. The connected Windows desktop is offline.
-- Native Windows Release/Debug build and WARP screenshot validation are being
-  prepared in GitHub Actions. A WARP result is software-rendering evidence and
+- Native Windows Release/Debug build and WARP screenshot validation passed in
+  GitHub Actions at `1bbac2e`. A WARP result is software-rendering evidence and
   cannot establish RTX 4070 performance or DXR correctness.
 - There is no claim of a complete game, AAA visual quality, crash freedom,
   benchmark parity, or measured 1440p/60 performance.
@@ -53,24 +53,22 @@ part of the game distribution.
   on this Linux host. Tests include seams, deterministic generation, chunk reuse,
   biomes, mesh validity, high-speed collision, sliding, and overlap recovery.
 - Audio synthesis tests passed optimized warnings-as-errors and ASan/UBSan.
-- Windows executable build, launch, screenshot inspection, native audio, hardware
-  DXR, and hardware frame-time measurements are pending.
+- Windows Release/Debug executable builds, launch, screenshot inspection, and
+  debug-layer validation passed at `1bbac2e`. Native audio playback, hardware
+  DXR, and hardware frame-time measurements remain unverified.
 
 ## Active tasks
 
-1. Integrate gameplay and validate complete mission/save loops.
-2. Build both Windows configurations, fix all compilation failures, launch WARP,
-   inspect captured frames, and repair visual defects.
-3. Record exact commits, build evidence, and the first milestone scorecard.
-4. Add raster shadowing and improve scene composition, close-up characters, and
+1. Validate the new scenery/weather capture sweep and window lifecycle changes.
+2. Add raster shadowing and improve scene composition, close-up characters, and
    vehicle shapes using captured output for each change.
-5. Remove synchronous streaming stalls, add distant world representation, and
+3. Remove synchronous streaming stalls, add distant world representation, and
    include moving vehicles/characters in acceleration structures.
-6. Expand authored story, cutscenes, side activities, civilian routines, crime
+4. Expand authored story, cutscenes, side activities, civilian routines, crime
    witnesses, police tactics, driving dynamics, motorcycles, boats, and aircraft.
-7. Add true dynamic GI, volumetric atmosphere, detailed authored procedural
+5. Add true dynamic GI, volumetric atmosphere, detailed authored procedural
    materials, richer animation, interiors, crowds, and robust destruction.
-8. Measure real Windows hardware performance and reliability; optimize against
+6. Measure real Windows hardware performance and reliability; optimize against
    frame-time distributions at 2560x1440 on RTX 4070-class hardware.
 
 ## Initial scorecard — before native validation
@@ -96,3 +94,58 @@ Read this file and `git status`, then inspect the latest build results. Preserve
 existing work. Finish the active validation/repair first, append evidence and a
 scorecard at each major milestone, commit, and take the next active improvement.
 Missing features belong in this record, not as code stubs or fake menu options.
+
+## Milestone 01 — native playable core, 2026-10-02
+
+Validated source: `1bbac2e568636166d548d3f31b3fc353acfa72f7`.
+[Windows build and launch evidence](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36944872811).
+Machine-readable evidence is in `validation/milestone-01/`.
+
+Release and Debug were built with the Microsoft x64 compiler and SDK DXC. Both
+passed native world/game/audio tests and a 120-frame D3D12 WARP launch at 960x540.
+The Debug run enabled the actual D3D12 debug layer and checked corruption/error
+messages without finding any. Both captures have the same SHA256 and 889 sampled
+colors. The Release executable is 551,424 bytes and imports only `d3d12`, `dxgi`,
+`kernel32`, `ole32`, `shell32`, `user32`, and `xinput9_1_0` system DLLs.
+Release SHA256: `287e7c97cdfde14a16fcf3ed237d152e61824a968daf69757ae2afd6f7a12b2a`.
+
+Gameplay now includes walking, jumping, aimed gunfire, reloads, cars and
+motorcycles, traffic, fleeing pedestrians, patrols with wall-aware visibility,
+four completable original jobs, money, repair/ammunition purchases, and atomic
+versioned saves. Ten gameplay tests pass, including complete campaign rewards,
+invalid saves, shoulder-camera accuracy, and police wall occlusion. Initial
+eight suites plus world/audio passed ASan/UBSan; the two later combat regressions
+passed strict C++20 and native Windows tests.
+
+The first native compile exposed a local `math.h` shadowing the standard header;
+the include path was corrected and the header renamed `mc_math.h`. Review also
+fixed overlapping controller actions, hidden distant minimap objectives, map
+roads inconsistent with geography, and stale GPU geometry after loading.
+
+Visual inspection: a coherent city, street, palms, walking characters, a car,
+and legible HUD render correctly. Major weaknesses are block-shaped people and
+vehicles, repetitive buildings, pale lighting, no raster geometry shadows, very
+simple materials, and short fog-limited sightlines. Optional DXR is compiled but
+has not run on capable hardware. Native audio, controller hardware, clean Windows
+10 compatibility, and long-duration reliability have not been verified. A Linux
+CPU-only 600-frame sample of simulation plus dynamic mesh generation averaged
+0.729 ms (p95 0.853 ms, maximum 4.336 ms); this excludes rendering and is not a
+Windows or GPU performance claim.
+
+### Milestone 01 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | Twelve-kilometre procedural geography and several biomes exist, but the city visibly repeats a sparse block layout and has no dense authored interiors. |
+| Visual fidelity | 0.5/10 | Native screenshots verify simple shaded geometry and atmosphere, far below cinematic character, material, lighting, and environmental detail. |
+| World density and life | 0.5/10 | 48 vehicles and 84 pedestrians provide basic movement and reactions, without rich routines or ambient interactions. |
+| Vehicles and driving | 0.5/10 | Cars and motorcycles accelerate, steer, brake, collide, and can be entered, but lack advanced suspension, handling, deformation, boats, and aircraft. |
+| On-foot and combat | 0.5/10 | Movement, jump, aim, reload, hits, damage, and recovery work with tests, but animation and combat depth remain primitive. |
+| NPC and police AI | 0.5/10 | Patrol pursuit, wanted decay, pedestrian panic, and occluded sight/damage exist, without tactical coordination or nuanced civilian behavior. |
+| Missions and story | 0.5/10 | Four original jobs with sequential objectives, failure/retry, and rewards pass campaign tests, but have no cinematic scenes or broad campaign. |
+| Audio | 0.5/10 | Three original synthesized stations and effects pass signal tests, but no native listening test, speech, or detailed acoustic world is verified. |
+| Performance and stability | 0.5/10 | Two native 120-frame WARP runs pass with a clean debug layer; hardware 1440p/60, DXR, clean-PC coverage, and extended stability remain unmeasured. |
+
+Next milestone: directional raster shadows, better curved character/vehicle
+silhouettes, and multi-biome/weather image inspection. The full target remains
+unchanged and this scorecard is not a completion claim.
