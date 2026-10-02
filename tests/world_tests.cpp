@@ -271,12 +271,13 @@ void rescueLaunch() {
     world.stream({8,0,8});world.stream(position);compareChunks(snapshot,find(world,24,8));
     std::printf("Clinic launch: %zu owner-chunk triangles, four collision sections, attached red hazard beacon\n",snapshot.mesh.indices.size()/3);
 }
-float solidRay(const World& world,Vec3 start,Vec3 target) {
+float solidRay(const World& world,Vec3 start,Vec3 target,float radius=0) {
     const Vec3 direction=normalized(target-start);float hit=length(target-start);
     for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids) {
         float enter=0,leave=hit;bool intersects=true;
         const float p[]={start.x,start.y,start.z},d[]={direction.x,direction.y,direction.z};
-        const float lo[]={box.min.x,box.min.y,box.min.z},hi[]={box.max.x,box.max.y,box.max.z};
+        const float lo[]={box.min.x-radius,box.min.y-radius,box.min.z-radius};
+        const float hi[]={box.max.x+radius,box.max.y+radius,box.max.z+radius};
         for(int axis=0;axis<3;++axis) {
             if(std::abs(d[axis])<.000001f) {if(p[axis]<lo[axis]||p[axis]>hi[axis])intersects=false;continue;}
             const float a=(lo[axis]-p[axis])/d[axis],b=(hi[axis]-p[axis])/d[axis];
@@ -286,6 +287,52 @@ float solidRay(const World& world,Vec3 start,Vec3 target) {
         if(intersects)hit=std::min(hit,enter);
     }
     return hit;
+}
+void benchCollision() {
+    World world;world.stream({8,0,8});size_t checked=0;
+    const auto& places=World::pedestrianPlaces();
+    for(const auto& seat:places)if(seat.kind==PedestrianPlaceKind::Seat) {
+        const Vec3 facing=forward(seat.yaw),side=right(seat.yaw);
+        const Vec3 chest=seat.seatPosition+Vec3{0,.24f,0};
+        // Front and side shots, and a 20 cm camera sweep, pass through the visible
+        // empty space above the seat. The previous whole-bench collider blocked them.
+        for(Vec3 direction:{facing,side,-side,normalized(facing+side),normalized(facing-side)}) {
+            const Vec3 origin=chest+direction*4;
+            assert(close(solidRay(world,origin,chest),4,.001f));
+            assert(close(solidRay(world,origin,chest,.20f),4,.001f));
+        }
+        const Vec3 rear=chest-facing*4;
+        assert(close(solidRay(world,rear,chest),3.59f,.002f));
+        // The physical top is the same plane supporting the seated pelvis.
+        assert(close(solidRay(world,seat.seatPosition+Vec3{0,.15f,0},
+                              seat.seatPosition-Vec3{0,.35f,0}),.26f,.001f));
+        const Vec3 under=seat.seatPosition-Vec3{0,.40f,0};
+        assert(close(solidRay(world,under+facing*2,under-facing*2),4,.001f));
+        const Vec3 reached=world.move(seat.position,-facing*3,.28f);
+        assert(length(reached-seat.position)>.30f&&length(reached-seat.position)<.40f);
+        assert(!world.blocked(reached,.28f));
+        assert(world.blocked({seat.seatPosition.x,seat.position.y,seat.seatPosition.z},.28f));
+        // Each bench has exactly the four visible physical parts, including legs;
+        // this also prevents a future broad collider from silently enclosing them.
+        for(const auto& other:places)if(other.id>seat.id&&other.siteId==seat.siteId) {
+            const Vec3 base=(seat.seatPosition+other.seatPosition)*.5f-Vec3{0,.51f,0};
+            const auto hasBox=[&](Vec3 center,Vec3 half) {
+                const Vec3 extent{std::abs(side.x)*half.x+std::abs(facing.x)*half.z,
+                                  half.y,std::abs(side.z)*half.x+std::abs(facing.z)*half.z};
+                size_t matches=0;
+                for(const auto& chunk:world.chunks)for(const auto& box:chunk.solids)
+                    if(length(box.min-(center-extent))<.0001f&&length(box.max-(center+extent))<.0001f)++matches;
+                return matches==1;
+            };
+            assert(hasBox(base+Vec3{0,.34f,0},{1.3f,.06f,.40f}));
+            assert(hasBox(base-facing*.34f+Vec3{0,.70f,0},{1.3f,.30f,.07f}));
+            for(float offset:{-.92f,.92f})assert(hasBox(base+side*offset+Vec3{0,.16f,0},{.08f,.16f,.32f}));
+            assert(!hasBox(base+Vec3{0,.50f,0},{1.3f,.50f,.41f}));
+        }
+        ++checked;
+    }
+    assert(checked==8);
+    std::printf("Bench collision: %zu seats, clear front/side shots and cameras, solid backrests/seats/legs\n",checked);
 }
 void workshop() {
     static_assert(sizeof(Light)==48,"The GPU light format must stay unchanged");
@@ -549,4 +596,4 @@ void pedestrianPlaces() {
         graph.places.size(),graph.nodes.size(),graph.edges.size(),crossings,pathSamples);
 }
 }
-int main(){geometry();geography();lighting();rescueLaunch();workshop();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();pedestrianPlaces();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();rescueLaunch();benchCollision();workshop();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();pedestrianPlaces();std::puts("World tests passed.");}

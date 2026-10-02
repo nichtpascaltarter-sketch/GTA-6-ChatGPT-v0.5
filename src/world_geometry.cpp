@@ -558,10 +558,14 @@ ShelterSpec furnitureShelter(Vec3 p,float yaw) {
 Vec3 marketStall(Vec3 arcade,int index) {return arcade+Vec3{0,0,index*19.0f};}
 void bench(Chunk& chunk,const BenchSpec& spec) {
     Mesh& m=chunk.mesh;const Vec3 p=spec.origin;const float yaw=spec.yaw;
-    addBox(m,p+Vec3{0,BenchSeatTop-.06f,0},{1.3f,.06f,.40f},{.49f,.29f,.13f},yaw);
-    addBox(m,p+rotated({0,.70f,.34f},yaw),{1.3f,.30f,.07f},{.49f,.29f,.13f},yaw);
-    for(float a:{-.92f,.92f})addBox(m,p+rotated({a,.16f,0},yaw),{.08f,.16f,.32f},{.18f,.22f,.23f},yaw,1);
-    solidBox(chunk,p+Vec3{0,.50f,0},{1.3f,.50f,.41f},yaw);
+    const auto part=[&](Vec3 offset,Vec3 half,Vec3 color,float material=0) {
+        const Vec3 center=p+rotated(offset,yaw);
+        addBox(m,center,half,color,yaw,material);
+        solidBox(chunk,center,half,yaw);
+    };
+    part({0,BenchSeatTop-.06f,0},{1.3f,.06f,.40f},{.49f,.29f,.13f});
+    part({0,.70f,.34f},{1.3f,.30f,.07f},{.49f,.29f,.13f});
+    for(float a:{-.92f,.92f})part({a,.16f,0},{.08f,.16f,.32f},{.18f,.22f,.23f},1);
 }
 void streetFurniture(Chunk& chunk,Vec3 p,float yaw,uint32_t seed) {
     Mesh& m=chunk.mesh;Vec3 along=rotated({0,0,1},yaw),across=rotated({1,0,0},yaw);
