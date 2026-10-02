@@ -246,7 +246,7 @@ void playableEdgeBounds() {
         const auto result=World::buildChunk(request);
         assert(result.chunk.x==cell.first&&result.chunk.z==cell.second);
         assert(!result.chunk.mesh.vertices.empty()&&!result.chunk.mesh.indices.empty());
-        assert(result.chunk.solids.empty()&&result.chunk.lights.empty());
+        assert(result.chunk.solids.empty()&&result.chunk.lights.empty()&&result.chunk.alwaysLights.empty());
         assert(World::chunkBytes(result.chunk)<=World::MaxVisualChunkBytes);
     }
     bool rejected=false;

@@ -20,10 +20,15 @@ void equalChunks(const Chunk& a,const Chunk& b) {
         const auto& av=a.mesh.vertices[i];const auto& bv=b.mesh.vertices[i];
         assert(vectorEqual(av.position,bv.position)&&vectorEqual(av.normal,bv.normal)&&vectorEqual(av.color,bv.color)&&av.material==bv.material);
     }
-    assert(a.solids.size()==b.solids.size()&&a.lights.size()==b.lights.size());
+    assert(a.solids.size()==b.solids.size()&&a.lights.size()==b.lights.size()&&a.alwaysLights.size()==b.alwaysLights.size());
     for(size_t i=0;i<a.solids.size();++i)assert(vectorEqual(a.solids[i].min,b.solids[i].min)&&vectorEqual(a.solids[i].max,b.solids[i].max));
     for(size_t i=0;i<a.lights.size();++i) {
         const auto& al=a.lights[i];const auto& bl=b.lights[i];
+        assert(vectorEqual(al.position,bl.position)&&vectorEqual(al.color,bl.color)&&vectorEqual(al.direction,bl.direction));
+        assert(al.radius==bl.radius&&al.intensity==bl.intensity&&al.cone==bl.cone);
+    }
+    for(size_t i=0;i<a.alwaysLights.size();++i) {
+        const auto& al=a.alwaysLights[i];const auto& bl=b.alwaysLights[i];
         assert(vectorEqual(al.position,bl.position)&&vectorEqual(al.color,bl.color)&&vectorEqual(al.direction,bl.direction));
         assert(al.radius==bl.radius&&al.intensity==bl.intensity&&al.cone==bl.cone);
     }
@@ -87,6 +92,18 @@ void workerEquivalence() {
     const auto stats=service.stats();assert(stats.publications==1&&stats.synchronousFallbacks==0&&stats.installed==7&&stats.scheduled==7);
     assert(stats.pendingChunks==0&&stats.stagedBytes==0);bounds(stats);
     std::printf("Worker publication: %llu scheduled, %llu installed, no synchronous fallback\n",static_cast<unsigned long long>(stats.scheduled),static_cast<unsigned long long>(stats.installed));
+}
+void workshopWorkerGeneration() {
+    World world;world.stream({-384,0,8});WorldStreamer service;
+    for(const Chunk& chunk:world.chunks)assert(chunk.x!=1);
+    publish(service,world,{-256,0,8},37);
+    const Chunk& garage=find(world,1,0);
+    assert(!garage.alwaysLights.empty());
+    const auto expected=World::buildChunk({1,0,37,1,WorldLod::Detail});
+    equalChunks(garage,expected.chunk);
+    const auto stats=service.stats();assert(stats.synchronousFallbacks==0&&stats.installed==7);
+    bounds(stats);
+    std::puts("Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction");
 }
 std::mutex gateMutex;
 std::condition_variable gateChanged;
@@ -153,6 +170,6 @@ void builderFailures() {
 }
 }
 int main() {
-    requestProtocol();workerEquivalence();resetAndTeleport();fullQueueCancellation();builderFailures();
+    requestProtocol();workerEquivalence();workshopWorkerGeneration();resetAndTeleport();fullQueueCancellation();builderFailures();
     std::puts("World streamer tests passed.");
 }

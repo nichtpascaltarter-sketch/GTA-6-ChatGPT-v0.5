@@ -4,6 +4,12 @@
 #include <utility>
 
 namespace mc {
+GarageSite World::garageSite() {
+    return {"Harbor Motor Works",{{154,.16f,78},{184,7.76f,98}},
+        {{171,.16f,83},{179,2.4f,94}},{{157,.16f,83},{162,2.2f,87}},
+        {175,.056f,111},{175,.16f,88},{160,.16f,84.5f},{160,.16f,81},
+        {175,.16f,98},{160,.16f,98},{175,0,120},.16f,Pi};
+}
 bool World::stream(Vec3 position) {
     if(!std::isfinite(position.x)||!std::isfinite(position.z))return false;
     pending.clear();hasRequest=false;
@@ -16,7 +22,7 @@ bool World::stream(Vec3 position) {
 }
 size_t World::chunkBytes(const Chunk& chunk) {
     return chunk.mesh.vertices.capacity()*sizeof(Vertex)+chunk.mesh.indices.capacity()*sizeof(uint32_t)+
-        chunk.solids.capacity()*sizeof(Box)+chunk.lights.capacity()*sizeof(Light);
+        chunk.solids.capacity()*sizeof(Box)+(chunk.lights.capacity()+chunk.alwaysLights.capacity())*sizeof(Light);
 }
 size_t World::stagedChunkCount() const {
     size_t count=0;for(const auto& entry:pending)if(entry.ready)++count;return count;

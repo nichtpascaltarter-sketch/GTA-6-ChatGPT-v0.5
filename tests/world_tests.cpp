@@ -17,7 +17,7 @@ void validateMesh(const Mesh& m) {
         assert(std::isfinite(v.normal.x)&&std::isfinite(v.normal.y)&&std::isfinite(v.normal.z));
         assert(std::isfinite(v.color.x)&&std::isfinite(v.color.y)&&std::isfinite(v.color.z));
         assert(std::isfinite(v.material));
-        assert(close(length(v.normal),1,.001f));assert(v.material>=0&&v.material<=4);
+        assert(close(length(v.normal),1,.001f));assert(v.material>=0&&v.material<=5);
     }
 }
 void geometry() {
@@ -42,12 +42,15 @@ void compareChunks(const Chunk& original,const Chunk& restored) {
         assert(sameVector(original.solids[i].min,restored.solids[i].min));
         assert(sameVector(original.solids[i].max,restored.solids[i].max));
     }
-    assert(original.lights.size()==restored.lights.size());
-    for(size_t i=0;i<original.lights.size();++i) {
-        const auto& a=original.lights[i];const auto& b=restored.lights[i];
-        assert(sameVector(a.position,b.position)&&sameVector(a.direction,b.direction));
-        assert(sameVector(a.color,b.color)&&a.radius==b.radius&&a.intensity==b.intensity&&a.cone==b.cone);
-    }
+    const auto compareLights=[](const std::vector<Light>& first,const std::vector<Light>& second) {
+        assert(first.size()==second.size());
+        for(size_t i=0;i<first.size();++i) {
+            const auto& a=first[i];const auto& b=second[i];
+            assert(sameVector(a.position,b.position)&&sameVector(a.direction,b.direction));
+            assert(sameVector(a.color,b.color)&&a.radius==b.radius&&a.intensity==b.intensity&&a.cone==b.cone);
+        }
+    };
+    compareLights(original.lights,restored.lights);compareLights(original.alwaysLights,restored.alwaysLights);
 }
 bool insideRoadCorridor(const World& w,float x,float z) {
     // A vehicle with a one-metre radius must fit comfortably inside the road.
@@ -201,10 +204,10 @@ void groundSurfaces() {
     for(const auto& sample:samples)assert(world.groundSurface(sample.x,sample.z)==sample.surface);
     std::printf("Ground surfaces: paved roads, sidewalks and %zu path triangles; wood, soil, grass and sand independent of streaming\n",paths);
 }
-bool sourceOnEmissiveFace(const Mesh& m,Vec3 p) {
+bool sourceOnEmissiveFace(const Mesh& m,Vec3 p,float material=2) {
     for(size_t i=0;i<m.indices.size();i+=3) {
         const Vertex& a=m.vertices[m.indices[i]];const Vertex& b=m.vertices[m.indices[i+1]];const Vertex& c=m.vertices[m.indices[i+2]];
-        if(a.material!=2 || b.material!=2 || c.material!=2 || a.normal.y>-.999f)continue;
+        if(a.material!=material || b.material!=material || c.material!=material || a.normal.y>-.999f)continue;
         if(!close(a.position.y,p.y,.001f) || !close(b.position.y,p.y,.001f) || !close(c.position.y,p.y,.001f))continue;
         auto side=[](Vec3 p0,Vec3 p1,Vec3 point){return (p1.x-p0.x)*(point.z-p0.z)-(p1.z-p0.z)*(point.x-p0.x);};
         float ab=side(a.position,b.position,p),bc=side(b.position,c.position,p),ca=side(c.position,a.position,p);
@@ -266,6 +269,105 @@ void rescueLaunch() {
     world.stream({8,0,8});world.stream(position);compareChunks(snapshot,find(world,24,8));
     std::printf("Clinic launch: %zu owner-chunk triangles, four collision sections, attached red hazard beacon\n",snapshot.mesh.indices.size()/3);
 }
+float solidRay(const World& world,Vec3 start,Vec3 target) {
+    const Vec3 direction=normalized(target-start);float hit=length(target-start);
+    for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids) {
+        float enter=0,leave=hit;bool intersects=true;
+        const float p[]={start.x,start.y,start.z},d[]={direction.x,direction.y,direction.z};
+        const float lo[]={box.min.x,box.min.y,box.min.z},hi[]={box.max.x,box.max.y,box.max.z};
+        for(int axis=0;axis<3;++axis) {
+            if(std::abs(d[axis])<.000001f) {if(p[axis]<lo[axis]||p[axis]>hi[axis])intersects=false;continue;}
+            const float a=(lo[axis]-p[axis])/d[axis],b=(hi[axis]-p[axis])/d[axis];
+            enter=std::max(enter,std::min(a,b));leave=std::min(leave,std::max(a,b));
+            if(enter>leave)intersects=false;
+        }
+        if(intersects)hit=std::min(hit,enter);
+    }
+    return hit;
+}
+void workshop() {
+    static_assert(sizeof(Light)==48,"The GPU light format must stay unchanged");
+    const GarageSite site=World::garageSite();World world;world.stream(site.marker);
+    assert(std::strcmp(site.name,"Harbor Motor Works")==0);
+    assert(close(site.floorHeight,.16f)&&close(site.vehicleHeading,Pi));
+    assert(close(world.height(site.marker.x,site.marker.z),site.marker.y,.00001f));
+    const Chunk& owner=find(world,1,0);validateMesh(owner.mesh);
+    assert(owner.alwaysLights.size()>=6&&owner.alwaysLights.size()<=10);
+    size_t allDaySources=0;for(const auto& chunk:world.chunks)allDaySources+=chunk.alwaysLights.size();
+    assert(allDaySources==owner.alwaysLights.size());
+    for(const Light& light:owner.alwaysLights) {
+        assert(light.position.x>site.shell.min.x&&light.position.x<site.shell.max.x);
+        assert(light.position.z>site.shell.min.z&&light.position.z<site.shell.max.z);
+        assert(light.position.y>2.7f&&light.position.y<site.shell.max.y);
+        assert(std::isfinite(light.radius)&&light.radius>2&&light.radius<=16);
+        assert(std::isfinite(light.intensity)&&light.intensity>0&&light.intensity<=256);
+        assert(std::isfinite(light.color.x)&&std::isfinite(light.color.y)&&std::isfinite(light.color.z));
+        assert(light.color.x>=0&&light.color.x<=1&&light.color.y>=0&&light.color.y<=1&&light.color.z>=0&&light.color.z<=1);
+        assert(light.cone>=0&&light.cone<1&&sameVector(light.direction,{0,-1,0}));
+        assert(sourceOnEmissiveFace(owner.mesh,light.position,5));
+    }
+    Chunk allocated;const size_t emptyBytes=World::chunkBytes(allocated);allocated.alwaysLights.reserve(64);
+    assert(World::chunkBytes(allocated)==emptyBytes+allocated.alwaysLights.capacity()*sizeof(Light));
+    for(Vec3 point:{site.vehicleStop,site.counter,site.staff,site.vehicleDoor,site.pedestrianDoor}) {
+        assert(close(world.height(point.x,point.z),site.floorHeight,.00001f));
+        assert(world.groundSurface(point.x,point.z)==GroundSurface::Pavement);
+        assert(!world.blocked(point,.34f));assert(hasSurfaceAt(owner.mesh,point,.025f));
+    }
+    for(int sample=0;sample<=100;++sample) {
+        const float z=98+sample*.2f,h=world.height(175,z);
+        assert(close(h,.16f*(118-z)/20,.00001f));
+        assert(world.groundSurface(175,z)==GroundSurface::Pavement);
+        assert(std::abs(h-world.height(175,z+.001f))<.00002f);
+        assert(hasSurfaceAt(owner.mesh,{175,h,z},.025f));
+    }
+    for(float z:{74.f,78.f,88.f,98.f,108.f,118.f})for(float x:{146.f,154.f,175.f,184.f,190.f}) {
+        const float h=world.height(x,z);
+        assert(std::abs(h-world.height(x+.001f,z))<.0001f);
+        assert(std::abs(h-world.height(x,z+.001f))<.0001f);
+    }
+    size_t routeSamples=0;
+    const auto traverse=[&](Vec3 start,Vec3 target,float radius) {
+        start.y=world.height(start.x,start.z);target.y=world.height(target.x,target.z);
+        Vec3 current=start;
+        for(int sample=1;sample<=128;++sample) {
+            Vec3 point=start+(target-start)*(sample/128.f);point.y=world.height(point.x,point.z);
+            assert(!world.blocked(point,radius));
+            const Vec3 reached=world.move(current,point-current,radius);
+            assert(length(reached-point)<.005f);current=point;++routeSamples;
+        }
+        const Vec3 swept=world.move(start,target-start,radius);assert(length(swept-target)<.005f);
+    };
+    traverse(site.streetAccess,site.vehicleStop,1.02f);traverse(site.vehicleStop,site.streetAccess,1.02f);
+    traverse({160,0,120},site.pedestrianDoor,.34f);traverse(site.pedestrianDoor,site.counter,.34f);
+    traverse(site.counter,site.pedestrianDoor,.34f);traverse(site.pedestrianDoor,{160,0,120},.34f);
+    for(float x:{173.f,177.f})traverse(site.vehicleStop,{x,site.floorHeight,88},.35f);
+    traverse({173,0,88},{173,0,100},.34f);traverse({173,0,100},{160,0,100},.34f);
+    traverse({160,0,100},site.counter,.34f);
+    // Thin real walls must stop a fast crossing; open portals must not stop a ray.
+    for(float x:{156.f,165.f,182.f}) {
+        const Vec3 start{x,site.floorHeight,105},target{x,site.floorHeight,90};
+        const Vec3 reached=world.move(start,target-start,.34f);
+        assert(reached.z>98&&reached.z<99.5f);
+        assert(solidRay(world,start+Vec3{0,1.4f,0},target+Vec3{0,1.4f,0})<8);
+    }
+    for(float x:{160.f,175.f}) {
+        const Vec3 start{x,site.floorHeight+1.4f,102},target{x,site.floorHeight+1.4f,90};
+        assert(close(solidRay(world,start,target),length(target-start)));
+    }
+    const Vec3 roofStart=site.vehicleStop+Vec3{0,2,0};
+    assert(solidRay(world,roofStart,roofStart+Vec3{0,12,0})<6);
+    bool mapped=false;for(const Landmark& mark:World::landmarks())if(std::strcmp(mark.name,site.name)==0) {
+        assert(length(mark.position-site.marker)<.005f);mapped=true;
+    }
+    assert(mapped);
+    for(Vec3 mission:{Vec3{12,0,24},Vec3{268,0,128}})assert(!world.blocked(mission,.45f));
+    const Chunk snapshot=owner;world.stream({4096,0,2048});world.stream(site.counter);
+    assert(world.collisionReady(site.counter));compareChunks(snapshot,find(world,1,0));
+    assert(!world.blocked(site.counter,.34f)&&!world.blocked(site.vehicleStop,1.02f));
+    const size_t triangles=world.combinedMesh().indices.size()/3;assert(triangles<350000);
+    std::printf("Harbor Motor Works: %zu clear route samples, %zu all-day lights, %zu owner triangles, %zu loaded triangles\n",
+        routeSamples,snapshot.alwaysLights.size(),snapshot.mesh.indices.size()/3,triangles);
+}
 void streamingAndSeams() {
     World w;assert(w.stream({8,0,8}));assert(w.revision==1);assert(w.chunks.size()==49);
     assert(!w.stream({127.99f,0,127.99f}));assert(w.revision==1);
@@ -320,4 +422,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();lighting();rescueLaunch();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();rescueLaunch();workshop();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();std::puts("World tests passed.");}

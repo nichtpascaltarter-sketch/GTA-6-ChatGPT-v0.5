@@ -13,9 +13,9 @@ namespace {
 constexpr std::array<WorldLod,3> Lods{WorldLod::Detail,WorldLod::Medium,WorldLod::Far};
 constexpr std::array<size_t,3> TerrainTriangles{512,160,80};
 // Flat city, signed coordinates, hills, wetlands, islands, coast, bridge and airfield.
-constexpr std::array<std::pair<int,int>,15> Samples{{
+constexpr std::array<std::pair<int,int>,16> Samples{{
     {0,0},{-1,-1},{-33,15},{8,-22},{31,-2},{19,5},{25,0},{-25,-8},{42,-18},{48,48},
-    {3,3},{-4,2},{20,5},{24,8},{-26,-8}
+    {3,3},{-4,2},{20,5},{24,8},{-26,-8},{1,0}
 }};
 bool same(Vec3 a,Vec3 b) {return a.x==b.x&&a.y==b.y&&a.z==b.z;}
 bool close(float a,float b,float tolerance=.002f) {return std::abs(a-b)<=tolerance;}
@@ -27,7 +27,7 @@ void validateMesh(const Mesh& mesh) {
         assert(std::isfinite(vertex.normal.x)&&std::isfinite(vertex.normal.y)&&std::isfinite(vertex.normal.z));
         assert(std::isfinite(vertex.color.x)&&std::isfinite(vertex.color.y)&&std::isfinite(vertex.color.z));
         assert(close(length(vertex.normal),1));
-        assert(std::isfinite(vertex.material)&&vertex.material>=0&&vertex.material<=4);
+        assert(std::isfinite(vertex.material)&&vertex.material>=0&&vertex.material<=5);
     }
 }
 void validateTriangleAreas(const Chunk& chunk) {
@@ -175,7 +175,7 @@ void chunkDeterminism() {
             }
             if(lod!=WorldLod::Detail) {
                 validateTriangleAreas(first);
-                assert(first.solids.empty()&&first.lights.empty());
+                assert(first.solids.empty()&&first.lights.empty()&&first.alwaysLights.empty());
                 assert(World::chunkBytes(first)<=World::MaxVisualChunkBytes);
             }
         }
@@ -396,7 +396,7 @@ void completeCacheBudget() {
             for(int z=-radius;z<=radius;++z)for(int x=-radius;x<=radius;++x) {
                 const Chunk chunk=chunkAt(cx+x,cz+z,lod);const size_t size=World::chunkBytes(chunk);
                 validateTriangleAreas(chunk);
-                assert(chunk.solids.empty()&&chunk.lights.empty());assert(size<=World::MaxVisualChunkBytes);
+                assert(chunk.solids.empty()&&chunk.lights.empty()&&chunk.alwaysLights.empty());assert(size<=World::MaxVisualChunkBytes);
                 bytes+=size;maximum=std::max(maximum,size);triangles+=chunk.mesh.indices.size()/3;++tiles;
                 const size_t layer=lod==WorldLod::Medium?0:1;
                 const size_t biome=static_cast<size_t>(world.biome((cx+x)*World::ChunkSize+64,(cz+z)*World::ChunkSize+64));
@@ -413,8 +413,64 @@ void completeCacheBudget() {
     }
     assert(allWithinBudget);
 }
+bool meshIntersectsSegment(const Mesh& mesh,Vec3 start,Vec3 end) {
+    const Vec3 delta=end-start;
+    for(size_t i=0;i<mesh.indices.size();i+=3) {
+        const Vec3 a=mesh.vertices[mesh.indices[i]].position;
+        const Vec3 ab=mesh.vertices[mesh.indices[i+1]].position-a;
+        const Vec3 ac=mesh.vertices[mesh.indices[i+2]].position-a;
+        const Vec3 p=cross(delta,ac);const float determinant=dot(ab,p);
+        if(std::abs(determinant)<.000001f)continue;
+        const Vec3 from=start-a;const float u=dot(from,p)/determinant;
+        if(u<0||u>1)continue;
+        const Vec3 q=cross(from,ab);const float v=dot(delta,q)/determinant;
+        if(v<0||u+v>1)continue;
+        const float t=dot(ac,q)/determinant;
+        if(t>.00001f&&t<.99999f)return true;
+    }
+    return false;
+}
+void workshopLods() {
+    const World world;const auto site=World::garageSite();
+    const auto block=describeBlock(world,1,0);
+    assert(block.buildings.size()==3);
+    for(const auto& building:block.buildings)assert(building.seed!=880009983u);
+    std::array<size_t,3> triangles{},bytes{};std::array<float,3> tops{};
+    for(size_t level=0;level<Lods.size();++level) {
+        const Chunk chunk=chunkAt(1,0,Lods[level]);validateMesh(chunk.mesh);
+        if(level) {validateTriangleAreas(chunk);assert(chunk.alwaysLights.empty()&&chunk.lights.empty()&&chunk.solids.empty());}
+        else assert(!chunk.alwaysLights.empty());
+        triangles[level]=chunk.mesh.indices.size()/3;bytes[level]=World::chunkBytes(chunk);
+        tops[level]=-100;
+        for(const Vertex& vertex:chunk.mesh.vertices) {
+            const Vec3 p=vertex.position;
+            if(p.x>=site.shell.min.x&&p.x<=site.shell.max.x&&p.z>=site.shell.min.z&&p.z<=site.shell.max.z)
+                tops[level]=std::max(tops[level],p.y);
+        }
+        assert(tops[level]>=site.shell.max.y-.01f&&tops[level]<=site.shell.max.y+.5f);
+        // Look through the actual front mesh; collision holes alone are insufficient.
+        for(float x:{160.f,175.f}) {
+            const Vec3 start{x,site.floorHeight+1.4f,102},end{x,site.floorHeight+1.4f,90};
+            assert(!meshIntersectsSegment(chunk.mesh,start,end));
+        }
+        for(float x:{156.f,165.f,182.f}) {
+            const Vec3 start{x,site.floorHeight+1.4f,102},end{x,site.floorHeight+1.4f,90};
+            assert(meshIntersectsSegment(chunk.mesh,start,end));
+        }
+        assert(meshIntersectsSegment(chunk.mesh,site.vehicleStop+Vec3{0,2,0},site.vehicleStop+Vec3{0,10,0}));
+        for(float z:{99.f,104.f,111.f,117.f}) {
+            const float h=world.height(175,z);
+            assert(meshIntersectsSegment(chunk.mesh,{175,h+.04f,z},{175,h-.04f,z}));
+        }
+    }
+    assert(close(tops[0],tops[1])&&close(tops[1],tops[2]));
+    assert(triangles[1]<triangles[0]&&triangles[2]<triangles[1]);
+    assert(bytes[1]<=World::MaxVisualChunkBytes&&bytes[2]<=World::MaxVisualChunkBytes);
+    std::printf("Workshop LODs: %zu/%zu/%zu triangles, %zu/%zu/%zu capacity bytes; open entrances and matched roof %.2fm\n",
+        triangles[0],triangles[1],triangles[2],bytes[0],bytes[1],bytes[2],tops[0]);
+}
 }
 int main() {
-    terrainSeams();chunkDeterminism();skylineShapes();landmarkShapes();vegetationAnchors();coarseRoadVisibility();completeCacheBudget();
+    terrainSeams();chunkDeterminism();skylineShapes();landmarkShapes();vegetationAnchors();coarseRoadVisibility();workshopLods();completeCacheBudget();
     std::puts("World LOD geometry tests passed");
 }

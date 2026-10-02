@@ -13,7 +13,14 @@ enum class Biome { Downtown, Residential, Countryside, Wetland, Beach, Island, O
 enum class WorldLod : uint8_t { Detail, Medium, Far };
 enum class GroundSurface { Pavement, Soil, Grass, Sand, Wood };
 struct Landmark { Vec3 position; const char* name; };
-struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights;Box bounds{};};
+// Fixed authored service locations shared by geometry, gameplay and presentation.
+struct GarageSite {
+    const char* name;
+    Box shell,serviceBay,customerArea;
+    Vec3 marker,vehicleStop,counter,staff,vehicleDoor,pedestrianDoor,streetAccess;
+    float floorHeight,vehicleHeading;
+};
+struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights,alwaysLights;Box bounds{};};
 struct RenderTileKey {
     int x=0,z=0;WorldLod lod=WorldLod::Detail;
     bool operator<(const RenderTileKey& other) const {
@@ -28,7 +35,7 @@ struct RenderTileView {RenderTileKey key;const Mesh* mesh=nullptr;Box bounds{};b
 // Value-only jobs: workers never retain a World, Game, or resident-chunk reference.
 struct ChunkBuildRequest {int x=0,z=0;uint64_t epoch=0,ticket=0;WorldLod lod=WorldLod::Detail;};
 struct ChunkBuildResult {ChunkBuildRequest request;Chunk chunk;};
-// Material: 0 matte, 1 metal, 2 window/emissive, 3 water, 4 road.
+// Material: 0 matte, 1 metal, 2 night-lit window, 3 water, 4 road, 5 always-lit emitter.
 void addBox(Mesh&,Vec3 center,Vec3 half,Vec3 color,float yaw=0,float material=0);
 void addCylinder(Mesh&,Vec3 bottom,float radius,float height,Vec3 color,int sides=8,float material=0);
 void addQuad(Mesh&,Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 color,float material=0);
@@ -78,6 +85,7 @@ public:
     Mesh combinedMesh() const;
     const char* district(Vec3 position) const;
     static const std::vector<Landmark>& landmarks();
+    static GarageSite garageSite();
     // Position along the complete winding coastal road; fraction is in [0,1].
     static Vec3 coastalRoadPoint(float fraction);
 private:
