@@ -40,40 +40,40 @@ jobs:
 
       - name: Launch D3D12 WARP and validate captured frame
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -RequireTiming -RequireSpatialAudio
 
       - name: Validate incremental streaming and world epoch reset
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 120 -Scene streaming -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 120 -Scene streaming -RequireTiming -RequireSpatialAudio
 
       - name: Validate distant coverage and visible tile residency
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 320 -Scene lod -TimeoutSeconds 300 -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe -Frames 320 -Scene lod -TimeoutSeconds 300 -RequireTiming -RequireSpatialAudio
 
       - name: Validate resize and fullscreen resource lifetime
         if: matrix.configuration == 'Debug'
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -RequireTiming -RequireSpatialAudio
 
       - name: Validate single-sample HDR resize path
         if: matrix.configuration == 'Debug'
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 1 -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 1 -RequireTiming -RequireSpatialAudio
 
       - name: Validate two-sample HDR resolve and resize
         if: matrix.configuration == 'Debug'
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 2 -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -MsaaLimit 2 -RequireTiming -RequireSpatialAudio
 
       - name: Validate CPU timing with GPU timestamps disabled
         if: matrix.configuration == 'Debug'
         shell: pwsh
-        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -DisableGpuTimestamps -RequireTiming
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle -DisableGpuTimestamps -RequireTiming -RequireSpatialAudio
 
       - name: Capture geography, weather, and vehicle scenes
         if: matrix.configuration == 'Release'
         shell: pwsh
-        run: ./tools/visual-sweep.ps1 -Executable ./build/Release/MeridianCoast.exe -Frames 8
+        run: ./tools/visual-sweep.ps1 -Executable ./build/Release/MeridianCoast.exe -Frames 8 -RequireSpatialAudio
 
       # GitHub's first-party artifact transport is CI infrastructure only. It is
       # never linked, bundled, installed, or required by the game or local build.

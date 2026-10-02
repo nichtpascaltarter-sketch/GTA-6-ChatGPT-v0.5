@@ -7,6 +7,7 @@ param(
     [string] $Scene = 'city',
     [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0,
     [switch] $RequireTiming,
+    [switch] $RequireSpatialAudio,
     [switch] $DisableGpuTimestamps
 )
 Set-StrictMode -Version Latest
@@ -92,6 +93,27 @@ $sessionText = [IO.File]::ReadAllText($sessionCopy)
 $frameMatch = [regex]::Match($sessionText, 'Exit 0 after ([0-9]+) frames')
 if (-not $frameMatch.Success -or [int] $frameMatch.Groups[1].Value -ne $Frames) {
     throw 'The session log does not confirm the requested number of rendered frames.'
+}
+# The device is intentionally unopened in isolated WARP launches. This verifies
+# production game-loop publication and bounded source tracking, not WASAPI output.
+# Old comparison binaries may omit the report; current CI requires it explicitly.
+$spatialAudio = $null
+$audioPattern = '(?m)^Spatial audio: snapshots=(?<snapshots>\d+); engineHistories=(?<engineHistories>\d+); footHistories=(?<footHistories>\d+); contacts=(?<contacts>\d+); renewals=(?<renewals>\d+); rejected=(?<rejected>\d+); duplicateIds=(?<duplicateIds>\d+); capacityDrops=(?<capacityDrops>\d+)\r?$'
+$audioMatches = [regex]::Matches($sessionText, $audioPattern)
+$audioLineCount = [regex]::Matches($sessionText, '(?m)^Spatial audio:').Count
+if ($RequireSpatialAudio -or $audioLineCount -ne 0) {
+    if ($audioMatches.Count -ne 1 -or $audioLineCount -ne 1) {
+        throw 'The session must contain exactly one complete spatial audio report.'
+    }
+    $spatialAudio = [ordered] @{}
+    foreach ($name in @('snapshots', 'engineHistories', 'footHistories', 'contacts', 'renewals', 'rejected', 'duplicateIds', 'capacityDrops')) {
+        $spatialAudio[$name] = [UInt64]::Parse($audioMatches[0].Groups[$name].Value, [Globalization.CultureInfo]::InvariantCulture)
+    }
+    if ($spatialAudio.snapshots -ne $Frames -or $spatialAudio.engineHistories -gt 256 -or
+        $spatialAudio.footHistories -gt 128 -or $spatialAudio.rejected -ne 0 -or
+        $spatialAudio.duplicateIds -ne 0 -or $spatialAudio.capacityDrops -ne 0) {
+        throw 'Spatial audio did not publish once per frame with valid, unique, bounded entity histories.'
+    }
 }
 # Historic pinned binaries used by compare-warp.ps1 predate telemetry. They may
 # omit it; a present report is always validated, and current native CI requires it.
@@ -334,6 +356,9 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     gpuTimestampsForcedDisabled = [bool] $DisableGpuTimestamps
     gpuTimestampStatus = $timingStatus
     renderTiming = $renderTiming
+    spatialAudioRequired = [bool] $RequireSpatialAudio
+    spatialAudio = $spatialAudio
+    audioDeviceTested = $false
     originalFilename = $fileName
     singleExeDirectory = $true
     windowTransitionsVerified = ($Scene -eq 'lifecycle')
