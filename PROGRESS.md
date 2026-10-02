@@ -135,16 +135,20 @@ part of the game distribution.
    ASan/UBSan/leak detection pass. Review's 1.65 vs 1.70 m boarding-headroom
    mismatch is repaired with a regression that fails the old source. Six native
    workshop captures passed and were inspected in the combined native run.
-10. Civilian routines are implemented separately on `development/neighborhood-routines`
-    in `/workspace/GTA-6-ChatGPT-v0.5-routines`, based on workshop `e7dc4f0`.
-    World owns actual outdoor places and sidewalk/crossing metadata; gameplay owns
-    bounded navigation, persistent residents, activities, groups and threat
-    reactions; renderer owns activity poses. Complete the final integrated gates,
-    rebase onto the verified main branch, preserve all story/trial tests and
-    validate the complete native candidate before promoting its executable.
+10. Civilian routines are integrated on main from `development/neighborhood-routines`.
+    Native source `c90828a` passes Release build/tests and all launches, but its
+    Work camera is hidden by noncolliding market props. Repair `408490e` adds
+    rendered-geometry visibility checks and passes all six portable natural
+    captures. Validate the repaired camera in the next combined audio candidate
+    before promoting any executable; all story and trial tests remain required.
 11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
+12. `development/tide-hall-market` in `/workspace/GTA-6-ChatGPT-v0.5-market`
+    develops the origin plaza around unchanged resident destinations and seats.
+    Its three distinct stocked stalls, supported canopies, fountain sculpture,
+    circulation inlays and night fixtures are undergoing geometry, navigation,
+    lighting and capture checks. Keep it isolated until its complete gates pass.
 
 ### Integrated workshop source (verified in Milestone 07)
 
@@ -175,11 +179,21 @@ no validation check was removed.
   day/night energy, bounded selection and geometry validity. Six capture setups
   have clear player/camera positions, and the service setup verifies its charge.
 
-### Next candidate: neighborhood routines
+### Next candidate: neighborhood routines and spatial world audio
 
-- Native workflow `36952070205` is validating exact source
-  `c90828a6794afa309f1783b9352df75a3f2c52c9` in Release and Debug. The source is
-  frozen while compilation, launches and all 34 additional captures run.
+- Native workflow `36952070205` validates exact source
+  `c90828a6794afa309f1783b9352df75a3f2c52c9`. Release passes all 37 launches /
+  832 frames, and Debug passes compilation/tests while its launches continue.
+  Visual acceptance fails because market props hide the Work subject. Evidence
+  remains under `validation/milestone-08/initial`; do not promote that executable.
+  Root and renderer independently inspected all six new views. The other five
+  activities are visible; portrait/passenger comparisons show no character
+  regression. A foreground sliver in two views is the actual fountain rim,
+  confirmed against exact mesh triangles rather than treated as corruption.
+- Camera repair `408490e` tests rendered static triangles as well as collision
+  boxes and dynamic meshes. A noncolliding-geometry regression and all six
+  natural capture preparations pass. Audio is rebased onto this corrected main
+  source; a complete combined Windows validation follows exact integration checks.
 - The combined workshop/trial/timing source passed native workflow `36950765589`
   and is the verified executable. Earlier runs and their FPS defect remain
   archived under `validation/milestone-07/initial`; final evidence is under
@@ -232,8 +246,11 @@ no validation check was removed.
   footsteps on resume or save/load under strict and sanitized builds. Device
   review repaired unsigned 8-bit silence, withheld default audio before the first
   publication, and prevented old gunfire replay when constructing a new device
-  synth. The complete 16-target portable gate is next, followed by native compile
-  and launch validation. Physical listening and actual device recovery remain
+  synth. The complete 16-target portable gate passes with all 53 source/test/shader
+  hashes stable and no compiler warnings. Tracker-only medians are 60.283/54.771
+  microseconds in natural morning/evening traces on this shared Linux host;
+  scheduling outliers remain recorded and these are not hardware frame rates.
+  Combined native compile and launch validation is next. Physical listening and actual device recovery remain
   unverified. Evidence is under the audio worktree's `validation/spatial-audio/`
   and `validation/audio-output/`; source is not yet promoted to main.
 - The following gameplay milestone will separate police severity from observed
@@ -243,8 +260,10 @@ no validation check was removed.
   change police search decisions without new evidence. Isolated perception and
   navigation modules are being implemented in
   `/workspace/GTA-6-ChatGPT-v0.5-police`, branch `development/police-perception`.
-  Game integration follows the current audio and routine gates, preserving
-  vehicle identity, old-save migration and the populated contract/trial routes.
+  Its isolated core passes 12 law and eight real-world navigation suites under
+  strict and sanitized builds. Game integration has started on the completed
+  audio source, preserving vehicle identity, old-save migration and populated
+  contract/trial routes; the core alone is not a shipped gameplay feature.
 - The evidence-only push at `58b4103` started duplicate native workflow
   `36951477521`; it was cancelled because game, shader and build source were
   unchanged from the accepted run. The next tooling batch ignores documentation
