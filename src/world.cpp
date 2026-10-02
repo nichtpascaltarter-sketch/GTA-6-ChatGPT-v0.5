@@ -1,4 +1,6 @@
 #include "world.h"
+#include "world_geometry.h"
+#include <array>
 #include <limits>
 #include <stdexcept>
 #include <utility>
@@ -9,6 +11,175 @@ GarageSite World::garageSite() {
         {{171,.16f,83},{179,2.4f,94}},{{157,.16f,83},{162,2.2f,87}},
         {175,.056f,111},{175,.16f,88},{160,.16f,84.5f},{160,.16f,81},
         {175,.16f,98},{160,.16f,98},{175,0,120},.16f,Pi};
+}
+const std::vector<PedestrianPlace>& World::pedestrianPlaces() {
+    static const std::vector<PedestrianPlace> catalog=[] {
+        std::vector<PedestrianPlace> places;const World world;
+        for(int z=-1;z<=1;++z)for(int x=-1;x<=1;++x) {
+            auto block=worldGeometry::describePedestrianPlaces(world,x,z);
+            for(auto& place:block){place.nodeIndex=0xffffffffu;places.push_back(place);}
+        }
+        std::sort(places.begin(),places.end(),[](const auto& a,const auto& b){return a.id<b.id;});
+        return places;
+    }();
+    return catalog;
+}
+bool World::validPedestrianPlace(uint32_t id) {
+    for(const auto& place:pedestrianPlaces())if(place.id==id)return true;
+    return false;
+}
+bool World::validPedestrianNode(uint32_t id) {
+    const uint32_t type=id&0xc0000000u;
+    if(type==0x40000000u||type==0x80000000u)return validPedestrianPlace(id&0x3fffffffu);
+    if(type!=0||id>>24||(id&255u)>=16)return false;
+    const uint32_t x=(id>>16)&255u,z=(id>>8)&255u;
+    return x>=63&&x<=65&&z>=63&&z<=65;
+}
+uint16_t World::pedestrianResidency() const {
+    uint16_t mask=0;
+    for(const Chunk& chunk:chunks)if(chunk.x>=-1&&chunk.x<=1&&chunk.z>=-1&&chunk.z<=1)
+        mask=uint16_t(mask|uint16_t(1u<<unsigned((chunk.z+1)*3+chunk.x+1)));
+    return mask;
+}
+PedestrianNetwork World::pedestrianNetwork(Vec3 center) const {
+    PedestrianNetwork result;result.revision=revision;
+    if(!std::isfinite(center.x)||!std::isfinite(center.z))return result;
+    const uint16_t residency=pedestrianResidency();if(!residency)return result;
+    constexpr uint32_t absent=std::numeric_limits<uint32_t>::max();
+    constexpr float radius=.28f;
+    struct Cell {int x,z;std::array<uint32_t,16> nodes;};
+    std::vector<Cell> cells;
+    std::vector<std::pair<int,int>> owners;
+    result.nodes.reserve(MaxPedestrianNodes);result.edges.reserve(MaxPedestrianEdges);
+    result.places.reserve(MaxPedestrianPlaces);owners.reserve(MaxPedestrianNodes);
+    World standingCollision;standingCollision.chunks.emplace_back();
+    auto& neighborhoodSolids=standingCollision.chunks.front().solids;
+    for(const Chunk& chunk:chunks)for(const Box& box:chunk.solids) {
+        if(box.max.x< -ChunkSize-radius||box.min.x>2*ChunkSize+radius||
+            box.max.z< -ChunkSize-radius||box.min.z>2*ChunkSize+radius)continue;
+        neighborhoodSolids.push_back(box);
+    }
+    World sweptCollision;sweptCollision.chunks.emplace_back();
+    auto& sweptSolids=sweptCollision.chunks.front().solids;sweptSolids.reserve(64);
+    const auto resident=[&](float x,float z) {
+        const int tx=int(std::floor(x/ChunkSize)),tz=int(std::floor(z/ChunkSize));
+        if(tx< -1||tx>1||tz< -1||tz>1)return false;
+        return (residency&(1u<<unsigned((tz+1)*3+tx+1)))!=0;
+    };
+    const auto stand=[&](Vec3 p) {return resident(p.x,p.z)&&!standingCollision.blocked(p,radius);};
+    const auto clear=[&](Vec3 from,Vec3 to,bool crossing) {
+        if(!stand(from)||!stand(to))return false;
+        const float distance=length(to-from);
+        if(distance>150||distance<.01f)return false;
+        if(crossing&&(distance>32||!road((from.x+to.x)*.5f,(from.z+to.z)*.5f)))return false;
+        const int samples=std::max(1,int(std::ceil(distance/4)));
+        for(int i=0;i<=samples;++i) {
+            const Vec3 point=from+(to-from)*(float(i)/samples);
+            if(!resident(point.x,point.z)||(!crossing&&road(point.x,point.z)))return false;
+        }
+        // Preserve the production swept solver while excluding solids that cannot
+        // intersect any part of this segment or its axis-aligned sliding bounds.
+        const Box bounds{{std::min(from.x,to.x)-radius,std::min(from.y,to.y),std::min(from.z,to.z)-radius},
+            {std::max(from.x,to.x)+radius,std::max(from.y,to.y)+1.7f,std::max(from.z,to.z)+radius}};
+        sweptSolids.clear();
+        for(const Box& box:neighborhoodSolids) {
+            if(box.max.x<bounds.min.x||box.min.x>bounds.max.x||box.max.y<bounds.min.y||box.min.y>bounds.max.y||
+                box.max.z<bounds.min.z||box.min.z>bounds.max.z)continue;
+            sweptSolids.push_back(box);
+        }
+        return length(sweptCollision.move(from,to-from,radius)-to)<.006f&&length(sweptCollision.move(to,from-to,radius)-from)<.006f;
+    };
+    const auto addNode=[&](uint32_t id,Vec3 p,PedestrianNodeKind kind,int x,int z) {
+        p.y=height(p.x,p.z);
+        if(result.nodes.size()>=MaxPedestrianNodes||!stand(p))return absent;
+        const auto index=static_cast<uint32_t>(result.nodes.size());
+        result.nodes.push_back({id,p,kind});owners.push_back({x,z});return index;
+    };
+    const auto edge=[&](uint32_t from,uint32_t to,uint32_t crossing=0) {
+        if(from==absent||to==absent||from==to||result.edges.size()>=MaxPedestrianEdges)return;
+        if(from>to)std::swap(from,to);
+        for(const auto& existing:result.edges)if(existing.from==from&&existing.to==to)return;
+        if(clear(result.nodes[from].position,result.nodes[to].position,crossing!=0))result.edges.push_back({from,to,crossing});
+    };
+    constexpr std::array<Vec2,16> offsets{{{13.2f,13.2f},{13.2f,16.5f},{16.5f,13.2f},
+        {114.8f,13.2f},{114.8f,16.5f},{111.5f,13.2f},
+        {114.8f,114.8f},{114.8f,111.5f},{111.5f,114.8f},
+        {13.2f,114.8f},{13.2f,111.5f},{16.5f,114.8f},
+        {13.2f,64},{114.8f,64},{64,13.2f},{64,114.8f}}};
+    std::vector<PedestrianPlace> candidates;
+    for(int z=-1;z<=1;++z)for(int x=-1;x<=1;++x) {
+        if(!resident(x*ChunkSize+64,z*ChunkSize+64))continue;
+        const Biome b=biome(x*ChunkSize+64,z*ChunkSize+64);
+        if(b!=Biome::Downtown&&b!=Biome::Residential)continue;
+        Cell cell{x,z,{}};cell.nodes.fill(absent);
+        for(uint32_t i=0;i<offsets.size();++i) {
+            const Vec3 p{x*ChunkSize+offsets[i].x,0,z*ChunkSize+offsets[i].y};
+            if(groundSurface(p.x,p.z)!=GroundSurface::Pavement)continue;
+            const uint32_t id=(uint32_t(x+64)<<16)|(uint32_t(z+64)<<8)|i;
+            cell.nodes[i]=addNode(id,p,i<12&&i%3?PedestrianNodeKind::Curb:PedestrianNodeKind::Sidewalk,x,z);
+        }
+        for(uint32_t i=0;i<12;i+=3){edge(cell.nodes[i],cell.nodes[i+1]);edge(cell.nodes[i],cell.nodes[i+2]);}
+        for(const auto& triple:std::array<std::array<int,3>,4>{{{{1,12,10}},{{4,13,7}},{{2,14,5}},{{8,15,11}}}}) {
+            edge(cell.nodes[triple[0]],cell.nodes[triple[1]]);edge(cell.nodes[triple[1]],cell.nodes[triple[2]]);
+        }
+        cells.push_back(cell);
+        auto places=worldGeometry::describePedestrianPlaces(*this,x,z);
+        candidates.insert(candidates.end(),places.begin(),places.end());
+    }
+    for(const Cell& cell:cells)for(const Cell& adjacent:cells) {
+        const uint32_t id=(uint32_t(cell.x+64)<<16)|(uint32_t(cell.z+64)<<8)|0x40u;
+        if(adjacent.x==cell.x+1&&adjacent.z==cell.z) {
+            edge(cell.nodes[4],adjacent.nodes[1],id);edge(cell.nodes[7],adjacent.nodes[10],id+1);
+        }
+        if(adjacent.x==cell.x&&adjacent.z==cell.z+1) {
+            edge(cell.nodes[8],adjacent.nodes[5],id+2);edge(cell.nodes[11],adjacent.nodes[2],id+3);
+        }
+    }
+    std::sort(candidates.begin(),candidates.end(),[](const auto& a,const auto& b) {return a.id<b.id;});
+    constexpr std::array<size_t,6> limits{16,16,6,8,8,10};std::array<size_t,6> counts{};
+    std::vector<uint32_t> approaches;
+    for(auto place:candidates) {
+        const size_t kind=static_cast<size_t>(place.kind);
+        if(kind>=counts.size()||counts[kind]>=limits[kind]||result.places.size()>=MaxPedestrianPlaces)continue;
+        if(result.nodes.size()+2>MaxPedestrianNodes)break;
+        place.position.y=height(place.position.x,place.position.z);place.approach.y=height(place.approach.x,place.approach.z);
+        if(!stand(place.position)||!stand(place.approach))continue;
+        const int x=int(std::floor(place.position.x/ChunkSize)),z=int(std::floor(place.position.z/ChunkSize));
+        if(!clear(place.position,place.approach,false))continue;
+        const uint32_t approach=addNode(place.id|0x40000000u,place.approach,PedestrianNodeKind::Place,x,z);
+        const uint32_t position=addNode(place.id|0x80000000u,place.position,PedestrianNodeKind::Place,x,z);
+        if(approach==absent||position==absent)break;
+        edge(approach,position);place.nodeIndex=position;place.capacity=1;
+        approaches.push_back(approach);result.places.push_back(place);++counts[kind];
+    }
+    // Each approach joins the nearest visible routes in its own block. These links
+    // never cut a road; curb links above are the only crossing edges.
+    for(uint32_t approach:approaches) {
+        std::vector<std::pair<float,uint32_t>> neighbors;neighbors.reserve(result.nodes.size());
+        for(uint32_t node=0;node<result.nodes.size();++node) {
+            if(node==approach||owners[node]!=owners[approach]||(result.nodes[node].id&0x80000000u))continue;
+            const Vec3 delta=result.nodes[node].position-result.nodes[approach].position;
+            neighbors.push_back({dot(delta,delta),node});
+        }
+        std::sort(neighbors.begin(),neighbors.end());int connected=0;
+        for(const auto& [distance,node]:neighbors) {
+            (void)distance;if(result.nodes[node].kind==PedestrianNodeKind::Place)continue;
+            const size_t before=result.edges.size();edge(approach,node);
+            if(result.edges.size()!=before){++connected;break;}
+        }
+        for(const auto& [distance,node]:neighbors) {
+            (void)distance;const size_t before=result.edges.size();edge(approach,node);
+            if(result.edges.size()!=before&&++connected==3)break;
+        }
+    }
+    std::vector<bool> reachable(result.nodes.size(),false);std::vector<uint32_t> frontier;
+    for(uint32_t i=0;i<result.nodes.size();++i)if(result.nodes[i].kind!=PedestrianNodeKind::Place){reachable[i]=true;frontier.push_back(i);}
+    for(size_t i=0;i<frontier.size();++i)for(const auto& link:result.edges) {
+        uint32_t other=absent;if(link.from==frontier[i])other=link.to;else if(link.to==frontier[i])other=link.from;
+        if(other!=absent&&!reachable[other]){reachable[other]=true;frontier.push_back(other);}
+    }
+    result.places.erase(std::remove_if(result.places.begin(),result.places.end(),[&](const auto& place){return !reachable[place.nodeIndex];}),result.places.end());
+    return result;
 }
 bool World::stream(Vec3 position) {
     if(!std::isfinite(position.x)||!std::isfinite(position.z))return false;

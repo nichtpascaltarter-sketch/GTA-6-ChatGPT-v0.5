@@ -20,6 +20,26 @@ struct GarageSite {
     Vec3 marker,vehicleStop,counter,staff,vehicleDoor,pedestrianDoor,streetAccess;
     float floorHeight,vehicleHeading;
 };
+enum class PedestrianPlaceKind { Home, Work, Market, Seat, Shelter, Conversation };
+enum class PedestrianNodeKind { Sidewalk, Curb, Place };
+struct PedestrianNode {uint32_t id=0;Vec3 position;PedestrianNodeKind kind=PedestrianNodeKind::Sidewalk;};
+// Undirected links use indices into PedestrianNetwork::nodes. Zero denotes a non-crossing.
+struct PedestrianEdge {uint32_t from=0,to=0,crossingId=0;};
+struct PedestrianPlace {
+    uint32_t id=0,siteId=0,nodeIndex=0xffffffffu;
+    PedestrianPlaceKind kind=PedestrianPlaceKind::Home;
+    // Navigation ends at position; seatPosition is the seated pelvis anchor, not a teleport destination.
+    Vec3 position,approach,seatPosition;
+    float yaw=0;
+    uint8_t capacity=1;
+    bool sheltered=false;
+};
+struct PedestrianNetwork {
+    uint64_t revision=0;
+    std::vector<PedestrianNode> nodes;
+    std::vector<PedestrianEdge> edges;
+    std::vector<PedestrianPlace> places;
+};
 struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights,alwaysLights;Box bounds{};};
 struct RenderTileKey {
     int x=0,z=0;WorldLod lod=WorldLod::Detail;
@@ -49,6 +69,7 @@ public:
     static constexpr int MediumRadius=7,FarRadius=16,PrefetchRadius=17;
     static constexpr size_t MaxVisualChunkBytes=256u*1024u,MaxVisualCacheBytes=64u*1024u*1024u;
     static constexpr size_t MaxDetailFallbackBytes=64u*1024u*1024u;
+    static constexpr size_t MaxPedestrianNodes=256,MaxPedestrianEdges=512,MaxPedestrianPlaces=64;
     std::vector<Chunk> chunks;
     uint64_t revision=0;
     uint64_t renderRevision=0;
@@ -86,6 +107,13 @@ public:
     const char* district(Vec3 position) const;
     static const std::vector<Landmark>& landmarks();
     static GarageSite garageSite();
+    // The authored central 3x3 neighborhood; absent collision tiles never contribute routes or places.
+    PedestrianNetwork pedestrianNetwork(Vec3 center) const;
+    uint16_t pedestrianResidency() const;
+    // Immutable authored identity catalog. It never loads collision or grants route access.
+    static const std::vector<PedestrianPlace>& pedestrianPlaces();
+    static bool validPedestrianPlace(uint32_t id);
+    static bool validPedestrianNode(uint32_t id);
     // Position along the complete winding coastal road; fraction is in [0,1].
     static Vec3 coastalRoadPoint(float fraction);
 private:

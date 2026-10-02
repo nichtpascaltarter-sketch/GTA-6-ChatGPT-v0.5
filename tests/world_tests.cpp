@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 #include <limits>
+#include <set>
+#include <array>
 
 using namespace mc;
 namespace {
@@ -421,5 +423,130 @@ void collision() {
     w.chunks.front().solids.push_back({{-10,0,9},{0,5,10}});
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
+void pedestrianPlaces() {
+    World world;assert(world.pedestrianNetwork({8,0,8}).nodes.empty());
+    assert(world.pedestrianResidency()==0);
+    const auto& catalog=World::pedestrianPlaces();assert(catalog.size()==54);
+    std::set<uint32_t> placeIds;std::array<size_t,6> kinds{};
+    for(const auto& place:catalog) {
+        assert(placeIds.insert(place.id).second&&World::validPedestrianPlace(place.id));
+        assert(place.nodeIndex==0xffffffffu&&place.capacity==1);
+        assert(World::validPedestrianNode(place.id|0x40000000u));
+        assert(World::validPedestrianNode(place.id|0x80000000u));
+        assert(!World::validPedestrianNode(place.id|0xc0000000u));
+        ++kinds[static_cast<size_t>(place.kind)];
+    }
+    assert((kinds==std::array<size_t,6>{16,16,3,8,7,4}));
+    assert(!World::validPedestrianPlace(0)&&!World::validPedestrianPlace(0xffffffffu));
+    assert(!World::validPedestrianNode(0)&&!World::validPedestrianNode(0xffffffffu));
+    world.stream({8,0,8});const auto graph=world.pedestrianNetwork({8,0,8});
+    assert(world.pedestrianResidency()==0x1ffu);
+    assert(graph.revision==world.revision&&graph.nodes.size()<=256&&graph.edges.size()<=512&&graph.places.size()==catalog.size());
+    std::set<uint32_t> nodeIds,crossingIds;std::set<std::pair<uint32_t,uint32_t>> links;
+    const auto resident=[&](Vec3 point) {
+        const int cx=int(std::floor(point.x/World::ChunkSize)),cz=int(std::floor(point.z/World::ChunkSize));
+        for(const auto& chunk:world.chunks)if(chunk.x==cx&&chunk.z==cz)return true;
+        return false;
+    };
+    for(const auto& node:graph.nodes) {
+        assert(nodeIds.insert(node.id).second&&World::validPedestrianNode(node.id));
+        assert(resident(node.position)&&!world.blocked(node.position,.28f));
+        assert(close(node.position.y,world.height(node.position.x,node.position.z),.00001f));
+    }
+    size_t crossings=0,pathSamples=0;
+    for(const auto& edge:graph.edges) {
+        assert(edge.from<graph.nodes.size()&&edge.to<graph.nodes.size()&&edge.from!=edge.to);
+        assert(links.insert({std::min(edge.from,edge.to),std::max(edge.from,edge.to)}).second);
+        const auto& a=graph.nodes[edge.from];const auto& b=graph.nodes[edge.to];
+        const Vec3 delta=b.position-a.position;
+        assert(length(world.move(a.position,delta,.28f)-b.position)<.006f);
+        assert(length(world.move(b.position,-delta,.28f)-a.position)<.006f);
+        const int samples=std::max(1,int(std::ceil(length(delta))));
+        for(int i=0;i<=samples;++i) {
+            const Vec3 point=a.position+delta*(float(i)/samples);
+            assert(resident(point)&&!world.blocked(point,.28f));
+            if(!edge.crossingId)assert(!world.road(point.x,point.z));
+            ++pathSamples;
+        }
+        if(edge.crossingId) {
+            assert(crossingIds.insert(edge.crossingId).second);++crossings;
+            assert(a.kind==PedestrianNodeKind::Curb&&b.kind==PedestrianNodeKind::Curb);
+            assert(close(length(delta),26.4f,.001f));
+            const Vec3 middle=(a.position+b.position)*.5f;
+            assert(world.road(middle.x,middle.z));
+            // Both road halves contain visible zebra paint aligned with the route.
+            bool firstHalf=false,secondHalf=false;const Vec3 direction=normalized(delta);
+            for(const auto& chunk:world.chunks)for(const auto& vertex:chunk.mesh.vertices) {
+                if(vertex.position.y<.04f||vertex.position.y>.08f||vertex.color.x<.79f||vertex.color.y<.78f||vertex.color.z<.65f)continue;
+                const Vec3 offset=vertex.position-middle;const float along=dot(offset,direction);
+                const Vec3 across=offset-direction*along;
+                if(length(across)>2||std::abs(along)>10.1f)continue;
+                if(along<-.5f)firstHalf=true;
+                if(along>.5f)secondHalf=true;
+            }
+            assert(firstHalf&&secondHalf);
+        }
+    }
+    assert(crossings==24);
+    std::vector<bool> reached(graph.nodes.size(),false);std::vector<uint32_t> queue;
+    constexpr uint32_t centralSidewalk=(64u<<16)|(64u<<8);
+    for(uint32_t i=0;i<graph.nodes.size();++i)if(graph.nodes[i].id==centralSidewalk)queue.push_back(i);
+    assert(queue.size()==1&&graph.nodes[queue.front()].kind==PedestrianNodeKind::Sidewalk);reached[queue.front()]=true;
+    for(size_t i=0;i<queue.size();++i)for(const auto& edge:graph.edges) {
+        uint32_t next=0xffffffffu;if(edge.from==queue[i])next=edge.to;else if(edge.to==queue[i])next=edge.from;
+        if(next!=0xffffffffu&&!reached[next]){reached[next]=true;queue.push_back(next);}
+    }
+    size_t seats=0,pairs=0;
+    for(const auto& place:graph.places) {
+        assert(place.nodeIndex<graph.nodes.size()&&reached[place.nodeIndex]);
+        assert(length(graph.nodes[place.nodeIndex].position-place.position)<.001f);
+        assert(length(world.move(place.approach,place.position-place.approach,.28f)-place.position)<.006f);
+        if(place.kind==PedestrianPlaceKind::Seat) {
+            ++seats;assert(hasSurfaceAt(find(world,0,0).mesh,place.seatPosition-Vec3{0,.11f,0},.015f));
+            assert(place.seatPosition.y-place.position.y>.45f&&place.seatPosition.y-place.position.y<1);
+        }
+        if(place.kind==PedestrianPlaceKind::Shelter)assert(place.sheltered);
+        if(place.kind==PedestrianPlaceKind::Conversation)for(const auto& partner:graph.places)if(partner.id>place.id&&partner.siteId==place.siteId) {
+            ++pairs;const Vec3 toward=normalized(partner.position-place.position);
+            const Vec3 facing{std::sin(place.yaw),0,std::cos(place.yaw)};
+            assert(dot(toward,facing)>.95f&&length(partner.position-place.position)>.65f);
+        }
+    }
+    assert(seats==8&&pairs==2);
+    const auto garageGraph=world.pedestrianNetwork(World::garageSite().marker);
+    assert(garageGraph.nodes.size()==graph.nodes.size()&&garageGraph.edges.size()==graph.edges.size());
+    for(size_t i=0;i<graph.nodes.size();++i)assert(graph.nodes[i].id==garageGraph.nodes[i].id);
+    // A newly introduced real obstruction must invalidate its crossing; identity alone
+    // never licenses movement through it, even without a cache/revision change.
+    for(auto& chunk:world.chunks)if(chunk.x==1&&chunk.z==0) {
+        chunk.solids.push_back({{127.5f,0,16},{128.5f,3,17}});
+        const auto obstructed=world.pedestrianNetwork({8,0,8});
+        const uint32_t closedCrossing=(64u<<16)|(64u<<8)|0x40u;
+        for(const auto& edge:obstructed.edges)assert(edge.crossingId!=closedCrossing);
+        chunk.solids.pop_back();break;
+    }
+    const uint64_t beforeRevision=world.revision;world.stream({128,0,8});
+    assert(world.revision>beforeRevision&&world.pedestrianResidency()==0x1ffu);
+    const auto shifted=world.pedestrianNetwork({128,0,8});
+    assert(shifted.nodes.size()==graph.nodes.size()&&shifted.edges.size()==graph.edges.size());
+    for(size_t i=0;i<graph.nodes.size();++i)assert(shifted.nodes[i].id==graph.nodes[i].id);
+    world.chunks.erase(std::remove_if(world.chunks.begin(),world.chunks.end(),[](const auto& chunk){return chunk.x==0&&chunk.z==0;}),world.chunks.end());
+    assert(world.pedestrianResidency()==(0x1ffu^(1u<<4)));
+    const auto missing=world.pedestrianNetwork({8,0,8});assert(missing.places.size()<graph.places.size());
+    for(const auto& node:missing.nodes)assert(resident(node.position));
+    for(const auto& edge:missing.edges) {
+        const Vec3 a=missing.nodes[edge.from].position,b=missing.nodes[edge.to].position;
+        for(int i=0;i<=32;++i)assert(resident(a+(b-a)*(i/32.f)));
+    }
+    world.stream({4096,0,2048});assert(world.pedestrianNetwork({4096,0,2048}).nodes.empty());
+    assert(world.pedestrianResidency()==0);
+    assert(World::pedestrianPlaces().size()==catalog.size()); // Catalog identity does not create an unloaded route.
+    world.stream({8,0,8});const auto restored=world.pedestrianNetwork({8,0,8});
+    assert(restored.nodes.size()==graph.nodes.size()&&restored.edges.size()==graph.edges.size()&&restored.places.size()==graph.places.size());
+    for(size_t i=0;i<graph.nodes.size();++i)assert(restored.nodes[i].id==graph.nodes[i].id&&sameVector(restored.nodes[i].position,graph.nodes[i].position));
+    for(size_t i=0;i<graph.edges.size();++i)assert(restored.edges[i].from==graph.edges[i].from&&restored.edges[i].to==graph.edges[i].to&&restored.edges[i].crossingId==graph.edges[i].crossingId);
+    std::printf("Pedestrian neighborhood: %zu reachable places, %zu nodes, %zu edges, %zu painted crossings, %zu clear path samples\n",
+        graph.places.size(),graph.nodes.size(),graph.edges.size(),crossings,pathSamples);
 }
-int main(){geometry();geography();lighting();rescueLaunch();workshop();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();std::puts("World tests passed.");}
+}
+int main(){geometry();geography();lighting();rescueLaunch();workshop();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();pedestrianPlaces();std::puts("World tests passed.");}
