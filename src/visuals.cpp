@@ -61,17 +61,31 @@ void profileBody(Mesh& mesh,Vec3 position,float yaw,const Profile* profiles,int 
         triangle(mesh,position+Vec3{0,hi.height,0},position+rotate({std::sin(a)*hi.width,hi.height,std::cos(a)*hi.depth},yaw),position+rotate({std::sin(b)*hi.width,hi.height,std::cos(b)*hi.depth},yaw),color);
     }
 }
-void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3 shirt,Vec3 skin,bool armed,bool dead,uint32_t seed,bool closeDetail,bool riding=false){
+void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3 shirt,Vec3 skin,bool armed,bool dead,uint32_t seed,bool closeDetail,bool riding=false,const Pedestrian* pedestrian=nullptr){
     const int sides=closeDetail?10:6,headSegments=closeDetail?12:7,headRings=closeDetail?7:4;
     const Vec3 trousers{.055f,.065f,.081f},boots{.029f,.024f,.022f};
+    const bool routine=pedestrian&&!dead&&!riding;
+    const auto activity=routine?pedestrian->activity:PedestrianActivity::Walk;
+    const float activityTime=routine&&std::isfinite(pedestrian->activityTime)?std::max(0.f,pedestrian->activityTime):0;
+    float seated=routine&&std::isfinite(pedestrian->sitBlend)?clamp(pedestrian->sitBlend,0,1):0;
+    Vec3 seatOffset{};
+    if(seated>0){
+        seatOffset=pedestrian->seatPosition-(position+Vec3{0,.81f,0});
+        if(!std::isfinite(seatOffset.x)||!std::isfinite(seatOffset.y)||!std::isfinite(seatOffset.z)||length(seatOffset)>4){seated=0;seatOffset={};}
+    }
+    if(routine)motion=(std::isfinite(motion)?clamp(motion,0,1.3f):0)*(1-seated);
+    const bool startled=routine&&activity==PedestrianActivity::Startle;
+    const float alarm=startled?clamp(1-activityTime/.9f,0,1):0;
+    const bool carrying=routine&&!armed&&pedestrian->carrying;
+    const float parcelRise=alarm*.14f,parcelDepth=.40f-alarm*.06f;
     const float stride=std::sin(phase)*.32f*motion,bob=dead?0.0f:std::abs(std::sin(phase))*.026f*motion;
     auto point=[&](Vec3 local){
         if(riding){if(local.y>.82f){local.z+=(local.y-.82f)*.25f;local.y-=.09f;}else local.y+=.10f;}
         if(dead)local={local.x,.16f-local.z,local.y-.84f};else local.y+=bob;
-        return position+rotate(local,yaw);
+        return position+rotate(local,yaw)+seatOffset*seated;
     };
     const float bodyY=riding?-.09f:0;
-    const Vec3 torsoPosition=position+Vec3{0,bob+bodyY,0};
+    const Vec3 torsoPosition=position+Vec3{0,bob+bodyY,0}+seatOffset*seated;
     if(dead){ellipsoid(mesh,point({0,1.09f,0}),{.23f,.14f,.32f},yaw,shirt,sides,4);}
     else {
         const Profile torso[]={{.82f,.17f,.105f},{.90f,.195f,.126f},{1.10f,.215f,.137f},{1.27f,.235f,.130f},{1.37f,.174f,.094f}};
@@ -109,12 +123,40 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
     for(float side:{-1.0f,1.0f}){
         float footLift=std::max(0.0f,-std::cos(phase)*side)*.13f*motion;
         Vec3 hip{side*.105f,.84f,0},knee{side*.113f,.47f+footLift*.4f,stride*side*.36f+.03f},ankle{side*.116f,.115f+footLift,stride*side};
+        if(seated>0){
+            // Pelvis follows the real seat anchor; ankle height cancels the
+            // body offset so both soles remain on the navigation ground.
+            hip=lerp(hip,{side*.115f,.84f,0},seated);
+            knee=lerp(knee,{side*.14f,.79f,.51f},seated);
+            ankle=lerp(ankle,{side*.16f,.115f-seatOffset.y,.57f},seated);
+        }
         if(riding){hip={side*.13f,.83f,-.15f};knee={side*.26f,.55f,.30f};ankle={side*.24f,.20f,.12f};}
         tube(mesh,point(hip),point(knee),.105f,.083f,trousers,sides);tube(mesh,point(knee),point(ankle),.080f,.060f,trousers,sides);
         if(closeDetail)ellipsoid(mesh,point(knee),{.084f,.085f,.084f},yaw,trousers,8,4);
         ellipsoid(mesh,point(ankle+Vec3{0,-.054f,.058f}),{.085f,.064f,.164f},yaw,boots,sides,4);
         if(closeDetail){ellipsoid(mesh,point(ankle+Vec3{0,-.084f,.063f}),{.088f,.022f,.166f},yaw,{.016f,.018f,.019f},10,3);tube(mesh,point(ankle+Vec3{-.04f,-.015f,.087f}),point(ankle+Vec3{.04f,-.015f,.087f}),.006f,.006f,{.20f,.20f,.18f},5);}
         Vec3 shoulder{side*.225f,1.285f,0},elbow{side*.292f,1.02f,-stride*side*.55f},hand{side*.288f,.795f,-stride*side*.85f};
+        if(routine&&!armed){
+            elbow=lerp(elbow,{side*.26f,1.02f,.18f},seated);hand=lerp(hand,{side*.15f,.90f,.35f},seated);
+            if(activity==PedestrianActivity::Wait){
+                const float shift=std::sin(activityTime*.9f+float(seed%17))*.018f;
+                elbow=lerp(elbow,{side*.29f,1.01f,.025f},1-seated);
+                hand=lerp(hand,{side*.29f,.81f,.06f+shift},1-seated);
+            }else if(activity==PedestrianActivity::Work){
+                elbow={side*.27f,1.07f,.19f};hand={side*.12f,1.04f+(side>0?std::sin(activityTime*3.1f)*.025f:0),.42f};
+            }else if(activity==PedestrianActivity::Talk){
+                const float speaker=(seed&1u)?1.f:-1.f;
+                if(side==speaker){elbow={side*.29f,1.10f,.18f};hand={side*.31f,1.22f+std::sin(activityTime*2.4f)*.10f,.42f+std::sin(activityTime*1.7f)*.04f};}
+                else {elbow={side*.27f,1.01f,.04f};hand={side*.27f,.87f,.10f};}
+            }else if(startled){
+                elbow=lerp(elbow,{side*.38f,1.28f,.06f},alarm);hand=lerp(hand,{side*.21f,1.56f,.20f},alarm);
+            }else if(activity==PedestrianActivity::Flee){
+                elbow={side*.27f,1.10f,-stride*side*.9f+.06f};hand={side*.22f,1.15f,-stride*side*1.3f+.10f};
+            }
+            // A held parcel stays in the hands during walking/waiting and is
+            // clutched higher when startled, until gameplay drops ownership.
+            if(carrying){elbow={side*.30f,1.02f+parcelRise,.18f};hand={side*.23f,.97f+parcelRise,parcelDepth};}
+        }
         if(armed){elbow={side*.255f,1.105f,.24f};hand={.13f,1.23f,.54f};}
         if(riding){shoulder={side*.225f,1.25f,.10f};elbow={side*.32f,1.12f,.35f};hand={side*.37f,1.07f,.57f};}
         ellipsoid(mesh,point(shoulder),{.100f,.118f,.111f},yaw,shirt,sides,4);
@@ -123,6 +165,18 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         tube(mesh,point(elbow),point(hand),.071f,.047f,forearmColor,sides);
         ellipsoid(mesh,point(hand),{.052f,.073f,.037f},yaw,skin,sides,4);
         if(closeDetail&&sleeves)tube(mesh,point(lerp(elbow,hand,.85f)),point(lerp(elbow,hand,.97f)),.056f,.054f,shirt*.65f,sides);
+    }
+    if(carrying){
+        const Vec3 center=point({0,1.0f+parcelRise,parcelDepth});
+        addBox(mesh,center,{.205f,.16f,.17f},{.51f,.32f,.16f},yaw);
+        addBox(mesh,center+Vec3{0,.161f,0},{.035f,.002f,.17f},{.74f,.61f,.36f},yaw);
+        addBox(mesh,center+rotate({0,0,.171f},yaw),{.035f,.16f,.002f},{.74f,.61f,.36f},yaw);
+        addBox(mesh,center+rotate({-.10f,.025f,.174f},yaw),{.052f,.040f,.002f},{.88f,.85f,.72f},yaw);
+    }else if(routine&&!armed&&activity==PedestrianActivity::Work){
+        const Vec3 board=point({0,1.005f,.39f});
+        addBox(mesh,board,{.17f,.012f,.20f},{.30f,.22f,.13f},yaw);
+        addBox(mesh,board+Vec3{0,.014f,0},{.15f,.002f,.18f},{.85f,.84f,.72f},yaw);
+        for(int line=0;line<4;++line)addBox(mesh,board+rotate({0,.017f,-.10f+float(line)*.05f},yaw),{.10f,.001f,.004f},{.19f,.24f,.22f},yaw);
     }
     if(armed){addBox(mesh,point({.13f,1.275f,.70f}),{.039f,.043f,.15f},{.049f,.053f,.061f},yaw,1);addBox(mesh,point({.13f,1.207f,.60f}),{.032f,.070f,.040f},{.039f,.032f,.025f},yaw,0);}
 }
@@ -454,9 +508,10 @@ Mesh Game::dynamicMesh() const {
     }
     for(size_t i=0;i<pedestrians.size();++i){
         const Pedestrian& p=pedestrians[i];const float distance=planarDistance(p.position,player);if(distance>180)continue;
-        Vec3 shirt=i<4?Vec3{.035f,.065f,.12f}:Vec3{.13f+random01(uint32_t(i)*13)*.55f,.09f+random01(uint32_t(i)*29)*.55f,.10f+random01(uint32_t(i)*43)*.55f};
-        Vec3 skin=Vec3{.72f,.47f,.31f}*(.65f+random01(uint32_t(i)*17)*.4f);
-        personMesh(mesh,p.position,p.yaw,p.phase,p.panic>0?1.0f:.60f,shirt,skin,i<4&&wanted>0,p.health<=0,uint32_t(i),distance<32);
+        const uint32_t appearance=p.identity?p.identity:uint32_t(i);
+        Vec3 shirt=i<4?Vec3{.035f,.065f,.12f}:Vec3{.13f+random01(appearance*13)*.55f,.09f+random01(appearance*29)*.55f,.10f+random01(appearance*43)*.55f};
+        Vec3 skin=Vec3{.72f,.47f,.31f}*(.65f+random01(appearance*17)*.4f);
+        personMesh(mesh,p.position,p.yaw,p.phase,p.motion,shirt,skin,i<4&&wanted>0,p.health<=0,appearance,distance<32,false,&p);
         if(i<4&&p.health>0){
             ellipsoid(mesh,p.position+rotate({0,1.795f,-.015f},p.yaw),{.143f,.047f,.124f},p.yaw,shirt,10,3);
             ellipsoid(mesh,p.position+rotate({0,1.777f,.102f},p.yaw),{.122f,.010f,.081f},p.yaw,shirt*.65f,10,3);
