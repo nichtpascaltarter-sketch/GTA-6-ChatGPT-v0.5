@@ -121,6 +121,11 @@ float simulateAircraft(Vehicle& v,const World& world,const Input& input,float dt
         }
         if(travel<distance){impact=std::max(5.0f,v.speed*.9f+std::abs(v.velocity.y)*3);candidate=before+direction*std::max(0.0f,travel-.03f);v.speed*=.12f;v.velocity=v.velocity*-.04f;v.velocity.y=std::min(0.0f,v.velocity.y);}
     }
+    const float limit=World::Extent-2;
+    if(std::abs(candidate.x)>limit||std::abs(candidate.z)>limit){
+        candidate.x=clamp(candidate.x,-limit,limit);candidate.z=clamp(candidate.z,-limit,limit);
+        v.speed=0;v.velocity.x=0;v.velocity.z=0;v.velocity.y=std::min(0.0f,v.velocity.y);
+    }
     ground=world.height(candidate.x,candidate.z);const bool water=world.waterDepth(candidate.x,candidate.z)>.5f;
     if(water)ground=std::max(ground,World::WaterLevel);
     if(candidate.y<ground){
@@ -355,16 +360,26 @@ void Game::update(const Input& input,float elapsed){
         if(int(i)==occupied)continue;
         Vehicle& v=vehicles[i];
         if(v.kind==VehicleKind::Boat){Input idle;simulateBoat(v,world,idle,dt,time,rain);continue;}
-        if(v.kind==VehicleKind::Aircraft){v.throttle=0;continue;}
+        if(v.kind==VehicleKind::Aircraft){
+            v.throttle=0;
+            const float surface=std::max(world.height(v.position.x,v.position.z),world.waterDepth(v.position.x,v.position.z)>.5f?World::WaterLevel:-100.0f);
+            const bool landed=v.position.y<=surface+.10f;
+            if(landed&&std::abs(v.speed)<.10f&&length(v.velocity)<.20f){
+                v.speed=0;v.velocity={};v.position.y=surface;v.pitch=0;v.roll=0;v.parked=true;
+            }else {Input idle;idle.brake=landed;v.parked=false;simulateAircraft(v,world,idle,dt);}
+            continue;
+        }
         if(v.health<=0){v.speed=towards(v.speed,0,dt*8);continue;}
         float targetSpeed=0;
         Vec3 target=trafficTargets[i];
         if(v.police&&wanted>0){
             v.parked=false;float distance=planarDistance(v.position,player);bool hasSight=false;
-            if(distance<95){
-                Vec3 ray=normalized(player+Vec3{0,1,0}-(v.position+Vec3{0,1,0}));float visible=distance;
-                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(v.position+Vec3{0,1,0},ray,box,visible));
-                if(visible>=distance-.5f){policeSight=true;hasSight=true;}
+            const Vec3 eye=v.position+Vec3{0,1,0},toPlayer=player+Vec3{0,1,0}-eye;
+            const float sightDistance=length(toPlayer);
+            if(sightDistance<95){
+                const Vec3 ray=normalized(toPlayer);float visible=sightDistance;
+                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,ray,box,visible));
+                if(visible>=sightDistance-.1f){policeSight=true;hasSight=true;}
             }
             if(distance<28)target=player;
             else {float grid=roadGrid(v.position);Vec3 node{std::round(v.position.x/grid)*grid,0,std::round(v.position.z/grid)*grid};Vec3 delta=player-node;if(std::abs(delta.x)>std::abs(delta.z))target=node+Vec3{delta.x>0?grid:-grid,0,Lane};else target=node+Vec3{Lane,0,delta.z>0?grid:-grid};}
@@ -399,9 +414,12 @@ void Game::update(const Input& input,float elapsed){
             if(wanted>0&&planarDistance(p.position,player)<85){
                 target=player;speed=3.7f;
                 const Vec3 eye=p.position+Vec3{0,1.55f,0},toPlayer=player+Vec3{0,1.1f,0}-eye;
-                const float distance=length(toPlayer);float visible=distance;
-                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,normalized(toPlayer),box,visible));
-                if(visible>=distance-.1f){policeSight=true;if(distance<15){speed=0;if(invulnerabilityTimer<=0)health=std::max(0.0f,health-dt*(2.0f+float(wanted)));}}
+                const float distance=length(toPlayer);
+                if(distance<85){
+                    float visible=distance;
+                    for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,normalized(toPlayer),box,visible));
+                    if(visible>=distance-.1f){policeSight=true;if(distance<15){speed=0;if(invulnerabilityTimer<=0)health=std::max(0.0f,health-dt*(2.0f+float(wanted)));}}
+                }
             }
             else if(i+8<vehicles.size()){target=vehicles[i+8].position+Vec3{8,0,0};speed=1.3f;}
         }else if(p.panic>0){target=p.position+normalized(p.position-player)*15;speed=4.4f;}
