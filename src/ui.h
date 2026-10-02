@@ -87,6 +87,8 @@ private:
 
 inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Renderer& renderer,const Vec3* waypoint=nullptr) {
     const float s=ui.scale,margin=30*s;char b[160];const Vec3 teal{.31f,.88f,.77f},gold{1,.74f,.36f},muted{.65f,.72f,.74f};
+    const bool trial=g.objectiveIsTrial(),active=g.objectiveActive();
+    const Vec3 violet{.75f,.43f,.95f},objectiveColor=trial?violet:gold;
     ui.rect(margin,margin,5*s,39*s,teal);ui.shadowText(margin+18*s,margin,g.world.district(g.player),2.5f*s);
     int hour=int(g.dayTime),minute=int((g.dayTime-hour)*60);
     std::snprintf(b,sizeof(b),"MERIDIAN COAST  /  %02d:%02d",hour,minute);ui.shadowText(margin+18*s,margin+26*s,b,1.4f*s,muted);
@@ -103,12 +105,13 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     auto marker=[&](Vec3 p,Vec3 color,float radius){float xx=mx+map*.5f+(p.x-g.player.x)*map/(range*2),yy=my+map*.5f-(p.z-g.player.z)*map/(range*2);
         if(xx>mx+5*s&&xx<mx+map-5*s&&yy>my+5*s&&yy<my+map-5*s)ui.circle(xx,yy,radius*s,color);};
     for(const auto& v:g.vehicles)marker(v.position,v.police?Vec3{.38f,.6f,1}:Vec3{.65f,.7f,.7f},v.police?2.5f:1.4f);
-    Vec3 objective=g.missionTarget();float cx=mx+map*.5f,cy=my+map*.5f;
+    marker(Game::harborSplitContact(),violet,3);
+    Vec3 objective=g.objectiveTarget();float cx=mx+map*.5f,cy=my+map*.5f;
     float ox=(objective.x-g.player.x)*map/(range*2),oy=-(objective.z-g.player.z)*map/(range*2);
     float edge=std::max(std::fabs(ox),std::fabs(oy)),limit=map*.5f-9*s;
     if(edge>limit){ox*=limit/edge;oy*=limit/edge;float l=std::sqrt(ox*ox+oy*oy),dx=ox/l,dy=oy/l;
-        ui.triangle({cx+ox+dx*5*s,cy+oy+dy*5*s},{cx+ox-dx*5*s-dy*4*s,cy+oy-dy*5*s+dx*4*s},{cx+ox-dx*5*s+dy*4*s,cy+oy-dy*5*s-dx*4*s},gold);
-    }else marker(objective,gold,4);
+        ui.triangle({cx+ox+dx*5*s,cy+oy+dy*5*s},{cx+ox-dx*5*s-dy*4*s,cy+oy-dy*5*s+dx*4*s},{cx+ox-dx*5*s+dy*4*s,cy+oy-dy*5*s-dx*4*s},objectiveColor);
+    }else marker(objective,objectiveColor,4);
     if(waypoint){float dx=(waypoint->x-g.player.x)*map/(range*2),dy=-(waypoint->z-g.player.z)*map/(range*2);
         float extent=std::max(std::fabs(dx),std::fabs(dy));if(extent>limit){dx*=limit/extent;dy*=limit/extent;}
         ui.line(cx+dx-4*s,cy+dy,cx+dx+4*s,cy+dy,2*s,teal);ui.line(cx+dx,cy+dy-4*s,cx+dx,cy+dy+4*s,2*s,teal);
@@ -116,10 +119,11 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     }
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
-    const Mission* mission=g.missionInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;
-    if(g.activeMission>=0&&g.missionTimer>0){int seconds=int(std::ceil(g.missionTimer));std::snprintf(b,sizeof(b),"ACTIVE CONTRACT  /  %d:%02d",seconds/60,seconds%60);ui.shadowText(tx,ty,b,1.4f*s,gold);}
-    else ui.shadowText(tx,ty,!mission?"EXPLORE THE COAST":g.activeMission>=0?"ACTIVE CONTRACT":"AVAILABLE CONTRACT",1.4f*s,gold);
-    if(mission){ui.shadowText(tx,ty+19*s,mission->title,2.1f*s);float dist=length(objective-g.player);std::snprintf(b,sizeof(b),"%.0f M  /  %s",dist,g.activeMission>=0?g.missionInstruction():"M TO ACCEPT AT THE MARKER");ui.shadowText(tx,ty+43*s,b,1.3f*s,muted);}
+    const Mission* mission=g.objectiveInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;
+    const float remaining=g.objectiveTimeRemaining();
+    if(active&&remaining>0){int seconds=int(std::ceil(remaining));std::snprintf(b,sizeof(b),"%s  /  %d:%02d",trial?"ACTIVE TRIAL":"ACTIVE CONTRACT",seconds/60,seconds%60);ui.shadowText(tx,ty,b,1.4f*s,objectiveColor);}
+    else ui.shadowText(tx,ty,!mission?"EXPLORE THE COAST":active?(trial?"ACTIVE TRIAL":"ACTIVE CONTRACT"):(trial?"AVAILABLE TRIAL":"AVAILABLE CONTRACT"),1.4f*s,objectiveColor);
+    if(mission){ui.shadowText(tx,ty+19*s,mission->title,2.1f*s);float dist=length(objective-g.player);std::snprintf(b,sizeof(b),"%.0f M  /  %s",dist,active||trial?g.objectiveInstruction():"M TO ACCEPT AT THE MARKER");ui.shadowText(tx,ty+43*s,b,1.3f*s,muted);}
     else {ui.shadowText(tx,ty+19*s,"THE CITY IS YOURS TO EXPLORE",1.7f*s);ui.shadowText(tx,ty+43*s,"TAB / BACK  MAP    M AT SHOPS  SERVICES",1.3f*s,muted);}
     if(g.occupied>=0&&g.occupied<int(g.vehicles.size())){
         const auto& vehicle=g.vehicles[size_t(g.occupied)];
@@ -148,13 +152,18 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     const char* radio[]={"RADIO OFF","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};ui.shadowText(ui.width-margin-260*s,88*s,radio[std::clamp(g.radioStation,0,3)],1.4f*s,muted);
     if(diagnostics){
         const auto stats=renderer.streamStats();
-        ui.rect(0,ui.height-34*s,ui.width,34*s,{0,0,0},.8f);
+        const auto timing=renderer.timingStats();
+        ui.rect(0,ui.height-50*s,ui.width,50*s,{0,0,0},.8f);
         std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s  /  VIEW %.0f M",fps,
             static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER",stats.fogEnd);
-        ui.text(5*s,ui.height-30*s,b,1.25f*s,teal);
+        ui.text(5*s,ui.height-46*s,b,1.25f*s,teal);
         std::snprintf(b,sizeof(b),"TILES %u / %u / %u  DRAW %u  CULLED %u  GEOMETRY %.1f MB  UPLOADS %u",
             stats.residentTilesByLod[0],stats.residentTilesByLod[1],stats.residentTilesByLod[2],stats.mainDrawn,
             stats.mainCulled,double(stats.residentBytes)/(1024*1024),stats.pendingBatches);
+        ui.text(5*s,ui.height-30*s,b,1.25f*s,teal);
+        if(timing.windowGpuSamples)std::snprintf(b,sizeof(b),"GPU RENDER %.2f MS MEAN / %.2f MAX  CPU RENDER %.2f MS  WAIT %.2f MS",
+            timing.mean.gpuRenderMs,timing.maximum.gpuRenderMs,timing.mean.cpuRenderMs,timing.mean.cpuFenceWaitMs);
+        else std::snprintf(b,sizeof(b),"GPU TIMING UNAVAILABLE  CPU RENDER %.2f MS  WAIT %.2f MS",timing.mean.cpuRenderMs,timing.mean.cpuFenceWaitMs);
         ui.text(5*s,ui.height-14*s,b,1.25f*s,teal);
     }
 }

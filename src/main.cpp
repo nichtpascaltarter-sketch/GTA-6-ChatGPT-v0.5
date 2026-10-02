@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <stdexcept>
 #include "game.h"
 #include "renderer.h"
 #include "audio.h"
@@ -24,6 +25,7 @@
 #include "world_streamer.h"
 #include "streaming_probe.h"
 #include "lod_probe.h"
+#include "timing_probe.h"
 
 namespace {
 using namespace mc;
@@ -164,7 +166,27 @@ int execute(HINSTANCE instance,const Options& options) {
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
         Game game;game.initialize();if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         if(options.smoke){
-            if(options.scene=="coast"){game.player={2510,0,260};game.yaw=1.4f;game.pitch=.10f;}
+            if(options.scene=="trial"||options.scene=="trial-run"||options.scene=="trial-map"){
+                game.player=Game::harborSplitContact()+Vec3{0,0,-5};game.player.y=game.world.height(game.player.x,game.player.z);
+                game.yaw=0;game.pitch=.14f;game.world.stream(game.player);
+                if(options.scene=="trial-run"){
+                    Input accept;accept.mission=true;game.update(accept,1.f/60);
+                    if(game.harborSplit.phase!=TrialPhase::Boarding)throw std::runtime_error("Trial capture could not accept Harbor Split.");
+                    const Vec3 loan=game.objectiveTarget();
+                    for(size_t index=0;index<game.vehicles.size();++index)if(game.vehicles[index].kind==VehicleKind::Motorcycle&&length(game.vehicles[index].position-loan)<.01f){
+                        auto& bike=game.vehicles[index];game.occupied=int(index);bike.position=Game::harborSplitStart();
+                        bike.position.y=game.world.height(bike.position.x,bike.position.z);bike.yaw=0;bike.speed=0;bike.velocity={};game.player=bike.position;break;
+                    }
+                    for(unsigned step=0;step<240&&game.harborSplit.phase!=TrialPhase::Running;++step)game.update({},1.f/60);
+                    if(game.harborSplit.phase!=TrialPhase::Running)throw std::runtime_error("Trial capture could not complete the standing start.");
+                    Input ride;ride.moveY=.65f;for(unsigned step=0;step<60;++step)game.update(ride,1.f/60);
+                    if(game.harborSplit.phase!=TrialPhase::Running||game.occupied<0)throw std::runtime_error("Trial capture lost its active rider.");
+                }
+                log<<"Trial capture: phase="<<int(game.harborSplit.phase)<<"; checkpoint="<<game.harborSplit.checkpoint
+                   <<"; story="<<game.activeMission<<"; completedStory="<<game.completedMissions
+                   <<"; occupied="<<game.occupied<<"; elapsed="<<game.harborSplit.elapsed<<"; penalty="<<game.harborSplit.penalty<<'\n';
+            }
+            else if(options.scene=="coast"){game.player={2510,0,260};game.yaw=1.4f;game.pitch=.10f;}
             else if(options.scene=="wetland"){game.player={1024,0,-2560};game.yaw=.5f;game.pitch=.13f;}
             else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
             else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
@@ -191,7 +213,7 @@ int execute(HINSTANCE instance,const Options& options) {
             log<<"Smoke scene: "<<options.scene<<'\n';
         }
         uint64_t uploaded=UINT64_MAX,uploadedEpoch=0,worldEpoch=1;
-        WorldStreamer worldStreamer;StreamingProbe streamingProbe;LodProbe lodProbe;
+        WorldStreamer worldStreamer;StreamingProbe streamingProbe;LodProbe lodProbe;TimingProbe timingProbe;
         const bool distant=!(options.smoke&&options.scene=="streaming");
         worldStreamer.setDistantEnabled(distant);
         if(distant&&!(options.smoke&&options.scene=="lod")){
@@ -210,7 +232,7 @@ int execute(HINSTANCE instance,const Options& options) {
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
         auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;WorldMap worldMap;
-        if(options.smoke&&options.scene=="map"){app.mapOpen=true;worldMap.focus(game.player);}
+        if(options.smoke&&(options.scene=="map"||options.scene=="trial-map")){app.mapOpen=true;worldMap.focus(game.player);if(options.scene=="trial-map")worldMap.span=1024;}
         RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
@@ -256,7 +278,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(app.showSettings&&(confirm||direction)){switch(app.selected){case 0:settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);break;case 1:settings.vsync=!settings.vsync;break;case 2:settings.rayTracing=!settings.rayTracing;break;case 3:settings.volume=clamp(settings.volume+(direction?float(direction):1)*.05f,0,1);break;case 4:settings.exposure=clamp(settings.exposure+(direction?float(direction):1)*.1f,.5f,1.8f);break;case 5:app.showSettings=false;app.selected=0;break;}}
                 else if(!app.showSettings&&confirm){switch(app.selected){case 0:app.menu=app.title=false;break;case 1:app.showSettings=true;app.selected=0;break;case 2:game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=5;app.menu=app.title=false;break;case 3:app.running=false;break;}}
             }else {captureMouse(app,!options.smoke&&!app.mapOpen);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
-                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded){++worldEpoch;worldStreamer.reset(worldEpoch);uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
+                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);if(!loaded){game.message="No valid saved game was found.";game.messageTime=4;}if(loaded){++worldEpoch;worldStreamer.reset(worldEpoch);uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
             if(!app.running)break;game.paused=app.menu||app.mapOpen||cinematic.active();
             if(options.smoke){dt=1.f/60;input={};
                 if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
@@ -266,6 +288,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
             if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
+            if(options.smoke&&(options.scene=="trial"||options.scene=="trial-run"))game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(options.smoke&&options.scene=="lod"){
                 lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
@@ -307,6 +330,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
+            if(options.smoke&&options.scene=="trial"){frame.eye={278,game.world.height(278,-165)+5.4f,-165};frame.target={264,game.world.height(264,-177)+1.0f,-177};}
             if(options.smoke&&options.scene.rfind("passenger-",0)==0&&game.occupied>=0){
                 const auto& carrier=game.vehicles[size_t(game.occupied)];
                 const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{2.7f,1.7f,.4f}:Vec3{-3.3f,2.2f,-4.4f};
@@ -318,6 +342,7 @@ int execute(HINSTANCE instance,const Options& options) {
             frame.coverageRadius=game.world.distantEnabled()?game.world.renderReadyRadius(frame.eye):-1.0f;
             frame.groundHeight=game.world.height(frame.eye.x,frame.eye.z);
             if(!renderer.render(frame,error)){result=6;break;}
+            if(options.smoke&&!timingProbe.observe(renderer.timingStats(),renderer.frameCount(),error)){result=12;break;}
             if(options.smoke&&options.scene=="streaming"&&!streamingProbe.observe(game.world,worldStreamer.stats(),renderer.streamStats(),worldEpoch,renderer.frameCount(),log,error)){result=10;break;}
             if(options.smoke&&options.scene=="lod"&&!lodProbe.observe(game.world,worldStreamer.stats(),renderer.streamStats(),frame.eye,worldEpoch,renderer.frameCount(),log,error)){result=10;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
@@ -332,13 +357,16 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&renderer.frameCount()>=options.frames){
                 if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}
                 if(options.scene=="lod"&&!lodProbe.complete()){error="Distant-world diagnostic reached its frame limit before all phases settled.";result=10;break;}
-                if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;
+                if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;
+                if(!result&&!timingProbe.observe(renderer.timingStats(),renderer.frameCount(),error))result=12;
+                break;
             }
             app.pressed.fill(false);app.wheel=0;app.mapClick=false;
         }
         captureMouse(app,false);
+        TimingProbe::write(log,renderer.timingStats());
         if(result){log<<"ERROR "<<result<<": "<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast",MB_OK|MB_ICONERROR);}
-        if(!options.smoke){if(!game.save(saveFile))log<<"Autosave failed\n";saveSettings(settingsPath,settings);}
+    if(!options.smoke){if(!game.save(saveFile))log<<"Autosave failed\n";saveSettings(settingsPath,settings);}
         log<<"Exit "<<result<<" after "<<renderer.frameCount()<<" frames\n";
     }
     DestroyWindow(app.window);UnregisterClassW(cls.lpszClassName,instance);return result;

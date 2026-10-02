@@ -40,7 +40,7 @@ frame rates remain under validation.
 | Jump / handbrake | Space | Left bumper / B |
 | Fire / aim | Left / right mouse | Right / left trigger |
 | Reload | R | X |
-| Accept nearby contract | M | D-pad up |
+| Start nearby contract / trial | M | D-pad up |
 | Radio station | Q | D-pad right |
 | Pause | Escape | Start |
 | World map | Tab | Back / View |
@@ -55,7 +55,8 @@ Footsteps respond to paving, soil, grass, sand and wooden decks; swimming and
 road-tire slip produce their own movement sounds.
 
 The world map shows the active contract, coastal boat, inland aircraft, and
-landmarks. Pan with WASD / left stick, zoom with the mouse wheel or +/- / bumpers,
+landmarks. Rafi's violet marker identifies Harbor Split; its selected route is
+drawn in violet. Pan with WASD / left stick, zoom with the mouse wheel or +/- / bumpers,
 and click or press Enter / A to place a navigation waypoint. Delete / X clears
 it; F / Y centers on the player. Tab, Escape, or controller B closes the map.
 
@@ -77,6 +78,14 @@ up. The last two contracts provide a serviced loan craft. Hold beside Leena
 slowly for three seconds, then return her to the pier; fly all three survey
 height bands, then land and stop at Breaker. The HUD keeps the current objective
 and remaining time visible, and saves preserve each active contract.
+
+Harbor Split is a repeatable motorcycle time trial at Rafi's violet flag southeast
+of Meridian Exchange. Press M / D-pad up at the flag, bring your own motorcycle
+or board the loan bike, and stop at the start line for the countdown. Pass all
+nine gates in order. Gold is 85 seconds, silver 110 and bronze under 150; each
+collision penalty adds five seconds. Medal prizes pay once, up to $650 total;
+repeats improve your best time. M / D-pad up withdraws from a run. Saves preserve
+your records, but loading cancels an unfinished trial and explains how to retry.
 
 ## Validation
 
@@ -112,3 +121,9 @@ Far-only visual arrivals retain the ray scene. Reverse scene depth preserves
 precision over the longer view distance; shadow depth remains conventional.
 The worker and allocation budgets, fallback paths and unverified hardware limits
 are tracked in `PROGRESS.md`.
+
+F3 also shows rolling GPU rendering and renderer CPU timings. GPU timestamps
+cover shadows, scene drawing, HDR processing and UI; they exclude separately
+queued world uploads, presentation/vsync and screenshots. CPU values cover the
+renderer call, with world-upload preparation reported separately in the session
+log. These are diagnostic measurements, not a hardware performance guarantee.

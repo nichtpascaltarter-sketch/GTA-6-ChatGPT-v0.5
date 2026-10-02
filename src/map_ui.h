@@ -32,7 +32,7 @@ struct WorldMap {
 
 inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     const float s=ui.scale;const auto p=WorldMap::panel(ui.width,ui.height,s);
-    const Vec3 teal{.31f,.88f,.77f},gold{1,.74f,.36f},muted{.61f,.7f,.72f};
+    const Vec3 teal{.31f,.88f,.77f},gold{1,.74f,.36f},muted{.61f,.7f,.72f},violet{.75f,.43f,.95f};
     ui.rect(0,0,ui.width,ui.height,{.009f,.021f,.031f},.98f);
     ui.text(34*s,30*s,"MERIDIAN COAST",3.4f*s);ui.text(34*s,63*s,"WORLD MAP",1.5f*s,teal);
     ui.rect(p.x-2*s,p.y-2*s,p.size+4*s,p.size+4*s,{.24f,.37f,.4f});
@@ -70,16 +70,20 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     }
     // The coastal road winds between grid lines. Clip its own sampled centerline
     // to the map so it remains continuous at every zoom and pan position.
-    auto clippedRoad=[&](Vec3 a,Vec3 b){
+    auto clippedLine=[&](Vec3 a,Vec3 b,Vec3 color,float width){
         Vec2 aa=project(a),bb=project(b);float dx=bb.x-aa.x,dy=bb.y-aa.y,first=0,last=1;
         auto clip=[&](float direction,float distance){
             if(std::fabs(direction)<.00001f)return distance>=0;
             float t=distance/direction;if(direction<0)first=std::max(first,t);else last=std::min(last,t);return first<=last;
         };
         if(clip(-dx,aa.x-p.x)&&clip(dx,p.x+p.size-aa.x)&&clip(-dy,aa.y-p.y)&&clip(dy,p.y+p.size-aa.y))
-            ui.line(aa.x+dx*first,aa.y+dy*first,aa.x+dx*last,aa.y+dy*last,std::max(.75f,p.size/map.span*7),roadColor);
+            ui.line(aa.x+dx*first,aa.y+dy*first,aa.x+dx*last,aa.y+dy*last,width,color);
     };
-    for(int part=0;part<512;++part)clippedRoad(World::coastalRoadPoint(part/512.f),World::coastalRoadPoint((part+1)/512.f));
+    for(int part=0;part<512;++part)clippedLine(World::coastalRoadPoint(part/512.f),World::coastalRoadPoint((part+1)/512.f),roadColor,std::max(.75f,p.size/map.span*7));
+    if(game.objectiveIsTrial()){
+        Vec3 previous=Game::harborSplitStart();
+        for(const Vec3 gate:Game::harborSplitCourse()){clippedLine(previous,gate,violet,std::max(1.0f,1.5f*s));previous=gate;}
+    }
     auto dot=[&](Vec3 at,Vec3 color,float radius){Vec2 v=project(at);if(inside(v,radius*s))ui.circle(v.x,v.y,radius*s,color);};
     for(const auto& landmark:World::landmarks()){
         Vec2 at=project(landmark.position);if(!inside(at,8*s))continue;
@@ -88,7 +92,9 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
             ui.rect(x-2*s,at.y-11*s,w+4*s,11*s,{.025f,.05f,.06f},.88f);ui.text(x,at.y-9*s,landmark.name,text,muted);}
     }
     for(const auto& vehicle:game.vehicles)if(vehicle.kind==VehicleKind::Boat||vehicle.kind==VehicleKind::Aircraft)dot(vehicle.position,vehicle.kind==VehicleKind::Boat?Vec3{.42f,.72f,1}:Vec3{.88f,.83f,.97f},3);
-    dot(game.missionTarget(),gold,5);
+    dot(Game::harborSplitContact(),violet,3.5f);
+    if(game.missionInfo())dot(game.missionTarget(),gold,game.objectiveIsTrial()?3.0f:5.0f);
+    if(game.objectiveIsTrial())dot(game.objectiveTarget(),violet,5);
     if(map.hasWaypoint){Vec2 at=project(map.waypoint);if(inside(at,7*s)){ui.line(at.x-6*s,at.y,at.x+6*s,at.y,2*s,teal);ui.line(at.x,at.y-6*s,at.x,at.y+6*s,2*s,teal);}}
     Vec2 player=project(game.player);if(inside(player,9*s)){
         float a=game.yaw;ui.triangle({player.x+std::sin(a)*9*s,player.y-std::cos(a)*9*s},{player.x+std::sin(a+2.5f)*8*s,player.y-std::cos(a+2.5f)*8*s},{player.x+std::sin(a-2.5f)*8*s,player.y-std::cos(a-2.5f)*8*s},teal);
@@ -97,15 +103,16 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     ui.line(cx-7*s,cy,cx+7*s,cy,s,{.9f,.95f,.93f},.65f);ui.line(cx,cy-7*s,cx,cy+7*s,s,{.9f,.95f,.93f},.65f);
     float x=p.x+p.size+28*s,w=ui.width-x-28*s;char text[120];
     ui.text(x,p.y,"EXPLORE THE COAST",1.7f*s,teal);
-    ui.wrapped(x,p.y+28*s,"Find contracts, coastal launch sites, and the inland airstrip.",1.45f*s,w,muted);
+    ui.wrapped(x,p.y+28*s,"Find contracts, the Harbor Split trial, coastal launch sites and the inland airstrip.",1.45f*s,w,muted);
     ui.text(x,p.y+106*s,"GOLD   CONTRACT",1.3f*s,gold);ui.text(x,p.y+133*s,"TEAL   YOU / WAYPOINT",1.3f*s,teal);
     ui.text(x,p.y+160*s,"BLUE   BOAT",1.3f*s,{.42f,.72f,1});ui.text(x,p.y+187*s,"LILAC  AIRCRAFT",1.3f*s,{.88f,.83f,.97f});
-    ui.text(x,p.y+237*s,"WASD / LEFT STICK  PAN",1.2f*s,muted);
-    ui.text(x,p.y+262*s,"WHEEL / +/- / LB RB  ZOOM",1.15f*s,muted);
-    ui.text(x,p.y+287*s,"CLICK / ENTER / A  MARK",1.2f*s,muted);
-    ui.text(x,p.y+312*s,"DELETE / X  CLEAR",1.2f*s,muted);
-    ui.text(x,p.y+337*s,"F / Y  CENTER ON YOU",1.2f*s,muted);
-    ui.text(x,p.y+362*s,"TAB / BACK / B  CLOSE",1.2f*s,muted);
+    ui.text(x,p.y+214*s,"VIOLET HARBOR SPLIT",1.3f*s,violet);
+    ui.text(x,p.y+264*s,"WASD / LEFT STICK  PAN",1.2f*s,muted);
+    ui.text(x,p.y+289*s,"WHEEL / +/- / LB RB  ZOOM",1.15f*s,muted);
+    ui.text(x,p.y+314*s,"CLICK / ENTER / A  MARK",1.2f*s,muted);
+    ui.text(x,p.y+339*s,"DELETE / X  CLEAR",1.2f*s,muted);
+    ui.text(x,p.y+364*s,"F / Y  CENTER ON YOU",1.2f*s,muted);
+    ui.text(x,p.y+389*s,"TAB / BACK / B  CLOSE",1.2f*s,muted);
     if(map.hasWaypoint){std::snprintf(text,sizeof(text),"WAYPOINT  %.2f KM",std::hypot(map.waypoint.x-game.player.x,map.waypoint.z-game.player.z)*.001f);ui.text(x,p.y+p.size-64*s,text,1.4f*s,teal);}
     std::snprintf(text,sizeof(text),"MAP WIDTH  %.2f KM",map.span*.001f);ui.text(p.x,p.y+p.size+18*s,text,1.3f*s,muted);
     ui.text(p.x+p.size-15*s,p.y+10*s,"N",1.5f*s,{.9f,.94f,.94f});

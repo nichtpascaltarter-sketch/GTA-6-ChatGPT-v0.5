@@ -133,6 +133,32 @@ part of the game distribution.
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
 
+### Prepared next integration (not the verified executable)
+
+- Repaired LOD source `3c25f7d` is running native workflow `36949428131`;
+  aggregation-only repair rerun is `36949428138`. Main source remains frozen
+  while those checks run.
+- `/workspace/GTA-6-ChatGPT-v0.5-next`, branch
+  `development/activities-and-timing`, starts at `3c25f7d` and contains
+  `08f283d` (Harbor Split, from isolated `690b40b`) and `0c96edd` (timing,
+  from isolated `7de91e0`). Root owns the added HUD/map, F9 message preservation,
+  three trial scenes and `timing_probe.h`; build validation owns its build/CI
+  and parser changes. Keep this next snapshot separate until LOD is validated.
+- Harbor Split passes 36 strict and sanitizer gameplay suites. Its full-population
+  control-driven route clears nine 6 m gates in 67.833 seconds with full health
+  and no penalties. Save v4 preserves records/paid medals and cancels unfinished
+  attempts. Native visual verification remains pending.
+- Timestamp telemetry uses four query slots, existing frame fences and a bounded
+  120-frame history, with no new waits. Scope is GPU render commands; queued
+  world uploads and presentation are excluded. CPU phases and world submission
+  are reported separately. The next native suite requires matching completed
+  samples and tests forced timestamp disable; historical comparison binaries
+  retain compatibility because timing validation is optional in that tool.
+- Next design work, not yet implemented: outdoor pedestrian schedules, shared
+  threat reactions and small groups; one seamless enterable Harbor Motor Works
+  garage replacing a single authored parcel with real doorway collision and
+  interior lighting. Preserve the full world scope while extending these systems.
+
 Captures for the verified checkpoint are in
 `/workspace/scratch/lod-3c25f7d-release/`; machine-readable evidence and selected
 original captures are under `validation/milestone-06/`. The full original target
