@@ -264,16 +264,21 @@ void Game::update(const Input& input,float elapsed){
             if(v.kind==VehicleKind::Aircraft&&v.position.y>landingHeight+.7f){message="Land the aircraft and slow to a taxi before exiting.";messageTime=4;}
             else if(std::abs(v.speed)>(v.kind==VehicleKind::Boat?3.0f:8.0f)){message=v.kind==VehicleKind::Boat?"Bring the boat below 11 km/h before leaving the helm.":"Slow below 30 km/h before getting out.";messageTime=3;}
             else {
-                bool found=false;
+                bool found=false,hasWaterExit=false,swimmingExit=false;Vec3 waterExit;
                 const float scale=roadVehicle(v.kind)?1.0f:1.9f;
                 for(Vec3 offset:std::array<Vec3,6>{{{-2.0f,0,0},{2.0f,0,0},{0,0,-3.0f},{0,0,3.0f},{-3.0f,0,0},{3.0f,0,0}}}){
                     Vec3 exit=atGround(world,v.position+rotate(offset*scale,v.yaw));
                     if(v.kind==VehicleKind::Boat&&exit.y<World::WaterLevel+.05f)continue;
-                    if(v.kind==VehicleKind::Aircraft&&world.waterDepth(exit.x,exit.z)>.9f&&exit.y<World::WaterLevel)exit.y=World::WaterLevel-1.1f;
+                    if(v.kind==VehicleKind::Aircraft&&world.waterDepth(exit.x,exit.z)>.9f&&exit.y<World::WaterLevel){
+                        exit.y=World::WaterLevel-1.1f;
+                        if(!hasWaterExit&&!world.blocked(exit,.35f)){waterExit=exit;hasWaterExit=true;}
+                        continue;
+                    }
                     if(!world.blocked(exit,.35f)){player=exit;found=true;break;}
                 }
+                if(!found&&hasWaterExit){player=waterExit;found=true;swimmingExit=true;}
                 if(!found&&v.kind==VehicleKind::Boat){player=v.position+right(v.yaw)*2.0f;player.y=World::WaterLevel-1.1f;found=true;}
-                if(found){v.parked=true;v.speed=0;v.velocity={};v.throttle=0;occupied=-1;verticalSpeed=0;grounded=true;message=v.kind==VehicleKind::Boat?"Left the helm. Swim with WASD; hold Shift for a faster stroke. E boards a nearby boat.":"On foot. Hold right mouse to aim; left mouse fires.";messageTime=5;}
+                if(found){v.parked=true;v.speed=0;v.velocity={};v.throttle=0;occupied=-1;verticalSpeed=0;grounded=!swimmingExit;message=swimmingExit?"In the water. Swim with WASD; hold Shift for a faster stroke.":v.kind==VehicleKind::Boat?"Left the helm. Swim with WASD; hold Shift for a faster stroke. E boards a nearby boat.":"On foot. Hold right mouse to aim; left mouse fires.";messageTime=5;}
                 else {message="Both doors are obstructed. Move the vehicle to open ground.";messageTime=3;}
             }
         }else{
