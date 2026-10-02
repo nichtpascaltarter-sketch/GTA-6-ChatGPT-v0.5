@@ -3,11 +3,14 @@ param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
-    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic')]
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'lifecycle')]
     [string] $Scene = 'city'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Scene -eq 'lifecycle' -and $Frames -lt 91) {
+    throw 'The lifecycle scene needs at least 91 frames to complete resize and fullscreen transitions.'
+}
 $Executable = (Resolve-Path -LiteralPath $Executable).Path
 $directory = Split-Path -Parent $Executable
 $prefix = if ($Scene -eq 'city') { 'smoke' } else { "smoke-$Scene" }
@@ -66,6 +69,13 @@ $frameMatch = [regex]::Match($sessionText, 'Exit 0 after ([0-9]+) frames')
 if (-not $frameMatch.Success -or [int] $frameMatch.Groups[1].Value -ne $Frames) {
     throw 'The session log does not confirm the requested number of rendered frames.'
 }
+if ($Scene -eq 'lifecycle') {
+    foreach ($transition in @('Lifecycle: resize at frame 30', 'Lifecycle: fullscreen at frame 60', 'Lifecycle: windowed at frame 90')) {
+        if (-not $sessionText.Contains($transition)) {
+            throw "The lifecycle session did not confirm: $transition"
+        }
+    }
+}
 $adapterMatch = [regex]::Match($sessionText, 'Adapter: ([^\r\n]+)')
 if (-not (Test-Path $screenshot -PathType Leaf)) { throw 'Smoke test did not save a screenshot.' }
 $bytes = [IO.File]::ReadAllBytes($screenshot)
@@ -97,6 +107,7 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     scene = $Scene
     originalFilename = $fileName
     singleExeDirectory = $true
+    windowTransitionsVerified = ($Scene -eq 'lifecycle')
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value

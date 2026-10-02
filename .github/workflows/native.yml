@@ -38,6 +38,11 @@ jobs:
         shell: pwsh
         run: ./tools/smoke.ps1 -Executable ./build/${{ matrix.configuration }}/MeridianCoast.exe
 
+      - name: Validate resize and fullscreen resource lifetime
+        if: matrix.configuration == 'Debug'
+        shell: pwsh
+        run: ./tools/smoke.ps1 -Executable ./build/Debug/MeridianCoast.exe -Frames 120 -Scene lifecycle
+
       - name: Capture geography, weather, and vehicle scenes
         if: matrix.configuration == 'Release'
         shell: pwsh
