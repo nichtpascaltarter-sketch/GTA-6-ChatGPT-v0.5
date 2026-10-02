@@ -1,0 +1,44 @@
+spawn officer=0 position=(-116.800003,0,-104) blocked=1 zeroMoveRecovery=(-116.527,0,-104)
+spawn officer=1 position=(139.199997,0,-104) blocked=1 zeroMoveRecovery=(139.473007,0,-104)
+spawn officer=2 position=(-116.800003,0,152) blocked=1 zeroMoveRecovery=(-116.527,0,152)
+spawn officer=3 position=(139.199997,0,152) blocked=1 zeroMoveRecovery=(139.473007,0,152)
+
+initial people=84 vehicles=50 officer=(-116.800003,0,-104) yaw=3.42709517 worldBlocked=1 ready=1 player=(-136,0,-86) reach=26.3228016
+staticSight=0 fullSight=0 staticProject=0 staticDirectWalk=0 fullDirectWalk=0 zeroMoveRecovery=(-116.527,0,-104)
+box chunk=-1,-1 index=4 planarDistance=0.0799942017 sightDistance=0.109670408 min=(-117.120003,0.140000001,-104.120003) max=(-116.879997,8.53999996,-103.879997)
+nearby=(-116.800003,0,-103.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-103.646446) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.300003,0,-104) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-104.353554) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.800003,0,-104.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-104.353554) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.300003,0,-104) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-103.646446) blocked=1 project=0 staticWalk=0 fullWalk=0
+law phase=0 memory=0 radio=0 goal=0 retry=0 aim=0
+
+0.5 seconds people=84 vehicles=50 officer=(-116.800003,0,-104) yaw=-0.817644954 worldBlocked=1 ready=1 player=(-136,0,-86) reach=26.3228016
+staticSight=0 fullSight=0 staticProject=0 staticDirectWalk=0 fullDirectWalk=0 zeroMoveRecovery=(-116.527,0,-104)
+box chunk=-1,-1 index=4 planarDistance=0.0799942017 sightDistance=0.109670408 min=(-117.120003,0.140000001,-104.120003) max=(-116.879997,8.53999996,-103.879997)
+nearby=(-116.800003,0,-103.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-103.646446) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.300003,0,-104) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-104.353554) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.800003,0,-104.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-104.353554) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.300003,0,-104) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-103.646446) blocked=1 project=0 staticWalk=0 fullWalk=0
+law phase=2 memory=0 radio=0 goal=1 retry=0.850000143 aim=0
+
+2 seconds people=84 vehicles=50 officer=(-116.800003,0,-104) yaw=-0.817644954 worldBlocked=1 ready=1 player=(-136,0,-86) reach=26.3228016
+staticSight=0 fullSight=0 staticProject=0 staticDirectWalk=0 fullDirectWalk=0 zeroMoveRecovery=(-116.527,0,-104)
+box chunk=-1,-1 index=4 planarDistance=0.0799942017 sightDistance=0.109670408 min=(-117.120003,0.140000001,-104.120003) max=(-116.879997,8.53999996,-103.879997)
+vehicle=8 kind=0 police=1 centerDistance=10.9909668 sightDistance=9.82992268 stepDistance=0.0799999982 position=(-124.800003,0,-96.4633331) yaw=0
+nearby=(-116.800003,0,-103.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-103.646446) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.300003,0,-104) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.446449,0,-104.353554) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-116.800003,0,-104.5) blocked=0 project=1 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-104.353554) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.300003,0,-104) blocked=1 project=0 staticWalk=0 fullWalk=0
+nearby=(-117.153557,0,-103.646446) blocked=1 project=0 staticWalk=0 fullWalk=0
+law phase=2 memory=0 radio=0 goal=1 retry=0.400000393 aim=0
