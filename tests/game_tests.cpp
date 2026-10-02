@@ -430,6 +430,21 @@ void vehicleBoardingRespectsWalls() {
     tick(belowCeiling, enter);
     require(belowCeiling.occupied == -1 && close(belowCeiling.player.y, ground),
             "interact boarded an elevated vehicle through a solid ceiling");
+
+    mc::Game lowBeam;
+    lowBeam.player = {0, ground, 0};
+    hidden.position = {0, ground, 4};
+    lowBeam.vehicles.push_back(hidden);
+    lowBeam.world.stream(lowBeam.player);
+    lowBeam.world.chunks.front().solids.push_back(
+        {{-2, ground + 1.67f, 1.8f}, {2, ground + 2, 2.2f}});
+    require(!lowBeam.world.blocked(lowBeam.player, .34f) &&
+            !lowBeam.world.blocked(hidden.position, .34f) &&
+            lowBeam.world.blocked({0, ground, 2}, .34f),
+            "low-beam boarding fixture does not obstruct only the middle of the path");
+    tick(lowBeam, enter);
+    require(lowBeam.occupied == -1 && mc::length(lowBeam.player - mc::Vec3{0, ground, 0}) < .001f,
+            "interact moved the player's head through a low beam between clear endpoints");
 }
 
 void vehicleExitRequiresClearPath() {

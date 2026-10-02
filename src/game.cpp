@@ -124,7 +124,7 @@ bool passengerPathClear(const World& world,Vec3 from,Vec3 to){
         if(distance<.001f)continue;
         moved=true;const Vec3 direction=delta/distance;
         for(const Chunk& chunk:world.chunks)for(const Box& obstacle:chunk.solids){
-            const Box expanded{obstacle.min-Vec3{.35f,1.65f,.35f},obstacle.max+Vec3{.35f,-.04f,.35f}};
+            const Box expanded{obstacle.min-Vec3{.35f,1.70f,.35f},obstacle.max+Vec3{.35f,-.04f,.35f}};
             if(rayBox(path[i],direction,expanded,distance)<distance-.001f)return false;
         }
     }
