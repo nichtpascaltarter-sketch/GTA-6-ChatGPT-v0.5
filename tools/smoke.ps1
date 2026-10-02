@@ -18,30 +18,41 @@ $sessionCopy = Join-Path $directory "$prefix-session.log"
 if (Test-Path $screenshot) { Remove-Item -LiteralPath $screenshot -Force }
 if (Test-Path $sessionCopy) { Remove-Item -LiteralPath $sessionCopy -Force }
 
+$fileName = Split-Path -Leaf $Executable
+$runDirectory = Join-Path ([IO.Path]::GetTempPath()) ("MeridianCoast-smoke-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $runDirectory | Out-Null
+$isolatedExecutable = Join-Path $runDirectory $fileName
+$process = $null
+$exitCode = -1
 $startedAt = [DateTime]::UtcNow
-$process = Start-Process -FilePath $Executable -WorkingDirectory $directory -PassThru -NoNewWindow `
-    -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
-    -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-$null = $process.Handle
 try {
+    # The launch directory contains exactly one file. Build products, external
+    # shaders, and neighboring DLLs cannot silently satisfy runtime dependencies.
+    Copy-Item -LiteralPath $Executable -Destination $isolatedExecutable
+    $process = Start-Process -FilePath $isolatedExecutable -WorkingDirectory $runDirectory -PassThru -NoNewWindow `
+        -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
+        -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $null = $process.Handle
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         $process.Kill()
         $process.WaitForExit()
         throw "WARP smoke test exceeded $TimeoutSeconds seconds."
     }
+    $process.Refresh()
+    $exitCode = $process.ExitCode
 } finally {
+    if ($process) { $process.Dispose() }
     $dataDirectory = [Environment]::GetFolderPath('LocalApplicationData')
     if (-not $dataDirectory) { $dataDirectory = [IO.Path]::GetTempPath() }
     $sessionLog = Join-Path $dataDirectory 'MeridianCoast\session.log'
     if ((Test-Path $sessionLog) -and (Get-Item $sessionLog).LastWriteTimeUtc -ge $startedAt.AddSeconds(-1)) {
         Copy-Item -LiteralPath $sessionLog -Destination $sessionCopy -Force
     }
+    Remove-Item -LiteralPath $runDirectory -Recurse -Force
 }
-# Refresh ensures ExitCode is populated after WaitForExit on Windows PowerShell.
-$process.Refresh()
-if ($process.ExitCode -ne 0) {
+if ($exitCode -ne 0) {
     if (Test-Path $stderr) { Get-Content $stderr | Write-Host }
-    throw "WARP smoke test failed with exit code $($process.ExitCode)."
+    throw "WARP smoke test failed with exit code $exitCode."
 }
 if (-not (Test-Path $sessionCopy -PathType Leaf)) { throw 'Smoke test did not produce a current session log.' }
 $sessionText = [IO.File]::ReadAllText($sessionCopy)
@@ -78,10 +89,12 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
 [ordered] @{
     adapter = 'D3D12 WARP'
     scene = $Scene
+    originalFilename = $fileName
+    singleExeDirectory = $true
     reportedAdapter = $adapterMatch.Groups[1].Value
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value
-    exitCode = $process.ExitCode
+    exitCode = $exitCode
     width = $width
     height = $height
     sampledColors = $colors.Count
