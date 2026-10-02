@@ -66,6 +66,7 @@ try {
         $name = if ($shader.ContainsKey('Name')) { $shader.Name } else { "$($shader.Source)_$($shader.Stage)" }
         $arguments = @('-T', $shader.Profile, '-E', $shader.Entry,
             '-HV', '2021', '-Ges', '-WX', '-O3', '-Qstrip_debug', '-Qstrip_reflect',
+            '-I', (Join-Path $repo 'shaders'),
             '-Fh', (Join-Path $generated "$name.h"), '-Vn', "g_$name",
             '-Fo', (Join-Path $generated "$name.dxil"),
             (Join-Path $repo "shaders\$($shader.Source).hlsl"))
