@@ -21,9 +21,9 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `2acd647a877b2062e79580c90c36da90eb4d1cdf`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 04 below.
-- Native Release/Debug, system-import audits, 28 gameplay suites, 19 additional
+- Latest verified executable: `9628aab94861bcba7d78e91c5717ca0cfaf3b351`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 05 below.
+- Native Release/Debug, system-import audits, 29 gameplay suites, 19 additional
   scene captures, and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
 - This remains a very early game, far below the full target. No claim of AAA
@@ -54,11 +54,11 @@ part of the game distribution.
   342,248 triangles. Countryside: 221,134 triangles; wetland: 294,430; island:
   130,916; coast: 140,226. Tests cover deterministic regeneration, collision,
   seams, 8,199 regional road samples, 14,014 road sweeps, lights, dock and runway.
-- Native 28/28 gameplay suites pass, including runway takeoff, banking, stall,
+- Native 29/29 gameplay suites pass, including runway takeoff, banking, stall,
   hard-landing damage across frame offsets, boat handling/swimming, save migration,
   passive aircraft motion, altitude-aware police visibility and dry exit preference.
   The six-contract campaign, conversations and persistent guidance are captured
-  natively; movement-audio integration adds a 29th strict portable suite.
+  natively; movement-audio integration passes the 29th native and portable suite.
 - Audio synthesis passes strict tests and ASan/UBSan, including four engine
   sounds, biome ambience, finite output, transition continuity and chunking.
 - Archived `fd058a8` passed a 648-simulated-second sanitizer soak, 38,880 updates,
@@ -85,59 +85,41 @@ part of the game distribution.
 3. Root owns main/UI/map and milestone documentation; gameplay owns game/visuals/
    tests; world owns deterministic generation; build validation owns build/CI;
    renderer owns D3D12 resources/shaders. Complete snapshot commits precede sync.
-4. In progress: persistent per-chunk GPU geometry/BLAS, fence-retired allocations,
-   t6 per-instance reflection offsets, and a two-worker bounded world-generation
-   service. Root main integration calls service before/after simulation and
-   increments epoch on F9 load; default simulation tests keep synchronous stream.
-   Native streaming diagnostics exercise eight settled neighborhoods including
-   axial/diagonal movement, reverse, teleports and same-world epoch reset. Expected
-   uploads: 49,7,7,13,25,49,49,49; adjacent phases must use background workers and
-   retain unchanged GPU chunks with no ordinary/pressure/repack waits. Source is
-   not yet natively validated. The known complete campaign-only snapshot is
-   `88a2cf6`; native run `36947303166` passed Release, its 15 captures, Debug and
-   all three MSAA lifecycle paths. Evidence is under
-   `validation/milestone-04/initial-campaign/`. The passenger-visibility repair is
-   committed as `f101a6e` with tests `f3ecf2f`; four dedicated passenger captures
-   will verify each carrier before the next milestone is marked complete.
-   Renderer residency is `425e18b`; workers are `9a621a7`. The complete portable
-   suite passed after integration (world, six worker groups, 28 gameplay suites,
-   audio, six cinematics). Worker final source passed ASan/UBSan/leaks and TSan;
-   passenger/cabin tests passed ASan/UBSan; allocator tests passed 200,000 random
-   checks and all eight actual-world route capacities. Native validation remains
-   necessary before performance or stability conclusions. Integrated snapshot
-   `2acd647` completed Windows workflow `36947811515`; both native builds
-   compiled and passed their eight-phase streaming checks; Release passenger
-   captures and all Debug MSAA lifecycle checks passed. Geometry arenas start
-   at 64/16 MiB, grow to hard 256/64 MiB; staging is bounded at 384 MiB/four batches.
-   Rare repack can transiently hold two arena generations. Resident geometry,
-   retired geometry/AS/metadata, staging and wait counts are reported separately.
-5. Next audio candidate: `4964d5a` adds five original footstep responses, swim
-   splashes and tire scrub with strict/sanitizer signal checks and unchanged
-   baseline audio when new controls are zero. `1708a4d` supplies authored ground
-   material queries. Root integration maps actual displacement/contact and
-   lateral tire slip, suppresses pause/teleport/vehicle-exit false events, and
-   passes 29 strict gameplay suites. Native listening remains unavailable.
-6. Add coarse world coverage to 1.5–2 km using shared building descriptors,
-   8 m boundary samples with 16/32 m interiors, and bounded mesh capacities.
-   Keep detailed49/collision publication intact and add a separate render-only
-   cache/revision, medium radius7 and far radius16 (far17 prefetch), with shared
-   two-worker priority queues. Proposed RenderTileView contains x/z/lod key,
-   ephemeral Mesh pointer, actual bounds, ray/shadow flags; renderReadyRadius
-   conservatively reports complete coverage. Preserve departing detail until a
-   coarse replacement is ready and select one representation per cell. World
-   source extraction into world_geometry.cpp and LOD work are in progress but
-   intentionally uncommitted until the smaller sky/audio candidate is captured.
-   Renderer first shares actual sky radiance with outer fog so fully fogged
-   terrain matches clouds/sun/weather; current distances stay unchanged for that
-   repair. Then extend readiness-driven fog/clipping and frustum culling for LOD.
-7. Expand story, side activities, pedestrian routines, police tactics, interiors,
-   destruction, animation, true dynamic GI and volumetric atmosphere. Measure
-   actual hardware frame times and compatibility as access becomes available.
+4. Bounded asynchronous generation and persistent per-chunk GPU geometry/BLAS
+   passed Milestone 04. The old detailed-only eight-phase streaming probe remains
+   as a regression guard. A controlled A/B/B/A WARP comparison of combined versus
+   per-chunk drawing is running at workflow `36948442197`; source and reports in
+   `tools/compare-warp.ps1` and `.github/workflows/compare-warp.yml`. Investigate
+   the measured difference before claiming a rendering improvement.
+5. Five original footstep responses, swim splashes and tire scrub are integrated
+   and natively tested in Milestone 05. Shared sky/fog radiance repairs the distant
+   color mismatch, and closer native car/boat captures verify the passenger.
+6. Active distant coverage implementation: retain detailed49 collision tiles;
+   medium radius7 and far radius16 with radius17 prefetch, shared deterministic
+   descriptors and 8 m perimeter samples. Two bounded workers prioritize detail,
+   missing coverage and refinement. A separate render revision and selected
+   RenderTileView list keep exactly one representation per cell. Retain detail
+   until coarse replacement exists; protect post-publication coverage during
+   cache eviction. A saturated-cache regression reproduces the old hole and
+   verifies its repair. Coarse cache cap is64 MiB; detail fallback cap64 MiB.
+   Causeway height and geometry now follow island terrain consistently, and
+   coarse road patches follow their actual rendered ground. Geometry and build
+   source commits are landing; full integrated native validation is pending.
+7. Renderer LOD work next: bounds-based main/shadow culling, eligibility-aware
+   TLAS retention, coverage-driven horizontal fog to2 km, reversed scene depth
+   with forward shadow depth, and ground-anchored shadows for high aircraft.
+   Interactive first display must remain prompt; smoke coverage can prewarm with
+   message pumping and bounded timeout. Preserve existing streaming regression
+   with distant mode disabled. Root owns main/probes and milestone documentation.
+8. Next content is an original repeatable motorcycle trial, developed separately
+   from the LOD batch. Broader goals remain pedestrian routines, police tactics,
+   interiors, destruction, animation, true dynamic GI and volumetric atmosphere.
+   Measure actual hardware frame times and compatibility as access becomes available.
 
 Captures for the verified checkpoint are in
-`/workspace/scratch/streaming-2acd647/`; Debug evidence is in
-`/workspace/scratch/debug-streaming-2acd647/`. Machine-readable evidence is under
-`validation/milestone-04/`. The full original target remains unchanged.
+`/workspace/scratch/sky-9628aab/`; Debug evidence is in
+`/workspace/scratch/debug-sky-9628aab/`. Machine-readable evidence is under
+`validation/milestone-05/`. The full original target remains unchanged.
 
 ## Initial scorecard — before native validation
 
@@ -380,3 +362,45 @@ shared sky/fog evaluation and a separate distant LOD layer are next.
 | Missions and story | 0.5/10 | Six original sequential contracts with conversations, failure/retry and saves are verified, but campaign scale and dramatic presentation remain small. |
 | Audio | 0.5/10 | Original radio, engines and ambience pass synthesis checks; richer movement audio is queued and native listening or speech is still unverified. |
 | Performance and stability | 0.5/10 | Bounded workers and native fence/epoch tests pass, but the software-rendering timing increase needs investigation and hardware performance remains unknown. |
+
+
+## Milestone 05 — shared atmosphere and movement sound, 2026-10-02
+
+Validated source: `9628aab94861bcba7d78e91c5717ca0cfaf3b351`.
+[Windows build and launch evidence](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36948177017).
+Release is824,832 bytes; SHA256:
+`6526232eed390ee5cf33341656ba09f40b99b81a4981a96714e577b2bbf8da4d`.
+The verified single EXE and checksum are in `/workspace/outputs/`. Evidence,
+original captures, import audits and reports are under `validation/milestone-05/`.
+
+Fully fogged geometry now evaluates the same procedural sky, clouds and weather
+as the background. Inspected coast and aircraft captures show matching atmosphere;
+short terrain coverage is still evident and is being expanded in the next batch.
+Closer car and boat inspection angles show Leena and her carrier correctly.
+Five authored footstep materials, swimming strokes and lateral tire friction
+respond to real contact and movement. Pause, teleport, entering/exiting vehicles
+and airborne motion are gated, with deterministic synthesis and state tests.
+
+Both native configurations pass world/worker,29 gameplay, audio and cinematic
+suites with no compiler warnings or errors.26 isolated executable launches
+rendered992 frames, including19 Release scenes, both streaming routes and actual
+Debug4x/1x/2x resize/fullscreen checks, without D3D12 corruption/error messages.
+Release WARP city/streaming processes took30.331/29.359 seconds; Debug lifecycle
+runs took35.894/31.262/33.736 seconds. These are uncontrolled process timings,
+not hardware frame-time evidence. Same-runner comparison is underway. Native
+listening, hardware DXR, clean Windows10, physical controller and1440p/60 remain
+unverified.
+
+### Milestone 05 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | Several procedural regions stream correctly, but unique location density and visible coverage remain far below the benchmark. |
+| Visual fidelity | 0.5/10 | Inspected atmosphere blends consistently and passenger views work, while geometry, characters, animation and lighting remain rudimentary. |
+| World density and life | 0.5/10 | Basic traffic and pedestrians populate streets without rich routines, crowds or incidental interactions. |
+| Vehicles and driving | 1/10 | Four vehicle classes and tested campaign routes work, with limited simulation, damage and presentation depth. |
+| On-foot and combat | 0.5/10 | Contact-sensitive movement sound improves feedback, but animation, weapon variety, encounters and interaction remain limited. |
+| NPC and police AI | 0.5/10 | Visibility-aware pursuit and panic exist without complex tactics or nuanced civilian behavior. |
+| Missions and story | 0.5/10 | Six original contracts and short conversations work, but story scale, acting and cinematic detail remain small. |
+| Audio | 0.5/10 | Original footsteps, splashes and tire scrub join radio and engines; speech, acoustics and native listening still lag or remain unverified. |
+| Performance and stability | 0.5/10 | Both native builds pass isolated launches and Debug resource checks; software-rendering cost is under investigation and target GPU performance is unknown. |
