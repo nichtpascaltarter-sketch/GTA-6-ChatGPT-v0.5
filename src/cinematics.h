@@ -38,9 +38,16 @@ public:
         target=anchor_+Vec3{0,index==0?1.9f:1.25f,0};
         Vec3 requested=target+forward(angle)*distance+Vec3{0,index==0?2.2f:.75f,0};
         // Pull a shot forward when authored scenery obstructs its line of sight.
-        Vec3 delta=requested-target;float lengthToEye=length(delta);Vec3 direction=normalized(delta);eye=requested;
-        for(float t=.5f;t<lengthToEye;t+=.20f){Vec3 p=target+direction*t;if(world.blocked(p,.18f)){eye=target+direction*std::max(.45f,t-.35f);break;}}
+        Vec3 delta=requested-target;float lengthToEye=length(delta);Vec3 direction=normalized(delta);eye=target;
+        for(float t=.04f;t<lengthToEye+.04f;t+=.04f){
+            Vec3 p=target+direction*std::min(t,lengthToEye);bool blocked=false;
+            for(const auto& chunk:world.chunks)for(const auto& box:chunk.solids)
+                if(p.x>box.min.x-.18f&&p.x<box.max.x+.18f&&p.y>box.min.y-.18f&&p.y<box.max.y+.18f&&p.z>box.min.z-.18f&&p.z<box.max.z+.18f)blocked=true;
+            if(blocked)break;
+            eye=p;
+        }
         eye.y=std::max(eye.y,world.height(eye.x,eye.z)+.35f);
+        if(length(eye-target)<.4f)target=eye-direction;
     }
 private:
     int chapter_=-1;float elapsed_=0,yaw_=0;Vec3 anchor_;

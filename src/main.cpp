@@ -152,7 +152,7 @@ int execute(HINSTANCE instance,const Options& options) {
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
-        auto last=std::chrono::steady_clock::now();float fps=60;Ui ui;Cinematic cinematic;
+        auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
             auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);fps=lerp(fps,1/std::max(elapsed,.0001f),.04f);
@@ -180,6 +180,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
             if(!app.menu){
+                presentationTime+=dt;
                 if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
                 else {
                     int previousMission=game.activeMission;game.update(input,dt);
@@ -192,8 +193,8 @@ int execute(HINSTANCE instance,const Options& options) {
             if(app.menu)drawMenu(ui,app,settings,renderer);
             else if(cinematic.active())drawCinematic(ui,cinematic,game.missionInfo()?game.missionInfo()->title:nullptr);
             else drawHud(ui,game,fps,app.diagnostics,renderer);
-            RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=game.time;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.ui=&ui.vertices;
-            if(cinematic.active()){cinematic.camera(game.world,frame.eye,frame.target);frame.time+=cinematic.elapsed();}
+            RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=presentationTime;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.ui=&ui.vertices;
+            if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
             if(!renderer.render(frame,error)){result=6;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu;
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){audioState.engine=1;audioState.speed=game.vehicles[size_t(game.occupied)].speed;}audio.update(audioState);

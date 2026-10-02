@@ -25,5 +25,8 @@ int main(){
         assert(changed);assert(frames>250);assert(!scene.dialogue());
         scene.start(chapter,{},0);scene.advance(0,true);assert(!scene.active());
     }
+    mc::World closeWall;mc::Chunk chunk;chunk.solids.push_back({{0,-10,-10},{10,10,10}});closeWall.chunks.push_back(std::move(chunk));
+    scene.start(0,{-.35f,0,0},mc::Pi*.5f+.72f);mc::Vec3 eye,target;scene.camera(closeWall,eye,target);
+    assert(eye.x<=-.18f);assert(mc::length(eye-target)>.3f);
     std::puts("Cinematic timing, dialogue, camera and skip tests passed.");
 }
