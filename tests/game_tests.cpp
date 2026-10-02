@@ -7,11 +7,14 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 namespace {
+static_assert(sizeof(mc::Light) == 48, "light data must match its GPU buffer stride");
+
 void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
@@ -84,6 +87,163 @@ void initializationAndGeometry() {
     const size_t urbanTriangles = verifyDynamicMesh(game.dynamicMesh(), "urban teleport");
     std::cout << "Dynamic mesh triangles: spawn " << spawnTriangles
               << ", urban teleport " << urbanTriangles << '\n';
+}
+
+void verifyLights(const std::vector<mc::Light>& lights) {
+    require(lights.size() <= 64, "light list exceeds the GPU light capacity");
+    for (const mc::Light& light : lights) {
+        require(finite(light.position) && finite(light.direction) && finite(light.color),
+                "light contains a nonfinite vector");
+        require(std::isfinite(light.radius) && light.radius > 0,
+                "light has an invalid radius");
+        require(std::isfinite(light.intensity) && light.intensity > 0,
+                "light has an invalid intensity");
+        require(light.color.x >= 0 && light.color.y >= 0 && light.color.z >= 0 &&
+                mc::length(light.color) > 0, "light has an invalid emission color");
+        require(close(mc::length(light.direction), 1, 0.002f),
+                "light direction is not normalized");
+        require(std::isfinite(light.cone) && light.cone >= -1 && light.cone <= 1,
+                "light cone is invalid");
+    }
+}
+
+const mc::Light* lightAt(const std::vector<mc::Light>& lights, mc::Vec3 position) {
+    for (const mc::Light& light : lights)
+        if (mc::length(light.position - position) < 0.002f) return &light;
+    return nullptr;
+}
+
+void lightingActivationAndTransforms() {
+    mc::Game game;
+    game.player = {};
+    game.world.chunks.emplace_back();
+    mc::Light lamp;
+    lamp.position = {4, 7, 2};
+    lamp.direction = {0, -2, 0};
+    lamp.cone = -0.15f;
+    game.world.chunks[0].lights.push_back(lamp);
+    mc::Vehicle car;
+    car.position = {12, 0, 4};
+    car.parked = true;
+    game.vehicles.push_back(car);
+    mc::Vehicle bike;
+    bike.position = {-12, 0, 4};
+    bike.kind = mc::VehicleKind::Motorcycle;
+    bike.parked = true;
+    game.vehicles.push_back(bike);
+
+    game.dayTime = 12;
+    require(game.lightSources().empty(), "ordinary lighting remains on at noon");
+    game.dayTime = 0;
+    const auto night = game.lightSources();
+    verifyLights(night);
+    require(night.size() == 4, "midnight did not enable one lamp and three headlights");
+    const mc::Light* worldLamp = lightAt(night, lamp.position);
+    require(worldLamp != nullptr, "world lamp is absent at midnight");
+    require(close(worldLamp->cone, -0.15f), "broad world spotlight cone was changed");
+    for (float side : {-1.0f, 1.0f}) {
+        const mc::Vec3 offset{side * 0.535f, 0.635f, 2.10f};
+        const mc::Light* headlight = lightAt(night, car.position + offset);
+        require(headlight != nullptr, "car headlight does not match its visible emitter");
+        require(close(headlight->radius, 45) && close(headlight->cone, 0.85f),
+                "car headlight coverage is incorrect");
+        mc::Vec3 horizontal = headlight->direction;
+        horizontal.y = 0;
+        require(mc::dot(mc::normalized(horizontal), mc::forward(car.yaw)) > 0.999f,
+                "car headlight does not point forward");
+    }
+    require(lightAt(night, bike.position + mc::Vec3{0, 1, 0.755f}) != nullptr,
+            "motorcycle headlight does not match its visible emitter");
+
+    game.vehicles[0].yaw = mc::Pi * 0.5f;
+    const auto rotated = game.lightSources();
+    verifyLights(rotated);
+    for (float side : {-1.0f, 1.0f}) {
+        const float yaw = game.vehicles[0].yaw;
+        const mc::Vec3 offset = mc::right(yaw) * (side * 0.535f) +
+            mc::Vec3{0, 0.635f, 0} + mc::forward(yaw) * 2.10f;
+        const mc::Light* headlight = lightAt(rotated, car.position + offset);
+        require(headlight != nullptr, "turning a car did not rotate its headlight positions");
+        mc::Vec3 horizontal = headlight->direction;
+        horizontal.y = 0;
+        require(mc::dot(mc::normalized(horizontal), mc::forward(yaw)) > 0.999f,
+                "turning a car did not rotate its headlight direction");
+    }
+
+    game.vehicles[0].health = game.vehicles[1].health = 0;
+    require(game.lightSources().size() == 1, "destroyed vehicles still emit headlights");
+    game.world.chunks[0].lights.clear();
+    game.vehicles.resize(1);
+    game.vehicles[0].health = 100;
+    game.vehicles[0].police = true;
+    game.dayTime = 12;
+    game.wanted = 0;
+    require(game.lightSources().empty(), "idle daytime patrol has active emergency lights");
+    game.wanted = 1;
+    const auto pursuit = game.lightSources();
+    verifyLights(pursuit);
+    require(!pursuit.empty(), "daytime pursuit did not activate police emergency lights");
+    for (float side : {-1.0f, 1.0f}) {
+        const float yaw = game.vehicles[0].yaw;
+        const mc::Vec3 headlight = car.position + mc::right(yaw) * (side * 0.535f) +
+            mc::Vec3{0, 0.635f, 0} + mc::forward(yaw) * 2.10f;
+        require(lightAt(pursuit, headlight) == nullptr,
+                "daytime emergency lights also enabled ordinary headlights");
+    }
+}
+
+void lightingCapacityRangeAndOrder() {
+    mc::Game game;
+    game.player = {};
+    game.dayTime = 0;
+    game.world.chunks.emplace_back();
+    mc::Light lamp;
+    lamp.position = {lamp.radius + 71, 0, 0};
+    game.world.chunks[0].lights.push_back(lamp);
+    require(game.lightSources().empty(), "world light beyond radius plus 70 was retained");
+    game.world.chunks[0].lights[0].position.x = lamp.radius + 69;
+    require(game.lightSources().size() == 1, "nearby world light was culled too early");
+    game.world.chunks[0].lights.clear();
+    mc::Vehicle distant;
+    distant.position = {1000, 0, 0};
+    game.vehicles.push_back(distant);
+    require(game.lightSources().empty(), "distant vehicle headlights were retained");
+    game.vehicles.clear();
+
+    mc::Light invalid;
+    invalid.position.x = std::numeric_limits<float>::quiet_NaN();
+    game.world.chunks[0].lights.push_back(invalid);
+    invalid = mc::Light{};
+    invalid.intensity = std::numeric_limits<float>::infinity();
+    game.world.chunks[0].lights.push_back(invalid);
+    invalid = mc::Light{};
+    invalid.radius = 0;
+    game.world.chunks[0].lights.push_back(invalid);
+    invalid = mc::Light{};
+    invalid.color.y = -1;
+    game.world.chunks[0].lights.push_back(invalid);
+    require(game.lightSources().empty(), "invalid light data reached the renderer");
+    game.world.chunks[0].lights.clear();
+
+    for (int i = 0; i < 100; ++i) {
+        lamp.position = {float(i % 10) * 3 - 15, 5, float(i / 10) * 3 - 15};
+        game.world.chunks[0].lights.push_back(lamp);
+    }
+    const auto first = game.lightSources();
+    const auto second = game.lightSources();
+    verifyLights(first);
+    verifyLights(second);
+    require(first.size() == 64 && second.size() == 64,
+            "dense light selection did not respect its 64-light capacity");
+    for (size_t i = 0; i < first.size(); ++i) {
+        require(mc::length(first[i].position - second[i].position) < 0.0001f &&
+                mc::length(first[i].direction - second[i].direction) < 0.0001f &&
+                mc::length(first[i].color - second[i].color) < 0.0001f &&
+                close(first[i].radius, second[i].radius) &&
+                close(first[i].intensity, second[i].intensity) &&
+                close(first[i].cone, second[i].cone),
+                "identical state produced a different light selection or order");
+    }
 }
 
 void movementAndPause() {
@@ -562,6 +722,8 @@ int main() {
     struct Test { const char* name; void (*run)(); };
     const Test tests[] = {
         {"initialization and geometry", initializationAndGeometry},
+        {"lighting activation and vehicle transforms", lightingActivationAndTransforms},
+        {"lighting capacity, range, and order", lightingCapacityRangeAndOrder},
         {"movement, pause, and timestep bounds", movementAndPause},
         {"vehicle interaction", vehicleInteraction},
         {"weapons and radio", weaponsAndRadio},
