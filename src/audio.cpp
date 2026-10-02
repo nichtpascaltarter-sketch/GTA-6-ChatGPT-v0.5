@@ -149,6 +149,7 @@ struct Audio::Impl {
         running=true;
         report(true,{});
         HANDLE events[]={stopEvent,sampleEvent};
+        AudioState latest;
         while(true) {
             const DWORD event=WaitForMultipleObjects(2,events,FALSE,2000);
             if(event==WAIT_OBJECT_0) {result=S_OK;break;}
@@ -158,8 +159,9 @@ struct Audio::Impl {
             if(FAILED(result)) break;
             if(padding>=capacity) continue;
             const UINT32 frames=capacity-padding;
-            AudioState latest;
-            {std::lock_guard<std::mutex> guard(stateMutex);latest=state;}
+            // A delayed publisher cannot block the device deadline. Reusing the
+            // prior serial also lets spatial sources detect stale control data.
+            {std::unique_lock<std::mutex> guard(stateMutex,std::try_to_lock);if(guard.owns_lock())latest=state;}
             synth.update(latest);
             synth.render(samples.data(),frames);
             result=render->GetBuffer(frames,&buffer);

@@ -1,5 +1,6 @@
 #pragma once
 #include "audio.h"
+#include "world_synth.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -22,8 +23,10 @@ public:
         contactMidpass_=filterCoefficient(1500);
         waterLowpass_=filterCoefficient(620);
         scrubLowpass_=filterCoefficient(2600);
+        world_.setSampleRate(rate);
     }
     void update(const AudioState& value) {
+        world_.update(value.world,value.paused);
         const float newShot=finiteClamp(value.shot,0,1);
         if(newShot>previousShot_+0.005f) {
             // A new muzzle flash restarts the brief blast; the tail is synthesized noise.
@@ -60,6 +63,8 @@ public:
             master_+=(desiredGain-master_)*smooth_;
             if(desiredGain==0 && master_<0.000001f) master_=0;
             if(state_.paused && master_==0) {
+                float worldLeft=0,worldRight=0;
+                world_.mix(worldLeft,worldRight);
                 stereo[i*2]=stereo[i*2+1]=0;
                 continue;
             }
@@ -124,11 +129,13 @@ public:
                 shotAge_+=delta_;
             }
             renderContacts(left,right);
+            world_.mix(left,right);
             // A continuous, symmetric soft limiter prevents inter-source clipping.
             stereo[i*2]=limit(left)*master_;
             stereo[i*2+1]=limit(right)*master_;
         }
     }
+    WorldAudioStats worldAudioStats() const {return world_.stats();}
 private:
     enum class Instrument { Keys, Bass, Pad, Pluck, Kick, Snare, Hat };
     struct Voice {
@@ -144,6 +151,7 @@ private:
     };
     static constexpr double tau_=6.2831853071795864769;
     AudioState state_{};
+    WorldSynth world_{};
     std::array<Voice,48> voices_{};
     std::array<float,8192> delayL_{},delayR_{};
     std::size_t delayIndex_=0;

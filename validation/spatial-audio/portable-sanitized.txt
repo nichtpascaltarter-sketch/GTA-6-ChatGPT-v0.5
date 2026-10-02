@@ -1,0 +1,6 @@
+World audio worst mix: rate=8000 samples=23760 render_wall_ms=99.279 process_cpu_ms=99.240 audio_seconds=2.970 cpu_realtime_fraction=0.03341 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=111.531757
+World audio worst mix: rate=44100 samples=132120 render_wall_ms=522.365 process_cpu_ms=522.209 audio_seconds=2.996 cpu_realtime_fraction=0.17431 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=603.361078
+World audio worst mix: rate=48000 samples=144000 render_wall_ms=570.068 process_cpu_ms=569.647 audio_seconds=3.000 cpu_realtime_fraction=0.18988 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=647.002120
+World audio worst mix: rate=96000 samples=288000 render_wall_ms=1113.862 process_cpu_ms=1113.156 audio_seconds=3.000 cpu_realtime_fraction=0.37105 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=1209.677793
+World audio worst mix: rate=384000 samples=1152000 render_wall_ms=4393.746 process_cpu_ms=4386.388 audio_seconds=3.000 cpu_realtime_fraction=1.46213 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=4710.110256
+World audio: spatial gains, serials, epochs, admission, pause, expiry, deterministic partitions/order, surfaces, transitions, fixed capacities, malformed input, zero allocations and sample rates passed.

@@ -1,0 +1,8 @@
+Compiler: g++ (Debian 14.2.0-19) 14.2.0
+Options: -std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror
+verified-parent-38c5c73: empty_world_samples=2319840 fingerprint=b312def52d8eefba
+spatial-candidate: empty_world_samples=2319840 fingerprint=b312def52d8eefba
+Raw float bytes: 9279360
+Raw stream SHA256: 0af02e039470d8a75a07d2828e362df41aef4164109ddc7cc2c1afb4739a485d
+PASS: all output bytes are identical.
+Final source confirmation: final lookup-based mixer emits the same 9279360 bytes; SHA256 0af02e039470d8a75a07d2828e362df41aef4164109ddc7cc2c1afb4739a485d.

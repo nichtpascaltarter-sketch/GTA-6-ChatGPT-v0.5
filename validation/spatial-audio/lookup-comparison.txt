@@ -1,0 +1,6 @@
+Analytic reference: replace only WorldSynth::wave with float(std::sin(Tau*phase)); same control/mixing code.
+Rates: 8000, 48000, 384000 Hz; eight engines and eight walkers across all materials.
+Compared float samples: 879840
+Maximum absolute sample difference: 4.81959432364e-07
+Relative RMS difference: 1.26221114125e-06
+PASS: max < 1e-5 and relative RMS < 1e-4.
