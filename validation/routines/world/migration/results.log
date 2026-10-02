@@ -1,0 +1,21 @@
+mode=0 version=1 old=84 preserved=84 reused=16 new=0 total=84 exact_v5_roundtrip=1
+mode=0 version=2 old=84 preserved=84 reused=16 new=0 total=84 exact_v5_roundtrip=1
+mode=0 version=3 old=84 preserved=84 reused=16 new=0 total=84 exact_v5_roundtrip=1
+mode=0 version=4 old=84 preserved=84 reused=16 new=0 total=84 exact_v5_roundtrip=1
+mode=1 version=1 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=1 version=2 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=1 version=3 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=1 version=4 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=2 version=1 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=2 version=2 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=2 version=3 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=2 version=4 old=84 preserved=84 reused=0 new=16 total=100 exact_v5_roundtrip=1
+mode=3 version=1 old=4 preserved=4 reused=0 new=16 total=20 exact_v5_roundtrip=1
+mode=3 version=2 old=4 preserved=4 reused=0 new=16 total=20 exact_v5_roundtrip=1
+mode=3 version=3 old=4 preserved=4 reused=0 new=16 total=20 exact_v5_roundtrip=1
+mode=3 version=4 old=4 preserved=4 reused=0 new=16 total=20 exact_v5_roundtrip=1
+mode=4 version=1 old=84 preserved=84 reused=8 new=8 total=92 exact_v5_roundtrip=1
+mode=4 version=2 old=84 preserved=84 reused=8 new=8 total=92 exact_v5_roundtrip=1
+mode=4 version=3 old=84 preserved=84 reused=8 new=8 total=92 exact_v5_roundtrip=1
+mode=4 version=4 old=84 preserved=84 reused=8 new=8 total=92 exact_v5_roundtrip=1
+legacy85_rejected=1 v5_save101_rejected=1 all_migration_checks_passed=1

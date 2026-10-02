@@ -1,0 +1,7 @@
+Request protocol: stable overlap tickets, stale epochs, duplicate rejection, atomic 49-chunk publication
+Worker publication: 7 scheduled, 7 installed, no synchronous fallback
+Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction
+Reset and teleport: blocked old workers rejected; synchronous collision recovery immediately complete
+Backpressure: cancellation and destruction drain a full queue without publishing partial chunks
+Builder failures: oversized capacities, exceptions and mismatched identities report bounded errors
+World streamer tests passed.

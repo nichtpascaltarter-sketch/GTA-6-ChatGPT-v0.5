@@ -1,0 +1,52 @@
+{
+  "suite": "world_lod_streaming_tests",
+  "started_utc": "2026-10-02T01:28:36.235576+00:00",
+  "cwd": "/workspace/GTA-6-ChatGPT-v0.5-routines",
+  "head": "50d0d8b8e2933400c57b52d6addb9dbec9fc94e9",
+  "compiler": "g++ (Debian 14.2.0-19) 14.2.0",
+  "source_sha256_before": {
+    "tests/world_lod_streaming_tests.cpp": "62403357d63e8fcbf60d6088d57f02b45b961b777c36290a090709abeeed11e6",
+    "src/world.cpp": "769bf4d72dd4cf022909fee9030bb1d46600b63053075cccdb4148ccc2216b3d",
+    "src/world_geometry.cpp": "e4e94bf90f187ce2002ed64bf1eaa8dc814a9048bae4f3da9bd1a46ef35e2bc1",
+    "src/world_streamer.cpp": "e15021e1201350478407a12a3151c4e2e3df8d16585972763214b01b399cdcd1",
+    "src/world.h": "4f26bc40f4e0399114ff3eb8450df5eebcf5d450efe326f0a07bd699d465627e",
+    "src/world_geometry.h": "77441a8daf03f4806415f2daacb778bfc4e7c9f1b699289a2066b12d34998b05",
+    "src/world_streamer.h": "619050f789f40f478594796781d634df55c69e71d01f15bcdcb790e23bbee50d",
+    "src/mc_math.h": "1614a42920bfccd38d934cd280c71520a2c8d70f69677c8a3e94f628809efa8e"
+  },
+  "build_command": [
+    "g++",
+    "-std=c++20",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wpedantic",
+    "-pthread",
+    "tests/world_lod_streaming_tests.cpp",
+    "src/world.cpp",
+    "src/world_geometry.cpp",
+    "src/world_streamer.cpp",
+    "-o",
+    "/workspace/scratch/routines-bench-collision/world_lod_streaming_tests"
+  ],
+  "build_seconds": 12.624742762000096,
+  "build_exit": 0,
+  "run_command": [
+    "/workspace/scratch/routines-bench-collision/world_lod_streaming_tests"
+  ],
+  "run_seconds": 0.6659384799995678,
+  "run_exit": 0,
+  "source_sha256_after": {
+    "tests/world_lod_streaming_tests.cpp": "62403357d63e8fcbf60d6088d57f02b45b961b777c36290a090709abeeed11e6",
+    "src/world.cpp": "769bf4d72dd4cf022909fee9030bb1d46600b63053075cccdb4148ccc2216b3d",
+    "src/world_geometry.cpp": "e4e94bf90f187ce2002ed64bf1eaa8dc814a9048bae4f3da9bd1a46ef35e2bc1",
+    "src/world_streamer.cpp": "e15021e1201350478407a12a3151c4e2e3df8d16585972763214b01b399cdcd1",
+    "src/world.h": "4f26bc40f4e0399114ff3eb8450df5eebcf5d450efe326f0a07bd699d465627e",
+    "src/world_geometry.h": "77441a8daf03f4806415f2daacb778bfc4e7c9f1b699289a2066b12d34998b05",
+    "src/world_streamer.h": "619050f789f40f478594796781d634df55c69e71d01f15bcdcb790e23bbee50d",
+    "src/mc_math.h": "1614a42920bfccd38d934cd280c71520a2c8d70f69677c8a3e94f628809efa8e"
+  },
+  "sources_stable": true,
+  "finished_utc": "2026-10-02T01:28:49.530875+00:00"
+}

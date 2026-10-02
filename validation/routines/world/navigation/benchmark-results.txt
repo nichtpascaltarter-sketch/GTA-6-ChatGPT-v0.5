@@ -1,0 +1,12 @@
+Navigation benchmark retained for milestone evidence.
+Repository: /workspace/GTA-6-ChatGPT-v0.5-routines
+World implementation: commit 8e69607, geometry commit 53cf23e.
+Compiler command: c++ -std=c++20 -O2 navigation_benchmark.cpp src/world.cpp src/world_geometry.cpp -o navigation_benchmark
+Workload: stream {8,0,8}, build the complete central pedestrian network 32 times, sort elapsed wall-clock durations.
+Final output: median_ms=2.051 p95_ms=2.251 max_ms=2.350 graph_capacity_bytes=15104
+Output graph: 252 nodes, 369 undirected edges, 54 reachable places, 24 crossings.
+Intermediate timing logs (development states not archived as independent snapshots):
+  Full-world solver: median_ms=13.950 p95_ms=14.541 max_ms=14.819
+  Per-segment collision filtering: median_ms=6.274 p95_ms=7.285 max_ms=7.355
+  Final neighborhood filtering and residency bitmask: median_ms=2.051 p95_ms=2.251 max_ms=2.350
+Graph capacity includes allocated node, edge and place vector capacities; it excludes temporary construction data.

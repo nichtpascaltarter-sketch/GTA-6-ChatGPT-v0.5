@@ -1,0 +1,8 @@
+Read-only review probe against in-progress routines source, after initial route/seat repairs.
+bad_seat_saved=1 loaded=0
+duplicate_home_saved=1 loaded=1
+bad_route_far=0 saved=1 loaded=0
+bad_route_far=1 saved=1 loaded=1 after_return_route=12 crossing=0
+
+Interpretation: invalid local route/seat state rejected; far route identity retained but invalid crossing dropped/replanned after central collision returned. Duplicate Home assignment remained accepted in this intermediate snapshot and was reported for correction.
+Reproducer: persistence_review.cpp (temporary test-only private-field access; no game source edits).

@@ -1,0 +1,157 @@
+{
+  "archive_base_commit": "fa34164f610e1b7ed02e648b51adc9800089285d",
+  "copy_policy": "Original probe sources and logs copied byte-for-byte. No executable binaries or full implementation snapshots included.",
+  "artifacts": {
+    "navigation/navigation_benchmark.cpp": {
+      "original_path": "/workspace/scratch/routines-navigation/navigation_benchmark.cpp",
+      "sha256": "69ff939a974ce5897fd9b683bc6ae22b7c56af1c235fa66539d9ea50fcc81bf1",
+      "bytes": 771
+    },
+    "navigation/benchmark-results.txt": {
+      "original_path": "/workspace/scratch/routines-navigation/benchmark-results.txt",
+      "sha256": "dde0271ddc2f54051a267697ba9eb317fbef25c164023498d00f7f507a38162b",
+      "bytes": 1012
+    },
+    "persistence/persistence_review.cpp": {
+      "original_path": "/workspace/scratch/routines-navigation/persistence_review.cpp",
+      "sha256": "027ddc082ffcec039488658a554ce7b68c2555ab320d2c4cd10cab875d95bc4d",
+      "bytes": 5335
+    },
+    "persistence/initial.txt": {
+      "original_path": "/workspace/scratch/routines-navigation/persistence-review-initial.txt",
+      "sha256": "76814162e4c13215a148e2f4d3a4d94ff61f879c745c35f4d5669f169b83cabf",
+      "bytes": 618
+    },
+    "persistence/ownership-before.txt": {
+      "original_path": "/workspace/scratch/routines-navigation/persistence-review-ownership.txt",
+      "sha256": "0b2d88bfbf45aa47fd5d2bacb2f6c0d70cfcee6c3c465fc4212aa82c9938ff6f",
+      "bytes": 305
+    },
+    "persistence/final.txt": {
+      "original_path": "/workspace/scratch/routines-navigation/persistence-review-final.txt",
+      "sha256": "eded47ef9f0ad86e340c1ed497e5a762fb73a7599d503df3cbcdd7448b1b9b08",
+      "bytes": 408
+    },
+    "persistence/source.sha256": {
+      "original_path": "/workspace/scratch/routines-navigation/reviewed-source.sha256",
+      "sha256": "577d4371511a37232c98a4a312a275dc93238cc44e07d752a8e29641959dff57",
+      "bytes": 822
+    },
+    "migration/migration_review.cpp": {
+      "original_path": "/workspace/scratch/routines-migration-review/migration_review.cpp",
+      "sha256": "b3a4a9d5cf8c9d9add10272291c8619899fbf74bfb1c0b749d4395b17fbdd1b4",
+      "bytes": 5216
+    },
+    "migration/results.log": {
+      "original_path": "/workspace/scratch/routines-migration-review/migration_review.log",
+      "sha256": "d7995121ca06de0d0dcde8d334cda616af0eae624f79bdd2caa52b47a14ad48c",
+      "bytes": 1728
+    },
+    "migration/source.sha256": {
+      "original_path": "/workspace/scratch/routines-migration-review/source.sha256",
+      "sha256": "5870700f5d5b16d9fdcde597ae8743972e3c211533a1b36f4b8b45b8f5705e3b",
+      "bytes": 822
+    },
+    "bench/run_existing_suite.py": {
+      "original_path": "/workspace/scratch/routines-bench-collision/run_existing_suite.py",
+      "sha256": "76932840ee8a3452d2714f3874b765b2038f4f36ef72cbecd58f98f794d4608d",
+      "bytes": 2481
+    },
+    "bench/world-tests.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_tests.log",
+      "sha256": "1613e00c0a87e8fb3330f8eeded734373f1091c8075bef5f7bbcfba27f34c496",
+      "bytes": 1155
+    },
+    "bench/world-tests-before.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_tests_before.log",
+      "sha256": "e80e97bc8513aecad88f9b693f04cf152b1954b2c65a541c62afd46290e3c45e",
+      "bytes": 147
+    },
+    "bench/summary.txt": {
+      "original_path": "/workspace/scratch/routines-bench-collision/summary.txt",
+      "sha256": "761a4c8c58dc946089008741d723c088252969c9fd5518febcb1e91b8f5b0278",
+      "bytes": 283
+    },
+    "bench/world_lod_geometry_tests.build.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_geometry_tests.build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "bench/world_lod_geometry_tests.run.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_geometry_tests.run.log",
+      "sha256": "2624bcbcba11305dda2f2ebbcd7c11fad80fceb4955f4813a3a0dcfe39b02bbf",
+      "bytes": 2298
+    },
+    "bench/world_lod_geometry_tests.json": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_geometry_tests.json",
+      "sha256": "0978df413c380208daacb77f7bd80f41aa34f7e9a10447356d42ec80245da6a9",
+      "bytes": 2251
+    },
+    "bench/world_lod_streaming_tests.build.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_streaming_tests.build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "bench/world_lod_streaming_tests.run.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_streaming_tests.run.log",
+      "sha256": "b1b1fb7700d9f12d0cfde0fcec66a009da3fd1f500e9ec6cc32905de0d750c5e",
+      "bytes": 1188
+    },
+    "bench/world_lod_streaming_tests.json": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_lod_streaming_tests.json",
+      "sha256": "24efc50aecc5d4e2256cf02537896bebc73821af57b16aa64f992bb36d5db7c5",
+      "bytes": 2484
+    },
+    "bench/world_streamer_tests.build.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_streamer_tests.build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "bench/world_streamer_tests.run.log": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_streamer_tests.run.log",
+      "sha256": "32cde97bf68f9e41aa66133c7d88d7d8468a62e0104831e86375d0e7d7126433",
+      "bytes": 602
+    },
+    "bench/world_streamer_tests.json": {
+      "original_path": "/workspace/scratch/routines-bench-collision/world_streamer_tests.json",
+      "sha256": "758b6a49d83d9083ae38b875cdafac93cec795d54d93d2d2277a106ded72a66e",
+      "bytes": 2453
+    }
+  },
+  "navigation": {
+    "world_commit": "8e69607bbbfbbda07ae6c5d898a538e59aab21be",
+    "geometry_commit": "53cf23e2729df631b198bb0a5ee6e4d6d9e79bfd",
+    "source_manifest": "navigation/source.sha256",
+    "notes": "The retained world snapshot was checked against this commit. Intermediate optimization timings have no separate source snapshot and are comparative observations only."
+  },
+  "bench": {
+    "fix_commit": "161d0864a9ee2758eafcfab7b2a667d194ee8307",
+    "regression_test": "tests/world_tests.cpp:benchCollision",
+    "source_manifest": "bench/world-tests-source.sha256",
+    "before_geometry_commit": "50d0d8b8e2933400c57b52d6addb9dbec9fc94e9",
+    "notes": "New world regression fails against prior whole-bench collision. Three suite JSON records contain actual before/after source hashes, commands, compiler and timings; tests ran before the fix commit while those exact files were in the working tree."
+  },
+  "persistence": {
+    "source_manifest": "persistence/source.sha256",
+    "notes": "Post-run reviewed-source hashes captured while gameplay changes were uncommitted. No before/after compiler-input stability proof was recorded. The final harness includes cases added after the intermediate logs; earlier full implementation snapshots are not archived here. This is focused development review evidence, not final native validation."
+  },
+  "migration": {
+    "source_manifest": "migration/source.sha256",
+    "notes": "Post-run reviewed-source hashes captured while gameplay changes were uncommitted. No before/after compiler-input stability proof was recorded. Later gameplay TTC changes are outside this migration run."
+  },
+  "warning_cleanup": {
+    "commit": "fa34164f610e1b7ed02e648b51adc9800089285d",
+    "command": [
+      "c++",
+      "-std=c++20",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-fsyntax-only",
+      "src/world_geometry.cpp"
+    ],
+    "exit": 0,
+    "notes": "Integer initializer-list literals changed to exactly equal float literals; no geometry behavior change."
+  }
+}

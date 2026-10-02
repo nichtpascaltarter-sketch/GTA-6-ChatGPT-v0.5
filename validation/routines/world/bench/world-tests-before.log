@@ -1,0 +1,1 @@
+world_tests_before: tests/world_tests.cpp:301: void {anonymous}::benchCollision(): Assertion `close(solidRay(world,origin,chest),4,.001f)' failed.

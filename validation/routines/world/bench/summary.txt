@@ -1,0 +1,3 @@
+world_lod_geometry_tests: strict build PASS (9.746s), run PASS (3.900s); source hashes stable.
+world_lod_streaming_tests: strict build PASS (12.625s), run PASS (0.666s); source hashes stable.
+world_streamer_tests: strict build PASS (9.597s), run PASS (1.777s); source hashes stable.

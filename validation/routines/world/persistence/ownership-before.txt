@@ -1,0 +1,6 @@
+bad_seat_saved=1 loaded=0
+duplicate_home_saved=1 loaded=0
+unreserved_route_saved=1 loaded=1 duplicate_sitters=1 owner_res=4210840 intruder_res=0
+bad_route_far=0 saved=1 loaded=0
+bad_route_far=1 saved=1 loaded=1 after_return_route=13 crossing=0
+parked_overlap_waited=1 moved=0.000 cleared_then_moved=2.200
