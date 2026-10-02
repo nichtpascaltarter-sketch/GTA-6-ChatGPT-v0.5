@@ -266,6 +266,32 @@ const std::vector<Mission>& Game::missions(){
     };
     return list;
 }
+void Game::synchronizeVehicleIdentities(){
+    // Existing IDs survive vector moves/reordering. New/replaced records start
+    // at zero; recycling explicitly clears the old generation below.
+    for(const auto& vehicle:vehicles)
+        if(vehicle.identity>=nextVehicleIdentity&&vehicle.identity!=UINT64_MAX)
+            nextVehicleIdentity=vehicle.identity+1;
+    std::array<uint64_t,512> seen{};
+    for(size_t i=0;i<vehicles.size();++i){
+        auto& vehicle=vehicles[i];
+        // Save/gameplay population is bounded at 256. Track copied records too:
+        // a copy represents a new simultaneous source, unlike a vector move.
+        size_t slot=0;bool duplicate=false;
+        if(vehicle.identity&&i<256){
+            slot=size_t((vehicle.identity^(vehicle.identity>>32))*11400714819323198485ull)&511u;
+            while(seen[slot]&&seen[slot]!=vehicle.identity)slot=(slot+1)&511u;
+            duplicate=seen[slot]==vehicle.identity;
+        }
+        if(vehicle.identity==0||duplicate){
+            vehicle.identity=nextVehicleIdentity++;
+            if(nextVehicleIdentity==0)nextVehicleIdentity=1;
+            slot=size_t((vehicle.identity^(vehicle.identity>>32))*11400714819323198485ull)&511u;
+            while(seen[slot])slot=(slot+1)&511u;
+        }
+        if(i<256)seen[slot]=vehicle.identity;
+    }
+}
 void Game::initialize(){
     *this=Game{};
     player=atGround(world,player);world.stream(player);
@@ -281,6 +307,7 @@ void Game::initialize(){
         vehicles.back().speed=7+random01(uint32_t(i)+211)*6;
     }
     appendStarterCraft(vehicles,world);
+    synchronizeVehicleIdentities();
     for(size_t i=0;i<vehicles.size();++i)trafficTargets.push_back(nextTrafficTarget(world,vehicles[i],uint32_t(i)*719));
     for(int i=0;i<84;++i){
         Pedestrian p;
@@ -668,7 +695,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             Vehicle& v=vehicles[i];if(!roadVehicle(v.kind)||int(i)==occupied||planarDistance(v.position,player)<430)continue;
             float grid=roadGrid(player);float angle=float(hash32(uint32_t(i)+simulationTick)%4u)*Pi*.5f;Vec3 node{std::round(player.x/grid)*grid,0,std::round(player.z/grid)*grid};Vec3 p=node+forward(angle)*grid*2+right(angle)*Lane;
             if(world.biome(p.x,p.z)==Biome::Ocean)continue;
-            v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0.0f:8.0f;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
+            v.identity=0;v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0.0f:8.0f;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
         }
         for(size_t i=4;i<pedestrians.size();++i){Pedestrian& p=pedestrians[i];if(persistentPedestrian(i)||planarDistance(p.position,player)<330)continue;float grid=roadGrid(player);uint32_t h=hash32(uint32_t(i)+simulationTick);Vec3 base{std::floor(player.x/grid)*grid+float(int(h%5u)-2)*grid,0,std::floor(player.z/grid)*grid+float(int((h>>4)%5u)-2)*grid};base+=Vec3{13.2f,0,13.2f};if(world.biome(base.x,base.z)==Biome::Ocean)continue;p.position=atGround(world,base);p.health=100;p.panic=0;p.motion=0;p.activity=PedestrianActivity::Walk;p.sitBlend=0;p.carrying=false;recyclePedestrian(i);pedestrianTargets[i]=pedestrianCorner(world,p.position,h);}
     }
@@ -767,6 +794,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
     }else if(wanted==0&&health<35)health=std::min(35.0f,health+dt*1.5f);
+    synchronizeVehicleIdentities();
     if(streamWorld)world.stream(player);
 }
 bool Game::save(const std::string& path) const {
@@ -876,6 +904,7 @@ bool Game::load(const std::string& path){
         if(!reader.good||reader.offset!=bytes.size()||state.missionHold<0||state.missionHold>3||(state.missionHold>0&&(state.activeMission!=4||state.missionStage!=1)))return false;
         if(state.occupied>=0&&planarDistance(state.player,state.vehicles[size_t(state.occupied)].position)>3)return false;
         if(version==1){if(state.vehicles.size()>254)return false;appendStarterCraft(state.vehicles,state.world);}
+        state.synchronizeVehicleIdentities();
         state.world.stream(state.player);
         if(version<5)state.initializePedestrians(false);
         else {state.pedestrianSimulation.network=state.world.pedestrianNetwork(state.player);state.pedestrianSimulation.revision=state.world.pedestrianResidency();if(!state.validatePedestrianRoutes(true))return false;}

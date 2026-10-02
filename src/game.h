@@ -16,6 +16,8 @@ struct Vehicle {
     Vec3 color{.2f,.45f,.65f}; VehicleKind kind=VehicleKind::Car;
     bool police=false,parked=false; float health=100;
     float pitch=0,roll=0,throttle=0;
+    // Runtime source generation only; the explicit save wire format omits it.
+    uint64_t identity=0;
 };
 struct Pedestrian {
     Vec3 position;float yaw=0,phase=0,panic=0,health=100;
@@ -94,5 +96,7 @@ private:
     bool persistentPedestrian(size_t index) const;
     void recyclePedestrian(size_t index);
     bool validatePedestrianRoutes(bool rejectInvalid);
+    uint64_t nextVehicleIdentity=1;
+    void synchronizeVehicleIdentities();
 };
 }
