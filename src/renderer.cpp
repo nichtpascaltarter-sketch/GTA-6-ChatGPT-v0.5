@@ -193,6 +193,9 @@ struct Renderer::Impl {
         }
         if(!available){
             timestampReadback.Reset();timestampHeap.Reset();
+            // FormatMessage may append CR/LF; keep this machine-readable
+            // optional-capability status on one line in native smoke logs.
+            for(char& c:reason)if(c=='\r'||c=='\n')c=' ';
             std::fprintf(stderr,"GPU frame timestamps: unavailable (%s)\n",reason.empty()?"zero queue timestamp frequency":reason.c_str());return;
         }
         timing.gpuAvailable=true;timing.gpuTimestampFrequency=gpuFrequency;
