@@ -75,7 +75,7 @@ try {
     $common = @('/nologo', '/std:c++20', '/EHsc', '/MT', '/W4', '/permissive-',
         '/Zc:__cplusplus', '/Zc:inline', '/utf-8', '/DWIN32_LEAN_AND_MEAN',
         '/DNOMINMAX', '/DUNICODE', '/D_UNICODE', '/D_WIN32_WINNT=0x0A00',
-        "/I$(Join-Path $repo 'src')", "/I$generated")
+        "/I$(Join-Path $repo 'src')", "/I$output")
     if ($Configuration -eq 'Release') {
         $common += @('/O2', '/GL', '/DNDEBUG')
         $linkConfiguration = @('/LTCG', '/OPT:REF', '/OPT:ICF')
