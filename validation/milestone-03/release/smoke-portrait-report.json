@@ -1,0 +1,21 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "portrait",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 1.942,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 924,
+  "executableSha256": "ae0b8549486360b06959e766fecd86741f213ae50029b8f964f286534cc54602",
+  "screenshotSha256": "008ea044f8d9978c2a5d45fc317bf1e57ac8e2cdd909698526608c3a2825f01a"
+}

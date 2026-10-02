@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "f70a8e99cdbb5af41c4ea3e6fd3c7bd42be7b1db",
+  "workflowRun": 36946847879,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36946847879",
+  "workflowConclusion": "success",
+  "releaseArtifact": 11202726034,
+  "debugArtifact": 11202004167,
+  "executables": {
+    "release": {
+      "bytes": 716288,
+      "sha256": "ae0b8549486360b06959e766fecd86741f213ae50029b8f964f286534cc54602"
+    },
+    "debug": {
+      "bytes": 1984512,
+      "sha256": "44c616bf80108ea3308385bdb7543e72771e10c7d166d64e082ea227cac7120f"
+    }
+  },
+  "nativeConfigurations": [
+    "Release",
+    "Debug"
+  ],
+  "nativeTestSuites": [
+    "world",
+    "game (22/22)",
+    "procedural audio",
+    "cinematics"
+  ],
+  "precompiledShaderVariants": 9,
+  "compileWarningsObserved": 0,
+  "releaseAdditionalScenes": 13,
+  "standaloneLaunches": 18,
+  "renderedFramesTotal": 704,
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "releaseSampleCount": 4,
+  "debugSampleCountsValidated": [
+    1,
+    2,
+    4
+  ],
+  "debugLayer": "D3D12 debug layer and corruption/error validation enabled in all four Debug launches; no errors reported",
+  "lifecycleValidation": "Each sample count completed 120 frames; verified clients 976x657 at frame 30, 1024x768 fullscreen at frame 60, 976x657 restored at frame 90; captured image matched restored client dimensions",
+  "runtimeDependencies": "Each smoke executable launched alone from a fresh temporary directory; import audit permits Windows system DLLs only",
+  "nativeRendering": "D3D12 WARP; hardware DXR and RTX 4070 frame rates remain unverified",
+  "audio": "Procedural synthesis tested; native WASAPI listening not verified",
+  "archiveContents": "Original artifact reports and nonempty session/diagnostic logs, executable hashes/import reports, baseline timing reports, timing comparison; no executable or BMP files"
+}

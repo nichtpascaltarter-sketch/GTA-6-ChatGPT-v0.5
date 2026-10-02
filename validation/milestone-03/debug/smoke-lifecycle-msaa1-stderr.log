@@ -1,0 +1,3 @@
+D3D12 debug layer enabled.
+D3D12 corruption/error message validation enabled.
+Scene target: R16G16B16A16_FLOAT; samples=1; requested limit=1

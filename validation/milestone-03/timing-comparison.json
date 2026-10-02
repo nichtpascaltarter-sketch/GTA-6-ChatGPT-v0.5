@@ -1,0 +1,144 @@
+{
+  "measurement": "Process launch to exit, excludes executable copy and screenshot analysis",
+  "adapter": "Microsoft Basic Render Driver (D3D12 WARP)",
+  "limitation": "Each revision ran on a separate GitHub-hosted Windows runner; these are indicative smoke durations, not controlled GPU benchmarks or RTX 4070 performance evidence.",
+  "baseline": {
+    "sourceCommit": "18390b2124c663fe03698fd59d68a8f6a600b973",
+    "workflowRun": 36946654621,
+    "releaseArtifact": 11202053430
+  },
+  "hdr": {
+    "sourceCommit": "f70a8e99cdbb5af41c4ea3e6fd3c7bd42be7b1db",
+    "workflowRun": 36946847879
+  },
+  "release": [
+    {
+      "scene": "aircraft",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.005,
+      "hdrElapsedSeconds": 1.235,
+      "changePercent": 22.89
+    },
+    {
+      "scene": "boat",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.041,
+      "hdrElapsedSeconds": 1.308,
+      "changePercent": 25.65
+    },
+    {
+      "scene": "cinematic",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.744,
+      "hdrElapsedSeconds": 1.957,
+      "changePercent": 12.21
+    },
+    {
+      "scene": "coast",
+      "frames": 8,
+      "baselineElapsedSeconds": 0.821,
+      "hdrElapsedSeconds": 0.995,
+      "changePercent": 21.19
+    },
+    {
+      "scene": "drive",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.708,
+      "hdrElapsedSeconds": 1.767,
+      "changePercent": 3.45
+    },
+    {
+      "scene": "map",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.696,
+      "hdrElapsedSeconds": 1.861,
+      "changePercent": 9.73
+    },
+    {
+      "scene": "night",
+      "frames": 8,
+      "baselineElapsedSeconds": 5.654,
+      "hdrElapsedSeconds": 5.724,
+      "changePercent": 1.24
+    },
+    {
+      "scene": "portrait",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.775,
+      "hdrElapsedSeconds": 1.942,
+      "changePercent": 9.41
+    },
+    {
+      "scene": "city",
+      "frames": 120,
+      "baselineElapsedSeconds": 21.398,
+      "hdrElapsedSeconds": 23.767,
+      "changePercent": 11.07
+    },
+    {
+      "scene": "rural",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.491,
+      "hdrElapsedSeconds": 1.564,
+      "changePercent": 4.9
+    },
+    {
+      "scene": "storm",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.666,
+      "hdrElapsedSeconds": 1.808,
+      "changePercent": 8.52
+    },
+    {
+      "scene": "suburbs",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.263,
+      "hdrElapsedSeconds": 1.389,
+      "changePercent": 9.98
+    },
+    {
+      "scene": "vehicle",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.723,
+      "hdrElapsedSeconds": 1.931,
+      "changePercent": 12.07
+    },
+    {
+      "scene": "wetland",
+      "frames": 8,
+      "baselineElapsedSeconds": 1.523,
+      "hdrElapsedSeconds": 1.771,
+      "changePercent": 16.28
+    }
+  ],
+  "debug": [
+    {
+      "report": "smoke-lifecycle-msaa1-report.json",
+      "scene": "lifecycle",
+      "frames": 120,
+      "sampleCount": 1,
+      "elapsedSeconds": 30.014
+    },
+    {
+      "report": "smoke-lifecycle-msaa2-report.json",
+      "scene": "lifecycle",
+      "frames": 120,
+      "sampleCount": 2,
+      "elapsedSeconds": 32.34
+    },
+    {
+      "report": "smoke-lifecycle-report.json",
+      "scene": "lifecycle",
+      "frames": 120,
+      "sampleCount": 4,
+      "elapsedSeconds": 34.365
+    },
+    {
+      "report": "smoke-report.json",
+      "scene": "city",
+      "frames": 120,
+      "sampleCount": 4,
+      "elapsedSeconds": 30.82
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "city",
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 120,
+  "renderedFrames": 120,
+  "exitCode": 0,
+  "elapsedSeconds": 21.398,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 719,
+  "executableSha256": "8790026af665451848c0a7da2659f3d10cbc3ae9caa00fd8bcb8db94090676ab",
+  "screenshotSha256": "d7b15120deee96228d6ce58856e1874b7b60637b086bd028c8edfa404eb1253a"
+}

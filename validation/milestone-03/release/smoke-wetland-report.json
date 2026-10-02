@@ -1,0 +1,21 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "wetland",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 1.771,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 646,
+  "executableSha256": "ae0b8549486360b06959e766fecd86741f213ae50029b8f964f286534cc54602",
+  "screenshotSha256": "41b4077f52da326c25efd3bc906e34e47c54eb1bdf6bee2b14d021b759a51950"
+}
