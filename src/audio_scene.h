@@ -1,6 +1,7 @@
 #pragma once
 #include "audio.h"
 #include "game.h"
+#include "world_gunfire_scene.h"
 #include <algorithm>
 #include <limits>
 
@@ -45,16 +46,18 @@ struct WorldAudioSceneStats {
 
 // Simulation-thread tracker, independent of the audio callback. All storage is
 // fixed: at most 256 vehicles and 128 people, with eight nearest sources of each
-// kind published. No entity index, borrowed pointer, or world revision is an ID.
+// kind plus all officer shot counters published. No entity index, borrowed
+// pointer, or world revision is an audio source ID.
 class WorldAudioScene {
 public:
     static constexpr unsigned EngineCapacity=256,FootCapacity=128;
-    static constexpr float EngineRadius=144,FootRadius=32;
+    static constexpr float EngineRadius=144,FootRadius=32,GunRadius=220;
     const WorldAudioSceneStats& stats() const noexcept {return statistics;}
     // Explicit resets keep counters but renew the audio epoch. Focus suspension
     // normally uses update(..., 0, false, worldEpoch), preserving engine IDs.
     void reset(uint64_t worldEpoch) noexcept {
         engines[0].clear();engines[1].clear();feet[0].clear();feet[1].clear();
+        gunfire.reset();
         previous=0;sourceWorldEpoch=worldEpoch;initialized=true;hasListener=false;
         ++audioEpoch;if(audioEpoch==0)++audioEpoch;
         ++statistics.epochResets;statistics.trackedEngines=statistics.trackedFeet=0;
@@ -168,6 +171,13 @@ public:
         statistics.trackedEngines=nextEngines.count;statistics.trackedFeet=nextFeet.count;
         result.engines=engineSelection.sounds;result.engineCount=engineSelection.count;
         result.feet=footSelection.sounds;result.footCount=footSelection.count;
+        gunfire.update(result,game.lawState(),game.lawShots(),dt,running,
+            [this,listenerPosition](Vec3 origin,float& leftGain,float& rightGain) {
+                if(!positionValid(origin))return false;
+                const float range=distance(origin,listenerPosition);
+                if(range<GunRadius)pan(origin,listenerPosition,range,GunRadius,20,1,leftGain,rightGain);
+                return true;
+            });
         return finish(result,running);
     }
 private:
@@ -246,6 +256,7 @@ private:
     }
     std::array<History<EngineHistory,EngineCapacity>,2> engines{};
     std::array<History<FootHistory,FootCapacity>,2> feet{};
+    WorldGunfireScene gunfire;
     WorldAudioSceneStats statistics;
     uint64_t sourceWorldEpoch=0,audioEpoch=0,publication=0,nextSoundId=0;
     unsigned previous=0;bool initialized=false,hasListener=false;

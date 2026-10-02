@@ -1,0 +1,15 @@
+Compiler: GCC 14.2, -std=c++20 -O2 -Wall -Wextra -Wpedantic -Werror
+Reference source: frozen audio revision 7db152e
+Harness: tests/audio_gunfire_baseline.cpp, with MC_SYNTH_HEADER selecting each revision.
+Raw streams compared with cmp: exit 0 (identical).
+
+Reference: empty_gunfire_samples=3087840 fingerprint=8f13b57a66051ab9
+Candidate: empty_gunfire_samples=3087840 fingerprint=8f13b57a66051ab9
+Byte count: 12351360
+Reference SHA256: 528f361d4442598da9a7306dc5c68f6c7a7e537a22bca6f9bb6dd523d2887ac5
+Candidate SHA256: 528f361d4442598da9a7306dc5c68f6c7a7e537a22bca6f9bb6dd523d2887ac5
+
+Original tests/audio_empty_fingerprint.cpp:
+empty_world_samples=2319840 fingerprint=b312def52d8eefba
+SHA256: 0af02e039470d8a75a07d2828e362df41aef4164109ddc7cc2c1afb4739a485d
+Matches the original pre-spatial-audio reference unchanged.

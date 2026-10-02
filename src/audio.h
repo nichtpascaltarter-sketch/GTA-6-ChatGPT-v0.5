@@ -5,7 +5,7 @@
 #include <string>
 namespace mc {
 enum class FootSurface { Pavement, Soil, Grass, Sand, Wood };
-inline constexpr unsigned WorldEngineSources=8,WorldFootSources=8;
+inline constexpr unsigned WorldEngineSources=8,WorldFootSources=8,WorldGunSources=16;
 struct WorldEngineSound {
     // IDs are stable per live entity generation. Gains include distance/pan.
     std::uint64_t id=0;
@@ -22,6 +22,14 @@ struct WorldFootSound {
     FootSurface surface=FootSurface::Pavement;
     int side=0;
 };
+struct WorldGunSound {
+    // Publish the complete officer roster, including inaudible counter baselines.
+    // Only an actual emission supplies strength > 0 and its fixed muzzle origin.
+    // The counter is monotonic within a world epoch; zero is a valid baseline.
+    std::uint32_t shooter=0,shotSerial=0;
+    std::array<float,3> origin{};
+    float left=0,right=0,ageSeconds=1,strength=0;
+};
 struct WorldAudioState {
     // Change epoch on load/reset. IDs must change when an entity is recycled.
     // Publish a strictly increasing serial once per new tracker snapshot,
@@ -29,8 +37,9 @@ struct WorldAudioState {
     std::uint64_t epoch=0,publicationSerial=0;
     std::array<WorldEngineSound,WorldEngineSources> engines{};
     std::array<WorldFootSound,WorldFootSources> feet{};
-    unsigned engineCount=0,footCount=0;
-    // False prevents new foot contacts while allowing stationary engine sound.
+    std::array<WorldGunSound,WorldGunSources> gunfire{};
+    unsigned engineCount=0,footCount=0,gunCount=0;
+    // False prevents new contacts/gunshots while allowing stationary engines.
     bool advancing=true;
 };
 struct AudioState {

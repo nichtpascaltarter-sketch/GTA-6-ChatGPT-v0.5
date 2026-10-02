@@ -1,0 +1,7 @@
+Gunfire worst mix: rate=8000 frames=23760 wall_ms=195.814 cpu_ms=195.807 cpu_fraction=0.06593 peaks=8/12/12/36 checksum=127.682236
+Gunfire worst mix: rate=44100 frames=132120 wall_ms=1075.501 cpu_ms=1075.416 cpu_fraction=0.35896 peaks=8/12/12/36 checksum=665.960568
+Gunfire worst mix: rate=48000 frames=144000 wall_ms=1145.301 cpu_ms=1140.189 cpu_fraction=0.38006 peaks=8/12/12/36 checksum=725.290131
+Gunfire worst mix: rate=96000 frames=288000 wall_ms=2303.032 cpu_ms=2298.470 cpu_fraction=0.76616 peaks=8/12/12/36 checksum=1393.140353
+Gunfire worst mix: rate=192000 frames=576000 wall_ms=4408.851 cpu_ms=4406.170 cpu_fraction=1.46872 peaks=8/12/12/36 checksum=2791.546873
+Gunfire worst mix: rate=384000 frames=1152000 wall_ms=8155.604 cpu_ms=7509.386 cpu_fraction=2.50313 peaks=8/12/12/36 checksum=5545.110701
+World gunfire: actual emissions, baseline/serials, pan, lifecycle, capacity, ages, deterministic partitions/order, tracker retention, invalid data, zero allocations and all sample rates passed.

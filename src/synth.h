@@ -29,6 +29,7 @@ public:
     // baseline. A retained muzzle flash must not replay a historical shot.
     void prime(const AudioState& value) {
         previousShot_=finiteClamp(value.shot,0,1);
+        world_.prime(value.world,value.paused);
         update(value);
     }
     void update(const AudioState& value) {

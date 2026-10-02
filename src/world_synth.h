@@ -1,5 +1,6 @@
 #pragma once
 #include "audio.h"
+#include "world_gunfire_synth.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -10,6 +11,8 @@ namespace mc {
 struct WorldAudioStats {
     unsigned engineVoices=0,footVoices=0,contacts=0;
     std::uint64_t strikes=0,droppedSources=0,droppedStrikes=0,rejectedSources=0,staleReleases=0;
+    unsigned gunVoices=0,gunShooters=0;
+    std::uint64_t gunshots=0,droppedGunshots=0,rejectedGunSources=0,staleGunPrimes=0;
 };
 
 // The game supplies a small, immutable snapshot. All phases, random streams,
@@ -25,6 +28,7 @@ public:
         setSampleRate(rate);
     }
     void setSampleRate(unsigned rate) {
+        gunfire_.setSampleRate(rate);
         rate_=double(std::clamp(rate,8000u,384000u));delta_=1.0/rate_;
         gainCoefficient_=coefficient(1.0/.020);
         controlCoefficient_=coefficient(1.0/.025);
@@ -33,7 +37,9 @@ public:
         engineNoiseCoefficient_=coefficient(Tau*180);
         for(unsigned i=0;i<decay_.size();++i)decay_[i]=float(std::exp(-delta_/decaySeconds_[i]));
     }
+    void prime(const WorldAudioState& state,bool paused=false) {gunfire_.prime(state,paused);}
     void update(const WorldAudioState& state,bool paused=false) {
+        gunfire_.update(state,paused);
         const bool newEpoch=!initialized_||state.epoch!=epoch_;
         if(!newEpoch&&state.publicationSerial<serial_)return;
         const bool fresh=newEpoch||state.publicationSerial!=serial_;
@@ -95,7 +101,11 @@ public:
         });
     }
     void mix(float& left,float& right) {
-        if(!initialized_||!anyVoice_)return;
+        if(!initialized_||!anyVoice_) {
+            float worldLeft=0,worldRight=0;
+            gunfire_.mix(worldLeft,worldRight,[this](double phase){return wave(phase);});
+            addBus(left,right,worldLeft,worldRight);return;
+        }
         age_+=delta_;
         if(!stale_&&age_>FreshnessSeconds) {
             stale_=true;++stats_.staleReleases;
@@ -160,19 +170,26 @@ public:
         }
         // This bus is bounded independently of the existing full-mix limiter.
         // Adding exact zero leaves the established empty-world waveform intact.
-        if(worldLeft!=0)left+=worldLeft/(1+std::abs(worldLeft));
-        if(worldRight!=0)right+=worldRight/(1+std::abs(worldRight));
+        gunfire_.mix(worldLeft,worldRight,[this](double phase){return wave(phase);});
+        addBus(left,right,worldLeft,worldRight);
     }
     void render(float* stereo,std::size_t frames) {
         for(std::size_t i=0;i<frames;++i){float left=0,right=0;mix(left,right);stereo[i*2]=left;stereo[i*2+1]=right;}
     }
     WorldAudioStats stats() const {
         WorldAudioStats result=stats_;
+        const auto guns=gunfire_.stats();
+        result.gunVoices=guns.voices;result.gunShooters=guns.shooters;result.gunshots=guns.shots;
+        result.droppedGunshots=guns.droppedShots;result.rejectedGunSources=guns.rejectedSources;result.staleGunPrimes=guns.stalePrimes;
         for(const auto& voice:engines_)result.engineVoices+=voice.used?1u:0u;
         for(const auto& voice:feet_)if(voice.used){++result.footVoices;for(const auto& contact:voice.contacts)result.contacts+=contact.age<ContactDuration?1u:0u;}
         return result;
     }
 private:
+    static void addBus(float& left,float& right,float worldLeft,float worldRight) {
+        if(worldLeft!=0)left+=worldLeft/(1+std::abs(worldLeft));
+        if(worldRight!=0)right+=worldRight/(1+std::abs(worldRight));
+    }
     static constexpr double Tau=6.2831853071795864769,ContactDuration=.32;
     static constexpr unsigned SineSteps=2048;
     static constexpr std::array<double,5> decaySeconds_{{.029,.064,.064,.070,.050}};
@@ -198,6 +215,7 @@ private:
         std::array<Contact,ContactsPerFoot> contacts{};
     };
     std::array<Engine,EngineVoices> engines_{};
+    WorldGunfireSynth gunfire_{};
     std::array<Foot,FootVoices> feet_{};
     std::array<float,5> decay_{};
     std::array<float,SineSteps+1> sine_{};

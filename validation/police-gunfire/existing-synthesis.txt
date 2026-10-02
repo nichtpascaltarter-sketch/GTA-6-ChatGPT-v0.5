@@ -1,0 +1,11 @@
+Existing unchanged suites rebuilt against the final gunfire DSP headers with
+GCC 14.2, C++20, -O2 -Wall -Wextra -Wpedantic -Werror; audio_output also uses -pthread.
+
+audio_tests:
+Procedural audio: stations, stereo, finite peaks, silence, four engines, ambience, five contact surfaces, alternating steps/cadence, water strokes, tire scrub/gating, transitions, weather, siren, shot, pause, gain, device rates and buffer determinism passed.
+
+audio_output_tests:
+Audio output: exact PCM endpoints/midpoints, all valid-bit precisions, float identity, mono/surround silence, bounded writes, malformed formats, finite clipping, device-reopen shot priming and coherent publication passed.
+
+world_audio_tests:
+World audio: spatial gains, serials, epochs, admission, pause, expiry, deterministic partitions/order, surfaces, transitions, fixed capacities, malformed input, zero allocations and sample rates passed.

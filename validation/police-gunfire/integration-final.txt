@@ -1,0 +1,1 @@
+Live gunfire audio: actual_emissions=5 accepted=5 peak_voices=1; muzzle identity, missed publication, pause, player-flash separation and save/load passed.
