@@ -58,10 +58,16 @@ float surfaceGrain(float3 position,float3 normal) {
 float3 reflectionSkyApproximation(float3 direction) { return atmosphereBaseRadiance(direction); }
 float3 surfaceEmission(float3 color) {
     // Window occupancy is authored per pane by its warm tint. Cool unoccupied
-    // panes remain reflective; bright signs, lenses and signal lamps stay lit.
+    // panes remain reflective; bright signs/lenses bypass occupancy but still
+    // follow the night fade. Powered fixtures use their own material below.
     float lamp=step(.70,max(color.r,max(color.g,color.b)));
     float occupied=step(.28,color.r)*step(color.b*1.15,color.r);
     return color*lerp(float3(1.2,.86,.47),float3(1,1,1),lamp)*max(lamp,occupied)*weather.w*1.3;
+}
+float3 fixtureEmission(float3 color) {
+    // Authored powered diffusers remain luminous in daylight. Their separate
+    // local-light records illuminate nearby surfaces; this is emitted radiance.
+    return max(color,0)*1.8;
 }
 struct LocalLight {float3 position;float radius;float3 color;float intensity;float3 direction;float cone;};
 StructuredBuffer<LocalLight> localLights : register(t4);
@@ -120,6 +126,7 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
     float3 normal=normalize(a.normal*bary.x+b.normal*bary.y+c.normal*bary.z);
     float3 lit=albedo*(float3(.14,.18,.23)*(.15+.85*sunDay.w)+max(0,dot(normal,sunDay.xyz))*sunDay.w*float3(1.6,1.4,1.1));
     if(a.material>1.5 && a.material<2.5) lit+=surfaceEmission(albedo);
+    if(a.material>4.5 && a.material<5.5) lit+=fixtureEmission(albedo);
     float haze=1-exp(-q.CommittedRayT()*(.0015+weather.x*.002));
     return lerp(lit,reflectionSkyApproximation(direction),haze);
 }
@@ -145,7 +152,8 @@ float4 PSMain(PixelInput i):SV_TARGET {
     bool metal=i.material>.5 && i.material<1.5;
     bool glass=i.material>1.5 && i.material<2.5;
     bool water=i.material>2.5 && i.material<3.5;
-    bool road=i.material>3.5;
+    bool road=i.material>3.5 && i.material<4.5;
+    bool fixture=i.material>4.5 && i.material<5.5;
     if(metal){metallic=.67;roughness=.23;}
     if(glass){metallic=.48;roughness=.18;}
     if(road){
@@ -192,6 +200,7 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float3 moonDirection=normalize(float3(-sunDay.x,abs(sunDay.y)+.15,-sunDay.z));
     color+=albedo*float3(.085,.11,.17)*saturate(dot(n,moonDirection))*(1-sunDay.w);
     if(glass) color+=surfaceEmission(albedo);
+    if(fixture) color+=fixtureEmission(i.color);
     if(metal||glass||water||(road&&weather.x>.12)) {
         float3 r=reflect(-v,n), reflected=reflectionSkyApproximation(r);
 #ifdef ENABLE_RAYTRACING

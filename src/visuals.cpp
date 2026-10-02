@@ -3,7 +3,6 @@
 
 namespace mc {
 namespace {
-constexpr Vec3 Garage{140,0,128};
 constexpr Vec3 Outfitter{-116,0,128};
 float planarDistance(Vec3 a,Vec3 b){a.y=b.y=0;return length(a-b);}
 Vec3 rotate(Vec3 p,float yaw){return right(yaw)*p.x+Vec3{0,p.y,0}+forward(yaw)*p.z;}
@@ -463,6 +462,12 @@ Mesh Game::dynamicMesh() const {
             ellipsoid(mesh,p.position+rotate({0,1.777f,.102f},p.yaw),{.122f,.010f,.081f},p.yaw,shirt*.65f,10,3);
         }
     }
+    const Vec3 attendant=World::garageSite().staff;
+    const float attendantDistance=planarDistance(attendant,player);
+    if(attendantDistance<120){
+        personMesh(mesh,attendant,0,time*.55f,.025f,{.16f,.31f,.28f},{.52f,.32f,.21f},false,false,73,attendantDistance<32);
+        addBox(mesh,attendant+Vec3{.095f,1.27f,.15f},{.035f,.015f,.008f},{.91f,.83f,.55f});
+    }
     if(occupied<0)personMesh(mesh,player,yaw,playerPhase,playerMotion,{.035f,.16f,.19f},{.64f,.40f,.27f},aiming||shotFlash>0,false,24,true);
     else if(size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Motorcycle)
         personMesh(mesh,player,vehicles[size_t(occupied)].yaw,0,0,{.035f,.16f,.19f},{.64f,.40f,.27f},false,false,24,true,true);
@@ -538,7 +543,9 @@ Mesh Game::dynamicMesh() const {
             }
         }
     }
-    for(Vec3 marker:{Garage,Outfitter}){if(planarDistance(marker,player)>160)continue;marker.y=world.height(marker.x,marker.z);ellipsoid(mesh,marker+Vec3{0,2.4f,0},{.20f,.28f,.20f},time*.35f,{.13f,.46f,1},6,3,2);}
+    auto serviceMarker=[&](Vec3 marker,Vec3 color){if(planarDistance(marker,player)>160)return;marker.y=world.height(marker.x,marker.z);ellipsoid(mesh,marker+Vec3{0,2.4f,0},{.20f,.28f,.20f},time*.35f,color,6,3,2);};
+    serviceMarker(World::garageSite().marker,{.96f,.58f,.25f});
+    serviceMarker(Outfitter,{.13f,.46f,1});
     const Vec3 violet{.62f,.12f,.93f},mint{.13f,.94f,.69f};
     Vec3 pit=harborSplitContact();pit.y=world.height(pit.x,pit.z);
     if(planarDistance(pit,player)<220){
@@ -628,6 +635,9 @@ std::vector<Light> Game::lightSources() const {
         // Prefer nearby emitters whose illumination can actually reach the camera's neighbourhood.
         candidates.push_back({light,distance+outsideReach*4,candidates.size()});
     };
+    // Powered interior fixtures share validation, range culling and the stable
+    // 64-light budget, but their energy is independent of the day/night cycle.
+    for(const Chunk& chunk:world.chunks)for(const Light& light:chunk.alwaysLights)collect(light);
     if(night>.00001f)for(const Chunk& chunk:world.chunks)for(Light light:chunk.lights){light.intensity*=night;collect(light);}
     for(const Vehicle& vehicle:vehicles){
         if(vehicle.health<=0)continue;
