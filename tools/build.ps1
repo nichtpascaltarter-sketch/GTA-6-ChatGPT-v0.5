@@ -90,7 +90,7 @@ try {
     $systemLibraries = @('kernel32.lib', 'user32.lib', 'gdi32.lib', 'shell32.lib',
         'd3d12.lib', 'dxgi.lib', 'dxguid.lib', 'xinput9_1_0.lib', 'ole32.lib',
         'uuid.lib', 'avrt.lib')
-    $sourceNames = @('main', 'world', 'world_geometry', 'world_streamer', 'game', 'pedestrians', 'visuals', 'renderer', 'audio')
+    $sourceNames = @('main', 'world', 'world_geometry', 'world_streamer', 'game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'visuals', 'renderer', 'audio')
     $sources = @($sourceNames | ForEach-Object { Join-Path $repo "src\$_.cpp" })
     $executable = Join-Path $output 'MeridianCoast.exe'
     Write-Host "Building $Configuration x64 executable with static C/C++ runtime"
@@ -104,20 +104,26 @@ try {
         $testSets = @(
             @{ Name = 'world'; Sources = @('world', 'world_geometry') },
             @{ Name = 'market'; Sources = @('world', 'world_geometry') },
+            @{ Name = 'law'; Sources = @('law', 'law_navigation', 'world', 'world_geometry') },
+            @{ Name = 'law_navigation'; Sources = @('law_navigation', 'world', 'world_geometry') },
             @{ Name = 'world_streamer'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'world_lod_geometry'; Sources = @('world', 'world_geometry') },
             @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'render_visibility'; Sources = @() },
             @{ Name = 'render_timing'; Sources = @() },
-            @{ Name = 'game'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
-            @{ Name = 'pedestrian'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
-            @{ Name = 'workshop_lighting'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
-            @{ Name = 'pedestrian_visuals'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'game'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'game_police'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'police_visuals'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'world_gunfire_integration'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'world_gunfire'; Sources = @() },
+            @{ Name = 'pedestrian'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'workshop_lighting'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'pedestrian_visuals'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
             @{ Name = 'world_audio'; Sources = @() },
             @{ Name = 'audio_output'; Sources = @() },
-            @{ Name = 'world_audio_scene'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
-            @{ Name = 'world_audio_integration'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'world_audio_scene'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'world_audio_integration'; Sources = @('game', 'game_law', 'law', 'law_navigation', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
         )
         foreach ($test in $testSets) {
