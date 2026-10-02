@@ -151,7 +151,7 @@ void drawMenu(Ui& ui,const App& app,const Settings& settings,const Renderer& ren
     if(ui.width>1100*s){float x=panel+45*s;ui.text(x,ui.height-142*s,"PORT SOLACE",2.2f*s);ui.text(x,ui.height-112*s,"THE COAST IS CALLING.",1.5f*s,teal);ui.wrapped(x,ui.height-83*s,"A stolen tide chart. A missing courier. One last job before the storm.",1.35f*s,ui.width-x-50*s,muted);}
 }
 int execute(HINSTANCE instance,const Options& options) {
-    App app;if(options.smoke){app.width=960;app.height=540;app.menu=app.title=false;}
+    App app;if(options.smoke){app.width=960;app.height=540;app.menu=app.title=false;app.diagnostics=options.scene=="trial-run";}
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     auto directory=dataDirectory();auto settingsPath=directory/L"settings.bin";auto savePath=directory/L"save.bin";
     auto u8=savePath.u8string();std::string saveFile(reinterpret_cast<const char*>(u8.data()),u8.size());Settings settings=options.smoke?Settings{}:readSettings(settingsPath);
@@ -232,7 +232,7 @@ int execute(HINSTANCE instance,const Options& options) {
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
         auto last=std::chrono::steady_clock::now();float fps=60,presentationTime=game.time;Ui ui;Cinematic cinematic;WorldMap worldMap;
-        if(options.smoke&&(options.scene=="map"||options.scene=="trial-map")){app.mapOpen=true;worldMap.focus(game.player);if(options.scene=="trial-map")worldMap.span=1024;}
+        if(options.smoke&&(options.scene=="map"||options.scene=="trial-map")){app.mapOpen=true;if(options.scene=="trial-map")worldMap.span=1024;worldMap.focus(game.player);}
         RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
