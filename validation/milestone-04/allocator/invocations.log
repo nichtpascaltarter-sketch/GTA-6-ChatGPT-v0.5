@@ -1,0 +1,11 @@
+Source revision: 2acd647a877b2062e79580c90c36da90eb4d1cdf
+Compiler: c++ (Debian 14.2.0-19) 14.2.0
+Source checksums:
+89a6fa2b457e9ee2c38168d8e5b2c6d6a5cbd911cef99db0a0554cc93e61c35f  src/renderer.cpp
+5ca25024897c14ec72b057843d0c428780ac7e19321c516f952f5a6d1b30e1b1  src/world.cpp
+21ce8a8224bdad2701a70856f8e821d65cc38f016598d2862d9eef56b173e3cd  src/world.h
+Extracted allocator checksum: c99a2ac5946bcad25f57f3b7b31bb25c67bbedd8a536c34786179012fd036a19
+Randomized compile: c++ -std=c++20 -O2 -fsanitize=undefined\,address -I /tmp/tmp.aFY1BPYiri /workspace/GTA-6-ChatGPT-v0.5/validation/milestone-04/allocator/randomized.cpp -o /tmp/tmp.aFY1BPYiri/randomized
+Randomized run: /tmp/tmp.aFY1BPYiri/randomized
+Route compile: c++ -std=c++20 -O2 -I /tmp/tmp.aFY1BPYiri -I /workspace/GTA-6-ChatGPT-v0.5/src /workspace/GTA-6-ChatGPT-v0.5/validation/milestone-04/allocator/route.cpp /workspace/GTA-6-ChatGPT-v0.5/src/world.cpp -o /tmp/tmp.aFY1BPYiri/route
+Route run: /tmp/tmp.aFY1BPYiri/route
