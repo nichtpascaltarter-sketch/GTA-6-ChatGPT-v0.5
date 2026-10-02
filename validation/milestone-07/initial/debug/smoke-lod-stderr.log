@@ -1,0 +1,8 @@
+D3D12 debug layer enabled.
+D3D12 corruption/error message validation enabled.
+Scene depth: reverse-Z; near=0.12m; far=3000m; shadows=forward-Z
+Renderer CPU timings: enabled; scope=Renderer::render; setWorld=separate
+GPU frame timestamps: enabled; frequency=10000000 Hz; slots=2; history=120
+GPU timing scope: shadow through final PRESENT transition, including scene, HDR resolve, post and UI; excludes world upload/AS lists, queue backlog, Present/vsync, capture and timestamp resolve.
+Scene target: R16G16B16A16_FLOAT; samples=4; requested limit=4
+World stream arenas: vertex=134217720 index=33554432 bytes; limits=256/64 MiB, staging=384 MiB/4 batches.
