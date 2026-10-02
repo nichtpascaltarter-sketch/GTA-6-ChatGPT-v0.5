@@ -335,13 +335,22 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     if(dynamicVertexBytes&&!p.writeUpload(frame.dynamicVertices.Get(),dynamic->vertices.data(),dynamicVertexBytes,error))return false;
     if(dynamicIndexBytes&&!p.writeUpload(frame.dynamicIndices.Get(),dynamic->indices.data(),dynamicIndexBytes,error))return false;
     if(uiBytes&&!p.writeUpload(frame.ui.Get(),input.ui->data(),uiBytes,error))return false;
-    const UINT lightCount=input.lights?UINT(std::min<size_t>(input.lights->size(),MaxLights)):0;
-    if(lightCount&&!p.writeUpload(frame.lights.Get(),input.lights->data(),lightCount*sizeof(Light),error))return false;
     Constants c{};const float fov=68*Pi/180,aspect=float(p.width)/float(p.height);
     c.viewProjection=multiply(lookAt(input.eye,input.target),perspective(fov,aspect,.12f,900));
     c.eyeTime[0]=input.eye.x;c.eyeTime[1]=input.eye.y;c.eyeTime[2]=input.eye.z;c.eyeTime[3]=input.time;
     float sunAngle=(input.dayTime-6)*Pi/12;Vec3 sun=normalized({std::cos(sunAngle),std::sin(sunAngle),.27f});float daylight=clamp((sun.y+.10f)/.30f,0,1);daylight=daylight*daylight*(3-2*daylight);
     c.sunDay[0]=sun.x;c.sunDay[1]=sun.y;c.sunDay[2]=sun.z;c.sunDay[3]=daylight;
+    std::array<Light,MaxLights> visibleLights{};UINT lightCount=0;
+    if(input.lights)for(const Light& light:*input.lights){
+        // The first fraction of twilight activated dozens of spots at <0.25
+        // intensity while daylight was >99.8%, costing a full per-pixel loop.
+        // Skip spots below 0.5 peak intensity only above 98% daylight. Point
+        // strobes/muzzle flashes and every light in darker scenes are retained.
+        float peak=light.intensity*std::max(light.color.x,std::max(light.color.y,light.color.z));
+        if(daylight>.98f&&light.cone>-.999f&&peak<.5f)continue;
+        visibleLights[lightCount++]=light;if(lightCount==MaxLights)break;
+    }
+    if(lightCount&&!p.writeUpload(frame.lights.Get(),visibleLights.data(),lightCount*sizeof(Light),error))return false;
     bool ray=p.raySupported&&p.tlas&&input.rayTracing;c.weather[0]=clamp(input.rain,0,1);c.weather[1]=clamp(input.exposure,.25f,3);c.weather[2]=ray?1.0f:0.0f;c.weather[3]=1-daylight;
     Vec3 forward=normalized(input.target-input.eye),right=normalized(cross({0,1,0},forward)),up=cross(forward,right);
     c.cameraRight[0]=right.x;c.cameraRight[1]=right.y;c.cameraRight[2]=right.z;c.cameraRight[3]=std::tan(fov*.5f)*aspect;

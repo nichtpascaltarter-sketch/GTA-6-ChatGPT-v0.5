@@ -51,6 +51,13 @@ float noise(float2 p) {
     float2 i=floor(p),f=frac(p); f=f*f*(3-2*f);
     return lerp(lerp(hash(i),hash(i+float2(1,0)),f.x),lerp(hash(i+float2(0,1)),hash(i+1),f.x),f.y);
 }
+float surfaceGrain(float3 position,float3 normal) {
+    // Project onto the surface's dominant plane using equal metres per axis.
+    // Mixing height into XZ stretched and sheared the grain into facade bands.
+    float3 axis=abs(normal);
+    float2 uv=axis.y>=axis.x&&axis.y>=axis.z?position.xz:(axis.x>=axis.z?position.zy:position.xy);
+    return noise(uv*2.1);
+}
 float3 skyColor(float3 direction) {
     float h=saturate(direction.y);
     float3 zenith=lerp(float3(.012,.023,.065),float3(.07,.25,.52),sunDay.w);
@@ -130,8 +137,8 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float3 n=normalize(i.normal),v=normalize(eyeTime.xyz-i.world),l=normalize(sunDay.xyz);
     float3 albedo=max(i.color,.008);
     float roughness=.76,metallic=0;
-    float grain=noise(i.world.xz*2.1+i.world.y*.43);
-    albedo*=.92+grain*.15;
+    float grain=surfaceGrain(i.world,n);
+    albedo*=.97+grain*.06;
     bool metal=i.material>.5 && i.material<1.5;
     bool glass=i.material>1.5 && i.material<2.5;
     bool water=i.material>2.5 && i.material<3.5;
