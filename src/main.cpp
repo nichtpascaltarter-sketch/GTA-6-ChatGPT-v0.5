@@ -22,7 +22,7 @@
 
 namespace {
 using namespace mc;
-struct Options {bool smoke=false,warp=false;unsigned frames=120;std::string screenshot;};
+struct Options {bool smoke=false,warp=false;unsigned frames=120;std::string screenshot,scene="city";};
 std::string utf8(const std::wstring& s) {
     if(s.empty())return {};
     int n=WideCharToMultiByte(CP_UTF8,0,s.data(),int(s.size()),nullptr,0,nullptr,nullptr);
@@ -32,7 +32,8 @@ Options parseOptions() {
     Options options;int count=0;LPWSTR* args=CommandLineToArgvW(GetCommandLineW(),&count);
     for(int i=1;args&&i<count;++i){std::wstring a=args[i];if(a==L"--smoke")options.smoke=true;else if(a==L"--warp")options.warp=true;
         else if(a==L"--frames"&&i+1<count)options.frames=unsigned(std::clamp(_wtoi(args[++i]),1,10000));
-        else if(a==L"--screenshot"&&i+1<count)options.screenshot=utf8(args[++i]);}
+        else if(a==L"--screenshot"&&i+1<count)options.screenshot=utf8(args[++i]);
+        else if(a==L"--scene"&&i+1<count)options.scene=utf8(args[++i]);}
     if(args)LocalFree(args);return options;
 }
 std::filesystem::path dataDirectory() {
@@ -138,6 +139,15 @@ int execute(HINSTANCE instance,const Options& options) {
         if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
         Game game;game.initialize();if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
+        if(options.smoke){
+            if(options.scene=="coast"){game.player={2380,0,260};game.yaw=1.4f;game.pitch=.10f;}
+            else if(options.scene=="wetland"){game.player={1024,0,-2560};game.yaw=.5f;game.pitch=.13f;}
+            else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
+            else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
+            else if(options.scene=="drive"){game.occupied=0;game.player=game.vehicles[0].position;game.vehicles[0].parked=false;}
+            game.player.y=game.world.height(game.player.x,game.player.z);game.world.stream(game.player);game.messageTime=0;
+            log<<"Smoke scene: "<<options.scene<<'\n';
+        }
         uint64_t uploaded=UINT64_MAX;
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
@@ -161,7 +171,12 @@ int execute(HINSTANCE instance,const Options& options) {
             }else {captureMouse(app,!options.smoke);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
                 if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded)uploaded=UINT64_MAX;}}
             if(!app.running)break;game.paused=app.menu;
-            if(options.smoke){dt=1.f/60;input={};input.moveY=.45f;input.lookX=.0015f;}
+            if(options.smoke){dt=1.f/60;input={};
+                if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
+                if(options.scene=="drive")input.moveY=.7f;
+                if(options.scene=="night")game.dayTime=23;
+                if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
+            }
             if(!app.menu)game.update(input,dt);
             game.world.stream(game.player);
             if(uploaded!=game.world.revision){Mesh world=game.world.combinedMesh();log<<"World revision "<<game.world.revision<<": "<<world.vertices.size()<<" vertices, "<<world.indices.size()/3<<" triangles\n";log.flush();if(!renderer.setWorld(world,error)){result=5;break;}uploaded=game.world.revision;}
