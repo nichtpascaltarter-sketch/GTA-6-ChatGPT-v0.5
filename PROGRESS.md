@@ -105,12 +105,17 @@ part of the game distribution.
    Causeway height and geometry now follow island terrain consistently, and
    coarse road patches follow their actual rendered ground. Geometry and build
    source commits are landing; full integrated native validation is pending.
-7. Renderer LOD work next: bounds-based main/shadow culling, eligibility-aware
+7. Integrated renderer work: bounds-based main/shadow culling, eligibility-aware
    TLAS retention, coverage-driven horizontal fog to 2 km, reversed scene depth
    with forward shadow depth, and ground-anchored shadows for high aircraft.
    Interactive first display must remain prompt; smoke coverage can prewarm with
    message pumping and bounded timeout. Preserve existing streaming regression
    with distant mode disabled. Root owns main/probes and milestone documentation.
+   Source `a2aa8ba2cbbe01a27f5c781195c642381c1db15d` is now synced for
+   native workflow `36948934996`. Full world/worker/LOD/game/audio/cinematic portable suites
+   pass, as do 400,000 culling oracle cases and reverse-depth tests. Source review
+   found no blocking issue. The five-phase native LOD probe and extended captures
+   still need to pass before this becomes the verified executable.
 8. Next content is an original repeatable motorcycle trial, developed separately
    from the LOD batch. Broader goals remain pedestrian routines, police tactics,
    interiors, destruction, animation, true dynamic GI and volumetric atmosphere.
