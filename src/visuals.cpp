@@ -453,7 +453,7 @@ Mesh Game::dynamicMesh() const {
                 for(float z:{-1220.0f,-780.0f})tube(mesh,{-3214,4.08f,z},{-3186,4.08f,z},.10f,.10f,color,4,2);
             }
             if(planarDistance(target,player)<420){
-            const Vec3 color=activeMission<0?Vec3{1,.58f,.08f}:Vec3{.1f,.88f,.68f};const float radius=activeMission<0?2.5f:3.8f;
+            const Vec3 color=activeMission<0?Vec3{1,.58f,.08f}:Vec3{.1f,.88f,.68f};const float radius=activeMission<0?2.5f:(activeMission==4&&missionStage<2?14.0f:3.8f);
             for(int i=0;i<32;++i){float a=float(i)*2*Pi/32,b=float(i+1)*2*Pi/32;Vec3 p=target+Vec3{std::sin(a)*radius,.08f,std::cos(a)*radius},q=target+Vec3{std::sin(b)*radius,.08f,std::cos(b)*radius};tube(mesh,p,q,.045f,.045f,color,4,2);}
             const float bob=std::sin(time*2)*.15f;ellipsoid(mesh,target+Vec3{0,3.2f+bob,0},{.25f,.42f,.25f},time*.6f,color,6,3,2);
             }
