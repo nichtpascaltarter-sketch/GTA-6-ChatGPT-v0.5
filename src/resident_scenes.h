@@ -30,8 +30,8 @@ struct ResidentCapture {
         }
         return true;
     }
-    static bool clearDynamic(const Mesh& mesh,Vec3 from,Vec3 to){
-        const float distance=length(to-from);if(distance<=.4f)return false;
+    static bool clearMesh(const Mesh& mesh,Vec3 from,Vec3 to,float nearIgnore){
+        const float distance=length(to-from);if(distance<=nearIgnore)return false;
         const Vec3 direction=(to-from)/distance;
         for(size_t i=0;i+2<mesh.indices.size();i+=3){
             const Vec3 a=mesh.vertices[mesh.indices[i]].position;
@@ -43,9 +43,23 @@ struct ResidentCapture {
             const Vec3 side=cross(offset,edge1);const float v=dot(direction,side)/determinant;
             if(v<0||u+v>1)continue;
             const float hit=dot(edge2,side)/determinant;
-            // The first 40 cm include the inspected person's own face, hands,
-            // and held prop. More distant dynamic geometry must not obscure it.
-            if(hit>.4f&&hit<distance-.03f)return false;
+            if(hit>nearIgnore&&hit<distance-.03f)return false;
+        }
+        return true;
+    }
+    static bool clearDynamic(const Mesh& mesh,Vec3 from,Vec3 to){
+        // Skip only the inspected person's own face, hands and held prop.
+        return clearMesh(mesh,from,to,.4f);
+    }
+    static bool clearGeometry(const World& world,Vec3 from,Vec3 to){
+        for(const auto& chunk:world.chunks){
+            const auto& b=chunk.bounds;
+            if(std::max(from.x,to.x)<b.min.x||std::min(from.x,to.x)>b.max.x||
+               std::max(from.y,to.y)<b.min.y||std::min(from.y,to.y)>b.max.y||
+               std::max(from.z,to.z)<b.min.z||std::min(from.z,to.z)>b.max.z)continue;
+            // Market goods, awnings and other visible decorations need not be
+            // collision solids, but must still block an inspection sightline.
+            if(!clearMesh(chunk.mesh,from,to,.02f))return false;
         }
         return true;
     }
@@ -127,7 +141,7 @@ struct ResidentCapture {
         game.world.stream(game.player);
         bool view=false;
         const Mesh dynamics=game.dynamicMesh();
-        auto visiblePoint=[&](Vec3 point,Vec3 candidate){return clear(game.world,point,candidate)&&clearDynamic(dynamics,point,candidate);};
+        auto visiblePoint=[&](Vec3 point,Vec3 candidate){return clear(game.world,point,candidate)&&clearGeometry(game.world,point,candidate)&&clearDynamic(dynamics,point,candidate);};
         const bool stockCheck=person.activity==PedestrianActivity::Work;
         const std::array<float,3> distances=stockCheck?std::array{3.4f,4.5f,5.5f}:std::array{5.5f,4.f,7.f};
         for(float distance:distances){
@@ -150,7 +164,8 @@ struct ResidentCapture {
         const auto stats=game.pedestrianStats();
         log<<"Resident capture: scene="<<scene<<"; identity="<<identity<<"; activity="<<Game::pedestrianActivityName(person.activity)
            <<"; warmup="<<steps/30.f<<"; hour="<<game.dayTime<<"; people="<<game.pedestrians.size()<<"; residents="<<stats.persistentResidents
-           <<"; groups="<<stats.activeGroups<<"; displacement="<<displacement<<"; position="<<person.position.x<<','<<person.position.y<<','<<person.position.z<<'\n';
+           <<"; groups="<<stats.activeGroups<<"; displacement="<<displacement<<"; position="<<person.position.x<<','<<person.position.y<<','<<person.position.z
+           <<"; eye="<<eye.x<<','<<eye.y<<','<<eye.z<<"; target="<<target.x<<','<<target.y<<','<<target.z<<'\n';
         return true;
     }
 };
