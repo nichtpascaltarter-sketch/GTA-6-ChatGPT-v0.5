@@ -43,6 +43,7 @@ frame rates remain under validation.
 | Accept nearby contract | M | D-pad up |
 | Radio station | Q | D-pad right |
 | Pause | Escape | Start |
+| Skip cinematic conversation | Space | A |
 | Save / load | F5 / F9 | Pause menu save |
 | Fullscreen | F11 | Settings |
 | Performance display | F3 | — |

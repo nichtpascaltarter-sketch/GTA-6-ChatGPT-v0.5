@@ -159,6 +159,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(IsIconic(app.window)){WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(app.resized&&app.width&&app.height){if(!renderer.resize(app.width,app.height,error)){result=4;break;}app.resized=false;}
+            const bool menuAtInput=app.menu;
             XINPUT_STATE state{};WORD padPressed=0;Input input=readInput(app,dt,state,padPressed);
             if(app.pressed[VK_F11]){settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);}
             if(app.pressed[VK_F3])app.diagnostics=!app.diagnostics;
@@ -179,7 +180,7 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
             if(!app.menu){
-                if(cinematic.active())cinematic.advance(dt,app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A));
+                if(cinematic.active())cinematic.advance(dt,!menuAtInput&&(app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A)));
                 else {
                     int previousMission=game.activeMission;game.update(input,dt);
                     if(!options.smoke&&previousMission<0&&game.activeMission>=0){cinematic.start(game.activeMission,game.player,game.yaw);game.messageTime=0;}
