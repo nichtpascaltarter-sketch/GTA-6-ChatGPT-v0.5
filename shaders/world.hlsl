@@ -23,15 +23,23 @@ Texture2D<float> shadowMap : register(t3);
 SamplerComparisonState shadowSampler : register(s0);
 float rasterVisibility(float4 position,float normalDotLight) {
     float3 projected=position.xyz/position.w;
+    // Follow the receiver plane across the PCF footprint. A constant depth
+    // comparison causes striping on walls nearly parallel to the sun rays.
+    float3 px=ddx(projected),py=ddy(projected);
+    float2 uvx=px.xy*float2(.5,-.5),uvy=py.xy*float2(.5,-.5);
+    float determinant=uvx.x*uvy.y-uvx.y*uvy.x;
+    float2 depthSlope=0;
+    if(abs(determinant)>1e-10) depthSlope=float2(px.z*uvy.y-py.z*uvx.y,py.z*uvx.x-px.z*uvy.x)/determinant;
     if(projected.z<=0 || projected.z>=1) return 1;
     float edge=max(abs(projected.x),abs(projected.y));
     if(edge>=1) return 1;
     float2 uv=projected.xy*float2(.5,-.5)+.5;
-    float bias=.000015+.000025*(1-normalDotLight);
+    float bias=.000015+.000025*(1-normalDotLight)+min(.002,dot(abs(depthSlope),float2(viewport.z,viewport.z))*.5);
     float visibility=0;
     [unroll] for(int y=-1;y<=1;++y) {
         [unroll] for(int x=-1;x<=1;++x) {
-            visibility+=shadowMap.SampleCmpLevelZero(shadowSampler,uv+float2(x,y)*viewport.z,projected.z-bias);
+            float2 offset=float2(x,y)*viewport.z;
+            visibility+=shadowMap.SampleCmpLevelZero(shadowSampler,uv+offset,projected.z+dot(depthSlope,offset)-bias);
         }
     }
     visibility/=9;
@@ -51,6 +59,43 @@ float3 skyColor(float3 direction) {
     horizon+=float3(.40,.13,.015)*sunset*pow(saturate(dot(normalize(float3(direction.x,.07,direction.z)),normalize(float3(sunDay.x,.07,sunDay.z)))),4);
     float3 c=lerp(horizon,zenith,pow(h,.45));
     return lerp(c,float3(.16,.20,.23)*(.2+.8*sunDay.w),weather.x*.72);
+}
+float3 surfaceEmission(float3 color) {
+    // Window occupancy is authored per pane by its warm tint. Cool unoccupied
+    // panes remain reflective; bright signs, lenses and signal lamps stay lit.
+    float lamp=step(.70,max(color.r,max(color.g,color.b)));
+    float occupied=step(.28,color.r)*step(color.b*1.15,color.r);
+    return color*lerp(float3(1.2,.86,.47),float3(1,1,1),lamp)*max(lamp,occupied)*weather.w*1.3;
+}
+struct LocalLight {float3 position;float radius;float3 color;float intensity;float3 direction;float cone;};
+StructuredBuffer<LocalLight> localLights : register(t4);
+float3 localLighting(float3 position,float3 n,float3 v,float3 albedo,float roughness,float metallic) {
+    float3 result=0;
+    float nv=saturate(dot(n,v));
+    float a=roughness*roughness,a2=a*a,k=(roughness+1)*(roughness+1)*.125;
+    float3 f0=lerp(float3(.04,.04,.04),albedo,metallic);
+    [loop] for(uint index=0;index<(uint)viewport.w;++index) {
+        LocalLight light=localLights[index];
+        float3 delta=light.position-position;
+        float distance2=dot(delta,delta),radius2=light.radius*light.radius;
+        if(distance2>=radius2||light.intensity<=0) continue;
+        float3 direction=delta*rsqrt(max(distance2,.001));
+        float nl=saturate(dot(n,direction));
+        if(nl<=0) continue;
+        float cone=1;
+        if(light.cone>-.999) cone=smoothstep(light.cone,min(.999,light.cone+.12),dot(light.direction,-direction));
+        float fade=saturate(1-distance2/max(radius2,.001));
+        float attenuation=cone*fade*fade*light.intensity/(1+distance2);
+        float3 h=normalize(v+direction);
+        float nh=saturate(dot(n,h)),vh=saturate(dot(v,h));
+        float d=a2/(3.14159265*pow(nh*nh*(a2-1)+1,2)+.00001);
+        float g=(nl/(nl*(1-k)+k))*(nv/(nv*(1-k)+k));
+        float3 f=f0+(1-f0)*pow(1-vh,5);
+        float3 diffuse=(1-f)*albedo*(1-metallic)/3.14159265;
+        float3 specular=d*g*f/max(.01,4*nl*nv);
+        result+=(diffuse+specular)*light.color*attenuation*nl;
+    }
+    return result;
 }
 float3 toneMap(float3 c) { c*=weather.y; return pow(saturate((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14)),1.0/2.2); }
 #ifdef ENABLE_RAYTRACING
@@ -76,7 +121,7 @@ float3 reflectionColor(float3 p,float3 n,float3 direction) {
     float3 albedo=a.color*bary.x+b.color*bary.y+c.color*bary.z;
     float3 normal=normalize(a.normal*bary.x+b.normal*bary.y+c.normal*bary.z);
     float3 lit=albedo*(float3(.14,.18,.23)*(.15+.85*sunDay.w)+max(0,dot(normal,sunDay.xyz))*sunDay.w*float3(1.6,1.4,1.1));
-    if(a.material>1.5 && a.material<2.5) lit+=albedo*weather.w*1.1;
+    if(a.material>1.5 && a.material<2.5) lit+=surfaceEmission(albedo);
     float haze=1-exp(-q.CommittedRayT()*(.0015+weather.x*.002));
     return lerp(lit,skyColor(direction),haze);
 }
@@ -122,13 +167,12 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float3 diffuse=albedo*(1-metallic)/3.14159265;
     float3 color=(diffuse*(1-f)+d*g*f/max(.01,4*nl*nv))*sunColor*nl*visibility;
     float hemi=saturate(n.y*.5+.5);
-    float3 ambient=lerp(float3(.060,.054,.048),float3(.20,.28,.37),hemi)*(.10+.90*sunDay.w);
+    float3 ambient=lerp(float3(.060,.054,.048),float3(.20,.28,.37),hemi)*(.15+.85*sunDay.w);
     color+=ambient*albedo*(1-metallic*.55);
     color+=albedo*float3(.045,.060,.105)*(1-sunDay.w)*saturate(n.y+.25);
-    if(glass) {
-        float lit=step(.26,hash(floor(i.world.xz*.55)+floor(i.world.y*.29)));
-        color+=albedo*float3(1.2,.86,.47)*weather.w*lit*1.45;
-    }
+    float3 moonDirection=normalize(float3(-sunDay.x,abs(sunDay.y)+.15,-sunDay.z));
+    color+=albedo*float3(.085,.11,.17)*saturate(dot(n,moonDirection))*(1-sunDay.w);
+    if(glass) color+=surfaceEmission(albedo);
     if(metal||glass||water||(road&&weather.x>.12)) {
         float3 r=reflect(-v,n), reflected=skyColor(r);
 #ifdef ENABLE_RAYTRACING
@@ -139,6 +183,7 @@ float4 PSMain(PixelInput i):SV_TARGET {
         color=lerp(color,reflected,strength);
         if(water) color+=float3(.55,.65,.56)*pow(saturate(sin(i.world.x*.31+i.world.z*.18+eyeTime.w)*.5+.5),35)*.024;
     }
+    color+=localLighting(i.world,n,v,albedo,roughness,metallic);
     float distance=length(i.world-eyeTime.xyz);
     float haze=1-exp(-distance*(.00065+weather.x*.0021));
     haze=max(haze,smoothstep(260,440,distance));

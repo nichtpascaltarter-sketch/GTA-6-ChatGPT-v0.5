@@ -34,6 +34,7 @@ using Microsoft::WRL::ComPtr;
 namespace {
 constexpr UINT FrameCount=2;
 constexpr UINT ShadowSize=2048;
+constexpr UINT MaxLights=64;
 constexpr float ShadowSpan=240.0f;
 constexpr DXGI_FORMAT ColorFormat=DXGI_FORMAT_R8G8B8A8_UNORM;
 constexpr DXGI_FORMAT DepthFormat=DXGI_FORMAT_D32_FLOAT;
@@ -43,6 +44,7 @@ struct Constants {
     Mat4 lightProjection;
 };
 static_assert(sizeof(Constants)<=256,"Frame constants must fit one aligned allocation");
+static_assert(sizeof(Light)==48,"Shader light layout mismatch");
 static_assert(sizeof(Vertex)==40,"Shader vertex layout mismatch");
 static_assert(sizeof(UiVertex)==24,"UI vertex layout mismatch");
 bool checked(HRESULT hr,const char* operation,std::string& error) {
@@ -67,7 +69,7 @@ void uavBarrier(ID3D12GraphicsCommandList* list,ID3D12Resource* resource){D3D12_
 struct Renderer::Impl {
     struct Frame {
         ComPtr<ID3D12CommandAllocator> allocator;
-        ComPtr<ID3D12Resource> constants,dynamicVertices,dynamicIndices,ui;
+        ComPtr<ID3D12Resource> constants,dynamicVertices,dynamicIndices,ui,lights;
         uint8_t* mappedConstants=nullptr;
         uint64_t fence=0,dynamicVertexCapacity=0,dynamicIndexCapacity=0,uiCapacity=0;
     };
@@ -166,13 +168,14 @@ struct Renderer::Impl {
         device->CreateShaderResourceView(shadowDepth.Get(),&readView,shadowHeap->GetCPUDescriptorHandleForHeapStart());return true;
     }
     bool createPipelines(std::string& error){
-        D3D12_ROOT_PARAMETER parameters[5]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
+        D3D12_ROOT_PARAMETER parameters[6]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
         for(UINT i=1;i<4;++i){parameters[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[i].Descriptor.ShaderRegister=i-1;parameters[i].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;}
         D3D12_DESCRIPTOR_RANGE shadowRange{};shadowRange.RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;shadowRange.NumDescriptors=1;shadowRange.BaseShaderRegister=3;
         parameters[4].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameters[4].DescriptorTable.NumDescriptorRanges=1;parameters[4].DescriptorTable.pDescriptorRanges=&shadowRange;parameters[4].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
+        parameters[5].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[5].Descriptor.ShaderRegister=4;parameters[5].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
         D3D12_STATIC_SAMPLER_DESC shadowSampler{};shadowSampler.Filter=D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;shadowSampler.AddressU=shadowSampler.AddressV=shadowSampler.AddressW=D3D12_TEXTURE_ADDRESS_MODE_BORDER;
         shadowSampler.ComparisonFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;shadowSampler.BorderColor=D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;shadowSampler.MaxAnisotropy=1;shadowSampler.MaxLOD=D3D12_FLOAT32_MAX;shadowSampler.ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
-        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=5;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=1;root.pStaticSamplers=&shadowSampler;
+        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=6;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=1;root.pStaticSamplers=&shadowSampler;
         ComPtr<ID3DBlob> serialized,diagnostics;
         HRESULT result=D3D12SerializeRootSignature(&root,D3D_ROOT_SIGNATURE_VERSION_1,&serialized,&diagnostics);
         if(!checked(result,"Serialize root signature",error)){if(diagnostics)error.append(static_cast<const char*>(diagnostics->GetBufferPointer()),diagnostics->GetBufferSize());return false;}
@@ -282,7 +285,8 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     if(!checked(p.device->CreateFence(0,D3D12_FENCE_FLAG_NONE,IID_PPV_ARGS(&p.fence)),"Create GPU fence",error))return false;
     p.fenceEvent=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!p.fenceEvent)return checked(HRESULT_FROM_WIN32(GetLastError()),"Create fence event",error);
     for(auto& frame:p.frames){
-        if(!checked(p.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&frame.allocator)),"Create frame allocator",error)||!p.createBuffer(256,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,frame.constants,error))return false;
+        if(!checked(p.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&frame.allocator)),"Create frame allocator",error)||!p.createBuffer(256,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,frame.constants,error)||
+           !p.createBuffer(MaxLights*sizeof(Light),D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ,frame.lights,error))return false;
         void* mapped=nullptr;D3D12_RANGE read{0,0};if(!checked(frame.constants->Map(0,&read,&mapped),"Map frame constants",error))return false;frame.mappedConstants=static_cast<uint8_t*>(mapped);
     }
     if(!checked(p.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,p.frames[0].allocator.Get(),nullptr,IID_PPV_ARGS(&p.commands)),"Create command list",error)||!checked(p.commands->Close(),"Initialize command list",error))return false;
@@ -331,6 +335,8 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     if(dynamicVertexBytes&&!p.writeUpload(frame.dynamicVertices.Get(),dynamic->vertices.data(),dynamicVertexBytes,error))return false;
     if(dynamicIndexBytes&&!p.writeUpload(frame.dynamicIndices.Get(),dynamic->indices.data(),dynamicIndexBytes,error))return false;
     if(uiBytes&&!p.writeUpload(frame.ui.Get(),input.ui->data(),uiBytes,error))return false;
+    const UINT lightCount=input.lights?UINT(std::min<size_t>(input.lights->size(),MaxLights)):0;
+    if(lightCount&&!p.writeUpload(frame.lights.Get(),input.lights->data(),lightCount*sizeof(Light),error))return false;
     Constants c{};const float fov=68*Pi/180,aspect=float(p.width)/float(p.height);
     c.viewProjection=multiply(lookAt(input.eye,input.target),perspective(fov,aspect,.12f,900));
     c.eyeTime[0]=input.eye.x;c.eyeTime[1]=input.eye.y;c.eyeTime[2]=input.eye.z;c.eyeTime[3]=input.time;
@@ -351,7 +357,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     const float halfResolution=float(ShadowSize)*.5f;
     c.lightProjection.m[12]+=(std::round(c.lightProjection.m[12]*halfResolution)-c.lightProjection.m[12]*halfResolution)/halfResolution;
     c.lightProjection.m[13]+=(std::round(c.lightProjection.m[13]*halfResolution)-c.lightProjection.m[13]*halfResolution)/halfResolution;
-    c.viewport[2]=1.0f/float(ShadowSize);c.viewport[3]=ShadowSpan;
+    c.viewport[2]=1.0f/float(ShadowSize);c.viewport[3]=float(lightCount);
     std::memcpy(frame.mappedConstants,&c,sizeof(c));
     if(!checked(frame.allocator->Reset(),"Reset frame allocator",error)||!checked(p.commands->Reset(frame.allocator.Get(),nullptr),"Reset frame command list",error))return false;
     p.commands->SetGraphicsRootSignature(p.rootSignature.Get());p.commands->SetGraphicsRootConstantBufferView(0,frame.constants->GetGPUVirtualAddress());
@@ -368,6 +374,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     auto rtv=p.rtvHeap->GetCPUDescriptorHandleForHeapStart();rtv.ptr+=current*p.rtvStride;auto dsv=p.dsvHeap->GetCPUDescriptorHandleForHeapStart();
     const float clear[]={.05f,.08f,.13f,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);
     p.commands->OMSetRenderTargets(1,&rtv,FALSE,&dsv);D3D12_VIEWPORT viewport{0,0,float(p.width),float(p.height),0,1};D3D12_RECT scissor{0,0,LONG(p.width),LONG(p.height)};p.commands->RSSetViewports(1,&viewport);p.commands->RSSetScissorRects(1,&scissor);
+    p.commands->SetGraphicsRootShaderResourceView(5,frame.lights->GetGPUVirtualAddress());
     if(ray){p.commands->SetGraphicsRootShaderResourceView(1,p.tlas->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(2,p.worldVertices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(3,p.worldIndices->GetGPUVirtualAddress());}
     p.commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);p.commands->SetPipelineState(p.skyPipeline.Get());p.commands->DrawInstanced(3,1,0,0);
     p.commands->SetPipelineState(ray?p.rayPipeline.Get():p.worldPipeline.Get());
