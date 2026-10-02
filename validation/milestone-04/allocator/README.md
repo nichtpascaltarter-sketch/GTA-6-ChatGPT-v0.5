@@ -6,9 +6,14 @@ Run from the repository root:
 bash validation/milestone-04/allocator/run.sh
 ```
 
-The script extracts `ArenaRange` and `ArenaAllocator` directly from the current
-`src/renderer.cpp`, compiles the two probes in a temporary directory, refreshes
-the three logs here, and removes all generated binaries and extracted code.
+The script reads the exact historical source from commit
+`2acd647a877b2062e79580c90c36da90eb4d1cdf` using Git, extracts `ArenaRange` and
+`ArenaAllocator`, and compiles the two probes in a temporary directory. That
+commit must be available in the local Git history. Fresh reports go to
+`build/allocator-2acd647/`, or an output directory supplied as the first argument;
+the original evidence logs here remain unchanged. Generated binaries and
+extracted source are removed afterward. This reproduces the pre-LOD checkpoint;
+its capacity results do not establish capacity for the current distant world.
 `CXX` may select another C++20 compiler. The shell script, Python standard library,
 and compiler are diagnostic tools only; they are not game dependencies.
 
