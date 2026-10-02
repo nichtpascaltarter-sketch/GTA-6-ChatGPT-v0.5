@@ -7,6 +7,9 @@
 #endif
 #include <windows.h>
 #include <d3d12.h>
+#if defined(MC_DEBUG) && MC_DEBUG
+#include <d3d12sdklayers.h>
+#endif
 #include <dxgi1_6.h>
 #include <wrl/client.h>
 #include <array>
@@ -66,6 +69,9 @@ struct Renderer::Impl {
     };
     ComPtr<IDXGIFactory4> factory;ComPtr<IDXGISwapChain3> swapChain;
     ComPtr<ID3D12Device> device;ComPtr<ID3D12Device5> device5;
+#if defined(MC_DEBUG) && MC_DEBUG
+    ComPtr<ID3D12InfoQueue> debugMessages;
+#endif
     ComPtr<ID3D12CommandQueue> queue;ComPtr<ID3D12GraphicsCommandList> commands;
     ComPtr<ID3D12GraphicsCommandList4> commands4;
     ComPtr<ID3D12Fence> fence;HANDLE fenceEvent=nullptr;uint64_t nextFence=1,totalFrames=0;
@@ -79,6 +85,35 @@ struct Renderer::Impl {
     UINT width=0,height=0,rtvStride=0,lastPresented=0;bool tearing=false,raySupported=false,hasPresented=false;
     std::string gpuName="Unavailable";
     ~Impl(){std::string ignored;if(queue&&fence&&fenceEvent)flush(ignored);for(auto& f:frames)if(f.constants&&f.mappedConstants)f.constants->Unmap(0,nullptr);if(fenceEvent)CloseHandle(fenceEvent);}
+    bool checkDebugMessages(std::string& error){
+#if defined(MC_DEBUG) && MC_DEBUG
+        if(!debugMessages)return true;
+        const UINT64 count=debugMessages->GetNumStoredMessagesAllowedByRetrievalFilter();
+        unsigned errors=0;
+        for(UINT64 i=0;i<count;++i){
+            SIZE_T bytes=0;
+            if(FAILED(debugMessages->GetMessage(i,nullptr,&bytes))||!bytes)continue;
+            std::vector<uint8_t> storage(bytes);
+            auto* message=reinterpret_cast<D3D12_MESSAGE*>(storage.data());
+            if(FAILED(debugMessages->GetMessage(i,message,&bytes)))continue;
+            if(message->Severity!=D3D12_MESSAGE_SEVERITY_CORRUPTION&&message->Severity!=D3D12_MESSAGE_SEVERITY_ERROR)continue;
+            if(errors++==0)error="Direct3D 12 debug validation failed:";
+            if(errors<=8){
+                error+="\n["+std::to_string(static_cast<unsigned>(message->ID))+"] ";
+                if(message->pDescription){
+                    SIZE_T length=message->DescriptionByteLength;
+                    while(length&&message->pDescription[length-1]=='\0')--length;
+                    error.append(message->pDescription,length);
+                }
+            }
+        }
+        debugMessages->ClearStoredMessages();
+        if(errors>8)error+="\nAdditional validation errors: "+std::to_string(errors-8);
+        return errors==0;
+#else
+        static_cast<void>(error);return true;
+#endif
+    }
     bool wait(uint64_t value,std::string& error){
         const uint64_t complete=fence->GetCompletedValue();
         if(complete==UINT64_MAX)return checked(device->GetDeviceRemovedReason(),"Device removed while waiting for GPU",error);
@@ -169,6 +204,17 @@ Renderer::~Renderer()=default;
 bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::string& error,bool warp){
     auto& p=*impl;p.width=std::max(width,1u);p.height=std::max(height,1u);
     if(!window){error="Renderer requires a Win32 window";return false;}
+#if defined(MC_DEBUG) && MC_DEBUG
+    // Graphics Tools is optional. Its absence must never prevent a player launch.
+    // Enabling the layer after device creation would remove that device.
+    ComPtr<ID3D12Debug> debugLayer;
+    if(SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugLayer)))){
+        debugLayer->EnableDebugLayer();
+        std::fputs("D3D12 debug layer enabled.\n",stderr);
+    }else{
+        std::fputs("D3D12 debug layer unavailable; graphics validation is unverified.\n",stderr);
+    }
+#endif
     if(!checked(CreateDXGIFactory2(0,IID_PPV_ARGS(&p.factory)),"Create DXGI factory",error))return false;
     ComPtr<IDXGIAdapter1> chosen;
     if(warp){if(!checked(p.factory->EnumWarpAdapter(IID_PPV_ARGS(&chosen)),"Select WARP software adapter",error))return false;}
@@ -184,6 +230,17 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
         if(!chosen){error="No Direct3D 12 hardware adapter was found";return false;}
     }
     if(!checked(D3D12CreateDevice(chosen.Get(),D3D_FEATURE_LEVEL_11_0,IID_PPV_ARGS(&p.device)),"Create Direct3D 12 device",error))return false;
+#if defined(MC_DEBUG) && MC_DEBUG
+    if(debugLayer&&SUCCEEDED(p.device.As(&p.debugMessages))){
+        p.debugMessages->SetMessageCountLimit(4096);
+        D3D12_MESSAGE_SEVERITY ignored[]={D3D12_MESSAGE_SEVERITY_WARNING,D3D12_MESSAGE_SEVERITY_INFO,D3D12_MESSAGE_SEVERITY_MESSAGE};
+        D3D12_INFO_QUEUE_FILTER filter{};filter.DenyList.NumSeverities=3;filter.DenyList.pSeverityList=ignored;
+        p.debugMessages->AddStorageFilterEntries(&filter);
+        std::fputs("D3D12 corruption/error message validation enabled.\n",stderr);
+    }else{
+        std::fputs("D3D12 InfoQueue unavailable; graphics validation is unverified.\n",stderr);
+    }
+#endif
     DXGI_ADAPTER_DESC1 adapterDescription{};chosen->GetDesc1(&adapterDescription);char name[256]{};WideCharToMultiByte(CP_UTF8,0,adapterDescription.Description,-1,name,sizeof(name),nullptr,nullptr);p.gpuName=name;
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 options{};D3D12_FEATURE_DATA_SHADER_MODEL shaderModel{D3D_SHADER_MODEL_6_5};
     p.raySupported=SUCCEEDED(p.device.As(&p.device5))&&SUCCEEDED(p.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5,&options,sizeof(options)))&&options.RaytracingTier>=D3D12_RAYTRACING_TIER_1_1&&SUCCEEDED(p.device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL,&shaderModel,sizeof(shaderModel)))&&shaderModel.HighestShaderModel>=D3D_SHADER_MODEL_6_5;
@@ -206,7 +263,7 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.rtvHeap)),"Create render-target descriptors",error))return false;
     descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_DSV;descriptors.NumDescriptors=1;if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.dsvHeap)),"Create depth descriptor",error))return false;
     p.rtvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    return p.createTargets(error)&&p.createPipelines(error);
+    return p.createTargets(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
 }
 bool Renderer::setWorld(const Mesh& mesh,std::string& error){
     auto& p=*impl;if(!p.device){error="Renderer is not initialized";return false;}
@@ -232,7 +289,7 @@ bool Renderer::setWorld(const Mesh& mesh,std::string& error){
         const std::string warning="DXR unavailable; continuing with raster rendering: "+reason+"\n";
         OutputDebugStringA(warning.c_str());std::fputs(warning.c_str(),stderr);error.clear();
     }
-    return true;
+    return p.checkDebugMessages(error);
 }
 bool Renderer::render(const RenderFrame& input,std::string& error){
     auto& p=*impl;if(!p.swapChain){error="Renderer is not initialized";return false;}
@@ -272,13 +329,13 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     HRESULT presented=p.swapChain->Present(input.vsync?1:0,(!input.vsync&&p.tearing)?DXGI_PRESENT_ALLOW_TEARING:0);
     frame.fence=p.nextFence++;if(!checked(p.queue->Signal(p.fence.Get(),frame.fence),"Signal frame completion",error))return false;
     if(!checked(presented,"Present frame",error)){HRESULT removed=p.device->GetDeviceRemovedReason();if(FAILED(removed)){char reason[64]{};std::snprintf(reason,sizeof(reason)," Device removed: 0x%08lX",static_cast<unsigned long>(removed));error+=reason;}return false;}
-    p.lastPresented=current;p.hasPresented=true;++p.totalFrames;return true;
+    p.lastPresented=current;p.hasPresented=true;++p.totalFrames;return p.checkDebugMessages(error);
 }
 bool Renderer::resize(uint32_t width,uint32_t height,std::string& error){
     auto& p=*impl;if(!p.swapChain||!width||!height||(p.width==width&&p.height==height))return true;
     if(!p.flush(error))return false;for(auto& buffer:p.backBuffers)buffer.Reset();p.depth.Reset();
     p.width=width;p.height=height;p.hasPresented=false;
-    if(!checked(p.swapChain->ResizeBuffers(FrameCount,width,height,ColorFormat,p.tearing?DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING:0),"Resize swap chain",error))return false;return p.createTargets(error);
+    if(!checked(p.swapChain->ResizeBuffers(FrameCount,width,height,ColorFormat,p.tearing?DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING:0),"Resize swap chain",error))return false;return p.createTargets(error)&&p.checkDebugMessages(error);
 }
 bool Renderer::rayTracingAvailable()const{return impl->raySupported;}
 const char* Renderer::adapterName()const{return impl->gpuName.c_str();}
@@ -298,6 +355,6 @@ bool Renderer::capture(const std::string& path,std::string& error){
     std::ofstream output(std::filesystem::u8path(path),std::ios::binary|std::ios::trunc);output.write(reinterpret_cast<const char*>(&file),sizeof(file));output.write(reinterpret_cast<const char*>(&info),sizeof(info));
     std::vector<uint8_t> row(size_t(p.width)*4);const uint8_t* pixels=static_cast<const uint8_t*>(data)+footprint.Offset;
     for(UINT y=0;y<p.height;++y){const uint8_t* sourceRow=pixels+size_t(y)*footprint.Footprint.RowPitch;for(UINT x=0;x<p.width;++x){row[x*4]=sourceRow[x*4+2];row[x*4+1]=sourceRow[x*4+1];row[x*4+2]=sourceRow[x*4];row[x*4+3]=255;}output.write(reinterpret_cast<const char*>(row.data()),std::streamsize(row.size()));}
-    D3D12_RANGE written{0,0};readback->Unmap(0,&written);output.close();if(!output){error="Could not write screenshot: "+path;return false;}return true;
+    D3D12_RANGE written{0,0};readback->Unmap(0,&written);output.close();if(!output){error="Could not write screenshot: "+path;return false;}return p.checkDebugMessages(error);
 }
 }
