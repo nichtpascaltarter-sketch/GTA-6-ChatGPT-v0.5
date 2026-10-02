@@ -119,14 +119,11 @@ part of the game distribution.
    medium-LOD hysteresis; actual selected counts after an axial move are
    49/191/849. The corrected regression and all five native phases pass.
    Initial and repaired evidence remain under `validation/milestone-06/`.
-8. Integrated candidate: original Harbor Split
-   motorcycle trial, medals, payouts, save migration, HUD/map integration, and
-   nonblocking GPU timestamp / CPU submission telemetry. All 36 gameplay suites
-   and the complete portable suite pass. Initial native Release/Debug passes,
-   including timestamp fallback, but a misleading startup FPS readout needed
-   repair. Validate that repair together with the completed workshop source,
-   inspect all captures, then archive evidence and the combined scorecard.
-9. Also integrated from `development/harbor-workshop`: a complete enterable
+8. Milestone 07 verifies the original Harbor Split motorcycle trial, medals,
+   payouts, save migration, HUD/map integration, and nonblocking GPU timestamp /
+   CPU submission telemetry. The initial misleading startup FPS readout is
+   repaired and inspected in the final combined native build.
+9. Also verified in Milestone 07 from `development/harbor-workshop`: a complete enterable
    Harbor Motor Works, shared site metadata, continuous forecourt, segmented
    collision, always-lit interior fixtures, bay repair and office treatment,
    boarding/exit obstruction fixes, contextual guidance and native captures.
@@ -137,14 +134,14 @@ part of the game distribution.
    are tested. The complete portable suite and 44 gameplay suites under
    ASan/UBSan/leak detection pass. Review's 1.65 vs 1.70 m boarding-headroom
    mismatch is repaired with a regression that fails the old source. Six native
-   workshop captures are prepared and included in the next combined native run.
-10. Civilian routines are starting separately on `development/neighborhood-routines`
+   workshop captures passed and were inspected in the combined native run.
+10. Civilian routines are implemented separately on `development/neighborhood-routines`
     in `/workspace/GTA-6-ChatGPT-v0.5-routines`, based on workshop `e7dc4f0`.
     World owns actual outdoor places and sidewalk/crossing metadata; gameplay owns
     bounded navigation, persistent residents, activities, groups and threat
-    reactions; renderer owns activity poses. Apply later workshop repairs before
-    integration, preserve all story/trial tests, and do not merge before the
-    current combined milestone is natively verified.
+    reactions; renderer owns activity poses. Complete the final integrated gates,
+    rebase onto the verified main branch, preserve all story/trial tests and
+    validate the complete native candidate before promoting its executable.
 11. Broader goals remain police tactics, authored districts,
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
