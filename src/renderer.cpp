@@ -28,6 +28,7 @@
 #include "sky_ps.h"
 #include "ui_vs.h"
 #include "ui_ps.h"
+#include "post_ps.h"
 
 namespace mc {
 using Microsoft::WRL::ComPtr;
@@ -37,6 +38,7 @@ constexpr UINT ShadowSize=2048;
 constexpr UINT MaxLights=64;
 constexpr float ShadowSpan=240.0f;
 constexpr DXGI_FORMAT ColorFormat=DXGI_FORMAT_R8G8B8A8_UNORM;
+constexpr DXGI_FORMAT SceneFormat=DXGI_FORMAT_R16G16B16A16_FLOAT;
 constexpr DXGI_FORMAT DepthFormat=DXGI_FORMAT_D32_FLOAT;
 struct Constants {
     Mat4 viewProjection;
@@ -82,13 +84,13 @@ struct Renderer::Impl {
     ComPtr<ID3D12GraphicsCommandList4> commands4;
     ComPtr<ID3D12Fence> fence;HANDLE fenceEvent=nullptr;uint64_t nextFence=1,totalFrames=0;
     std::array<Frame,FrameCount> frames;
-    ComPtr<ID3D12DescriptorHeap> rtvHeap,dsvHeap,shadowHeap;
-    std::array<ComPtr<ID3D12Resource>,FrameCount> backBuffers;ComPtr<ID3D12Resource> depth,shadowDepth;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap,dsvHeap,resourceHeap;
+    std::array<ComPtr<ID3D12Resource>,FrameCount> backBuffers;ComPtr<ID3D12Resource> depth,shadowDepth,sceneColor,resolvedColor;
     ComPtr<ID3D12RootSignature> rootSignature;
-    ComPtr<ID3D12PipelineState> worldPipeline,rayPipeline,skyPipeline,uiPipeline,shadowPipeline;
+    ComPtr<ID3D12PipelineState> worldPipeline,rayPipeline,skyPipeline,uiPipeline,shadowPipeline,postPipeline;
     ComPtr<ID3D12Resource> worldVertices,worldIndices,blas,tlas;
     D3D12_VERTEX_BUFFER_VIEW worldVB{};D3D12_INDEX_BUFFER_VIEW worldIB{};UINT worldIndexCount=0;
-    UINT width=0,height=0,rtvStride=0,lastPresented=0;bool tearing=false,raySupported=false,hasPresented=false;
+    UINT width=0,height=0,rtvStride=0,srvStride=0,sceneSamples=1,lastPresented=0;bool tearing=false,raySupported=false,hasPresented=false;
     std::string gpuName="Unavailable";
     ~Impl(){std::string ignored;if(queue&&fence&&fenceEvent)flush(ignored);for(auto& f:frames)if(f.constants&&f.mappedConstants)f.constants->Unmap(0,nullptr);if(fenceEvent)CloseHandle(fenceEvent);}
     bool checkDebugMessages(std::string& error){
@@ -143,14 +145,53 @@ struct Renderer::Impl {
     }
     bool beginImmediate(std::string& error){return flush(error)&&checked(frames[0].allocator->Reset(),"Reset upload allocator",error)&&checked(commands->Reset(frames[0].allocator.Get(),nullptr),"Reset upload command list",error);}
     bool endImmediate(std::string& error){if(!checked(commands->Close(),"Close upload command list",error))return false;ID3D12CommandList* lists[]={commands.Get()};queue->ExecuteCommandLists(1,lists);return flush(error);}
+    bool selectSceneSamples(std::string& error){
+        D3D12_FEATURE_DATA_FORMAT_SUPPORT support{SceneFormat};
+        if(!checked(device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT,&support,sizeof(support)),"Query HDR target support",error))return false;
+        const auto required=D3D12_FORMAT_SUPPORT1_RENDER_TARGET|D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE;
+        if((support.Support1&required)!=required){error="The Direct3D 12 adapter does not support the HDR scene format";return false;}
+        // A diagnostic/performance cap also lets native validation exercise
+        // the supported 2x path and the 1x alias path on a 4x-capable adapter.
+        UINT sampleLimit=4;wchar_t limitText[8]{};
+        DWORD limitLength=GetEnvironmentVariableW(L"MERIDIAN_MSAA_LIMIT",limitText,8);
+        if(limitLength==1&&(limitText[0]==L'1'||limitText[0]==L'2'||limitText[0]==L'4'))sampleLimit=UINT(limitText[0]-L'0');
+        else if(limitLength)std::fputs("Ignoring invalid MERIDIAN_MSAA_LIMIT (expected 1, 2 or 4).\n",stderr);
+        sceneSamples=1;
+        if(support.Support1&D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE){
+            for(UINT samples:{4u,2u}){
+                if(samples>sampleLimit)continue;
+                D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS color{SceneFormat,samples,D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,0};
+                D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS depthSupport{DepthFormat,samples,D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,0};
+                if(SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,&color,sizeof(color)))&&color.NumQualityLevels&&
+                   SUCCEEDED(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,&depthSupport,sizeof(depthSupport)))&&depthSupport.NumQualityLevels){sceneSamples=samples;break;}
+            }
+        }
+        std::fprintf(stderr,"Scene target: R16G16B16A16_FLOAT; samples=%u; requested limit=%u\n",sceneSamples,sampleLimit);return true;
+    }
+    D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV()const{
+        auto handle=rtvHeap->GetCPUDescriptorHandleForHeapStart();handle.ptr+=FrameCount*rtvStride;return handle;
+    }
+    D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV()const{
+        auto handle=resourceHeap->GetGPUDescriptorHandleForHeapStart();handle.ptr+=srvStride;return handle;
+    }
     bool createTargets(std::string& error){
         auto handle=rtvHeap->GetCPUDescriptorHandleForHeapStart();
         for(UINT i=0;i<FrameCount;++i){if(!checked(swapChain->GetBuffer(i,IID_PPV_ARGS(&backBuffers[i])),"Get swap-chain buffer",error))return false;device->CreateRenderTargetView(backBuffers[i].Get(),nullptr,handle);handle.ptr+=rtvStride;}
-        D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=width;desc.Height=height;desc.DepthOrArraySize=1;desc.MipLevels=1;desc.Format=DepthFormat;desc.SampleDesc.Count=1;desc.Layout=D3D12_TEXTURE_LAYOUT_UNKNOWN;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+        D3D12_RESOURCE_DESC desc{};desc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;desc.Width=width;desc.Height=height;desc.DepthOrArraySize=1;desc.MipLevels=1;desc.Format=DepthFormat;desc.SampleDesc.Count=sceneSamples;desc.Layout=D3D12_TEXTURE_LAYOUT_UNKNOWN;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
         D3D12_CLEAR_VALUE clear{};clear.Format=DepthFormat;clear.DepthStencil.Depth=1;
         auto properties=heapProperties(D3D12_HEAP_TYPE_DEFAULT);
-        if(!checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_DEPTH_WRITE,&clear,IID_PPV_ARGS(&depth)),"Create depth target",error))return false;
-        device->CreateDepthStencilView(depth.Get(),nullptr,dsvHeap->GetCPUDescriptorHandleForHeapStart());return true;
+        if(!checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_DEPTH_WRITE,&clear,IID_PPV_ARGS(&depth)),"Create multisample scene depth",error))return false;
+        device->CreateDepthStencilView(depth.Get(),nullptr,dsvHeap->GetCPUDescriptorHandleForHeapStart());
+        desc.Format=SceneFormat;desc.Flags=D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;clear={};clear.Format=SceneFormat;clear.Color[3]=1;
+        if(!checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_RENDER_TARGET,&clear,IID_PPV_ARGS(&sceneColor)),"Create HDR scene target",error))return false;
+        device->CreateRenderTargetView(sceneColor.Get(),nullptr,sceneRTV());
+        if(sceneSamples>1){
+            desc.SampleDesc.Count=1;desc.Flags=D3D12_RESOURCE_FLAG_NONE;
+            if(!checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,nullptr,IID_PPV_ARGS(&resolvedColor)),"Create resolved HDR scene",error))return false;
+        }else resolvedColor=sceneColor;
+        D3D12_SHADER_RESOURCE_VIEW_DESC view{};view.Format=SceneFormat;view.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;view.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;view.Texture2D.MipLevels=1;
+        auto descriptor=resourceHeap->GetCPUDescriptorHandleForHeapStart();descriptor.ptr+=srvStride;
+        device->CreateShaderResourceView(resolvedColor.Get(),&view,descriptor);return true;
     }
     D3D12_CPU_DESCRIPTOR_HANDLE shadowDSV()const{
         auto handle=dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -165,17 +206,20 @@ struct Renderer::Impl {
         D3D12_DEPTH_STENCIL_VIEW_DESC depthView{};depthView.Format=DepthFormat;depthView.ViewDimension=D3D12_DSV_DIMENSION_TEXTURE2D;
         device->CreateDepthStencilView(shadowDepth.Get(),&depthView,shadowDSV());
         D3D12_SHADER_RESOURCE_VIEW_DESC readView{};readView.Format=DXGI_FORMAT_R32_FLOAT;readView.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;readView.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;readView.Texture2D.MipLevels=1;
-        device->CreateShaderResourceView(shadowDepth.Get(),&readView,shadowHeap->GetCPUDescriptorHandleForHeapStart());return true;
+        device->CreateShaderResourceView(shadowDepth.Get(),&readView,resourceHeap->GetCPUDescriptorHandleForHeapStart());return true;
     }
     bool createPipelines(std::string& error){
-        D3D12_ROOT_PARAMETER parameters[6]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
+        D3D12_ROOT_PARAMETER parameters[7]{};parameters[0].ParameterType=D3D12_ROOT_PARAMETER_TYPE_CBV;parameters[0].Descriptor.ShaderRegister=0;parameters[0].ShaderVisibility=D3D12_SHADER_VISIBILITY_ALL;
         for(UINT i=1;i<4;++i){parameters[i].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[i].Descriptor.ShaderRegister=i-1;parameters[i].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;}
         D3D12_DESCRIPTOR_RANGE shadowRange{};shadowRange.RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;shadowRange.NumDescriptors=1;shadowRange.BaseShaderRegister=3;
         parameters[4].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameters[4].DescriptorTable.NumDescriptorRanges=1;parameters[4].DescriptorTable.pDescriptorRanges=&shadowRange;parameters[4].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
         parameters[5].ParameterType=D3D12_ROOT_PARAMETER_TYPE_SRV;parameters[5].Descriptor.ShaderRegister=4;parameters[5].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
         D3D12_STATIC_SAMPLER_DESC shadowSampler{};shadowSampler.Filter=D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;shadowSampler.AddressU=shadowSampler.AddressV=shadowSampler.AddressW=D3D12_TEXTURE_ADDRESS_MODE_BORDER;
         shadowSampler.ComparisonFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;shadowSampler.BorderColor=D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;shadowSampler.MaxAnisotropy=1;shadowSampler.MaxLOD=D3D12_FLOAT32_MAX;shadowSampler.ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
-        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=6;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=1;root.pStaticSamplers=&shadowSampler;
+        D3D12_DESCRIPTOR_RANGE sceneRange{};sceneRange.RangeType=D3D12_DESCRIPTOR_RANGE_TYPE_SRV;sceneRange.NumDescriptors=1;sceneRange.BaseShaderRegister=5;
+        parameters[6].ParameterType=D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;parameters[6].DescriptorTable.NumDescriptorRanges=1;parameters[6].DescriptorTable.pDescriptorRanges=&sceneRange;parameters[6].ShaderVisibility=D3D12_SHADER_VISIBILITY_PIXEL;
+        D3D12_STATIC_SAMPLER_DESC samplers[2]={shadowSampler,shadowSampler};samplers[1].Filter=D3D12_FILTER_MIN_MAG_MIP_LINEAR;samplers[1].AddressU=samplers[1].AddressV=samplers[1].AddressW=D3D12_TEXTURE_ADDRESS_MODE_CLAMP;samplers[1].ComparisonFunc=D3D12_COMPARISON_FUNC_ALWAYS;samplers[1].ShaderRegister=1;
+        D3D12_ROOT_SIGNATURE_DESC root{};root.NumParameters=7;root.pParameters=parameters;root.Flags=D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;root.NumStaticSamplers=2;root.pStaticSamplers=samplers;
         ComPtr<ID3DBlob> serialized,diagnostics;
         HRESULT result=D3D12SerializeRootSignature(&root,D3D_ROOT_SIGNATURE_VERSION_1,&serialized,&diagnostics);
         if(!checked(result,"Serialize root signature",error)){if(diagnostics)error.append(static_cast<const char*>(diagnostics->GetBufferPointer()),diagnostics->GetBufferSize());return false;}
@@ -193,16 +237,18 @@ struct Renderer::Impl {
         p.DepthStencilState.DepthEnable=TRUE;p.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ALL;p.DepthStencilState.DepthFunc=D3D12_COMPARISON_FUNC_LESS_EQUAL;
         p.DepthStencilState.StencilReadMask=D3D12_DEFAULT_STENCIL_READ_MASK;p.DepthStencilState.StencilWriteMask=D3D12_DEFAULT_STENCIL_WRITE_MASK;
         p.DepthStencilState.FrontFace.StencilFailOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilDepthFailOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilPassOp=D3D12_STENCIL_OP_KEEP;p.DepthStencilState.FrontFace.StencilFunc=D3D12_COMPARISON_FUNC_ALWAYS;p.DepthStencilState.BackFace=p.DepthStencilState.FrontFace;
-        p.InputLayout={layout,4};p.PrimitiveTopologyType=D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;p.NumRenderTargets=1;p.RTVFormats[0]=ColorFormat;p.DSVFormat=DepthFormat;p.SampleDesc.Count=1;
+        p.InputLayout={layout,4};p.PrimitiveTopologyType=D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;p.NumRenderTargets=1;p.RTVFormats[0]=SceneFormat;p.DSVFormat=DepthFormat;p.SampleDesc.Count=sceneSamples;
         if(!checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&worldPipeline)),"Create world pipeline (Shader Model 6 support required)",error))return false;
         if(raySupported){p.PS={g_world_rt_ps,sizeof(g_world_rt_ps)};if(FAILED(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&rayPipeline))))raySupported=false;}
-        auto shadow=p;shadow.VS={g_shadow_vs,sizeof(g_shadow_vs)};shadow.PS={nullptr,0};shadow.NumRenderTargets=0;shadow.RTVFormats[0]=DXGI_FORMAT_UNKNOWN;
+        auto shadow=p;shadow.VS={g_shadow_vs,sizeof(g_shadow_vs)};shadow.PS={nullptr,0};shadow.NumRenderTargets=0;shadow.RTVFormats[0]=DXGI_FORMAT_UNKNOWN;shadow.SampleDesc.Count=1;
         shadow.RasterizerState.DepthBias=250;shadow.RasterizerState.SlopeScaledDepthBias=1.0f;
         // Depth clamp retains off-screen tall casters at the light frustum planes.
         shadow.RasterizerState.DepthClipEnable=FALSE;
         if(!checked(device->CreateGraphicsPipelineState(&shadow,IID_PPV_ARGS(&shadowPipeline)),"Create directional shadow pipeline",error))return false;
         p.VS={g_sky_vs,sizeof(g_sky_vs)};p.PS={g_sky_ps,sizeof(g_sky_ps)};p.InputLayout={nullptr,0};p.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ZERO;
         if(!checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&skyPipeline)),"Create sky pipeline",error))return false;
+        p.PS={g_post_ps,sizeof(g_post_ps)};p.SampleDesc.Count=1;p.RTVFormats[0]=ColorFormat;p.DepthStencilState.DepthEnable=FALSE;p.DSVFormat=DXGI_FORMAT_UNKNOWN;
+        if(!checked(device->CreateGraphicsPipelineState(&p,IID_PPV_ARGS(&postPipeline)),"Create HDR tone-map pipeline",error))return false;
         D3D12_INPUT_ELEMENT_DESC uiLayout[]={{"POSITION",0,DXGI_FORMAT_R32G32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,8,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}};
         p.VS={g_ui_vs,sizeof(g_ui_vs)};p.PS={g_ui_ps,sizeof(g_ui_ps)};p.InputLayout={uiLayout,2};p.DepthStencilState.DepthEnable=FALSE;
         p.BlendState.RenderTarget[0].BlendEnable=TRUE;p.BlendState.RenderTarget[0].SrcBlend=D3D12_BLEND_SRC_ALPHA;p.BlendState.RenderTarget[0].DestBlend=D3D12_BLEND_INV_SRC_ALPHA;p.BlendState.RenderTarget[0].DestBlendAlpha=D3D12_BLEND_INV_SRC_ALPHA;
@@ -291,13 +337,14 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     }
     if(!checked(p.device->CreateCommandList(0,D3D12_COMMAND_LIST_TYPE_DIRECT,p.frames[0].allocator.Get(),nullptr,IID_PPV_ARGS(&p.commands)),"Create command list",error)||!checked(p.commands->Close(),"Initialize command list",error))return false;
     if(p.raySupported&&FAILED(p.commands.As(&p.commands4)))p.raySupported=false;
-    D3D12_DESCRIPTOR_HEAP_DESC descriptors{};descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_RTV;descriptors.NumDescriptors=FrameCount;
+    D3D12_DESCRIPTOR_HEAP_DESC descriptors{};descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_RTV;descriptors.NumDescriptors=FrameCount+1;
     if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.rtvHeap)),"Create render-target descriptors",error))return false;
     descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_DSV;descriptors.NumDescriptors=2;if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.dsvHeap)),"Create depth descriptor",error))return false;
-    descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;descriptors.NumDescriptors=1;descriptors.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.shadowHeap)),"Create shadow-map descriptor",error))return false;
+    descriptors.Type=D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;descriptors.NumDescriptors=2;descriptors.Flags=D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if(!checked(p.device->CreateDescriptorHeap(&descriptors,IID_PPV_ARGS(&p.resourceHeap)),"Create shader-resource descriptors",error))return false;
     p.rtvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    return p.createTargets(error)&&p.createShadowTarget(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
+    p.srvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    return p.selectSceneSamples(error)&&p.createTargets(error)&&p.createShadowTarget(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
 }
 bool Renderer::setWorld(const Mesh& mesh,std::string& error){
     auto& p=*impl;if(!p.device){error="Renderer is not initialized";return false;}
@@ -378,10 +425,9 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     if(p.worldIndexCount){p.commands->IASetVertexBuffers(0,1,&p.worldVB);p.commands->IASetIndexBuffer(&p.worldIB);p.commands->DrawIndexedInstanced(p.worldIndexCount,1,0,0,0);}
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
     transition(p.commands.Get(),p.shadowDepth.Get(),D3D12_RESOURCE_STATE_DEPTH_WRITE,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    ID3D12DescriptorHeap* heaps[]={p.shadowHeap.Get()};p.commands->SetDescriptorHeaps(1,heaps);p.commands->SetGraphicsRootDescriptorTable(4,p.shadowHeap->GetGPUDescriptorHandleForHeapStart());
-    transition(p.commands.Get(),p.backBuffers[current].Get(),D3D12_RESOURCE_STATE_PRESENT,D3D12_RESOURCE_STATE_RENDER_TARGET);
-    auto rtv=p.rtvHeap->GetCPUDescriptorHandleForHeapStart();rtv.ptr+=current*p.rtvStride;auto dsv=p.dsvHeap->GetCPUDescriptorHandleForHeapStart();
-    const float clear[]={.05f,.08f,.13f,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);
+    ID3D12DescriptorHeap* heaps[]={p.resourceHeap.Get()};p.commands->SetDescriptorHeaps(1,heaps);p.commands->SetGraphicsRootDescriptorTable(4,p.resourceHeap->GetGPUDescriptorHandleForHeapStart());
+    auto rtv=p.sceneRTV();auto dsv=p.dsvHeap->GetCPUDescriptorHandleForHeapStart();
+    const float clear[]={0,0,0,1};p.commands->ClearRenderTargetView(rtv,clear,0,nullptr);p.commands->ClearDepthStencilView(dsv,D3D12_CLEAR_FLAG_DEPTH,1,0,0,nullptr);
     p.commands->OMSetRenderTargets(1,&rtv,FALSE,&dsv);D3D12_VIEWPORT viewport{0,0,float(p.width),float(p.height),0,1};D3D12_RECT scissor{0,0,LONG(p.width),LONG(p.height)};p.commands->RSSetViewports(1,&viewport);p.commands->RSSetScissorRects(1,&scissor);
     p.commands->SetGraphicsRootShaderResourceView(5,frame.lights->GetGPUVirtualAddress());
     if(ray){p.commands->SetGraphicsRootShaderResourceView(1,p.tlas->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(2,p.worldVertices->GetGPUVirtualAddress());p.commands->SetGraphicsRootShaderResourceView(3,p.worldIndices->GetGPUVirtualAddress());}
@@ -389,6 +435,20 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     p.commands->SetPipelineState(ray?p.rayPipeline.Get():p.worldPipeline.Get());
     if(p.worldIndexCount){p.commands->IASetVertexBuffers(0,1,&p.worldVB);p.commands->IASetIndexBuffer(&p.worldIB);p.commands->DrawIndexedInstanced(p.worldIndexCount,1,0,0,0);}
     if(dynamicVertexBytes&&dynamicIndexBytes){D3D12_VERTEX_BUFFER_VIEW vb{frame.dynamicVertices->GetGPUVirtualAddress(),UINT(dynamicVertexBytes),sizeof(Vertex)};D3D12_INDEX_BUFFER_VIEW ib{frame.dynamicIndices->GetGPUVirtualAddress(),UINT(dynamicIndexBytes),DXGI_FORMAT_R32_UINT};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->IASetIndexBuffer(&ib);p.commands->DrawIndexedInstanced(UINT(dynamic->indices.size()),1,0,0,0);}
+    // Resolve in linear space before tone mapping. The 1x path aliases the
+    // scene texture and uses a read/write transition instead of a resolve.
+    if(p.sceneSamples>1){
+        transition(p.commands.Get(),p.sceneColor.Get(),D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        transition(p.commands.Get(),p.resolvedColor.Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RESOLVE_DEST);
+        p.commands->ResolveSubresource(p.resolvedColor.Get(),0,p.sceneColor.Get(),0,SceneFormat);
+        transition(p.commands.Get(),p.sceneColor.Get(),D3D12_RESOURCE_STATE_RESOLVE_SOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
+        transition(p.commands.Get(),p.resolvedColor.Get(),D3D12_RESOURCE_STATE_RESOLVE_DEST,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    }else transition(p.commands.Get(),p.sceneColor.Get(),D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    transition(p.commands.Get(),p.backBuffers[current].Get(),D3D12_RESOURCE_STATE_PRESENT,D3D12_RESOURCE_STATE_RENDER_TARGET);
+    rtv=p.rtvHeap->GetCPUDescriptorHandleForHeapStart();rtv.ptr+=current*p.rtvStride;
+    p.commands->OMSetRenderTargets(1,&rtv,FALSE,nullptr);p.commands->SetGraphicsRootDescriptorTable(6,p.sceneSRV());
+    p.commands->SetPipelineState(p.postPipeline.Get());p.commands->DrawInstanced(3,1,0,0);
+    if(p.sceneSamples==1)transition(p.commands.Get(),p.sceneColor.Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     if(uiBytes){p.commands->SetPipelineState(p.uiPipeline.Get());D3D12_VERTEX_BUFFER_VIEW vb{frame.ui->GetGPUVirtualAddress(),UINT(uiBytes),sizeof(UiVertex)};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->DrawInstanced(UINT(input.ui->size()),1,0,0);}
     transition(p.commands.Get(),p.backBuffers[current].Get(),D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_PRESENT);
     if(!checked(p.commands->Close(),"Close frame command list",error))return false;ID3D12CommandList* lists[]={p.commands.Get()};p.queue->ExecuteCommandLists(1,lists);
@@ -399,7 +459,7 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
 }
 bool Renderer::resize(uint32_t width,uint32_t height,std::string& error){
     auto& p=*impl;if(!p.swapChain||!width||!height||(p.width==width&&p.height==height))return true;
-    if(!p.flush(error))return false;for(auto& buffer:p.backBuffers)buffer.Reset();p.depth.Reset();
+    if(!p.flush(error))return false;for(auto& buffer:p.backBuffers)buffer.Reset();p.depth.Reset();p.resolvedColor.Reset();p.sceneColor.Reset();
     p.width=width;p.height=height;p.hasPresented=false;
     if(!checked(p.swapChain->ResizeBuffers(FrameCount,width,height,ColorFormat,p.tearing?DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING:0),"Resize swap chain",error))return false;return p.createTargets(error)&&p.checkDebugMessages(error);
 }

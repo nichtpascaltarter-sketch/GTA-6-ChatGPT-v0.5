@@ -11,7 +11,6 @@ PixelInput VSMain(uint id:SV_VertexID) {
 float hash(float2 p){return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453);}
 float noise(float2 p){float2 i=floor(p),f=frac(p);f=f*f*(3-2*f);return lerp(lerp(hash(i),hash(i+float2(1,0)),f.x),lerp(hash(i+float2(0,1)),hash(i+1),f.x),f.y);}
 float fbm(float2 p){return noise(p)*.53+noise(p*2.03)*.27+noise(p*4.07)*.13+noise(p*8.13)*.07;}
-float3 toneMap(float3 c){c*=weather.y;return pow(saturate((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14)),1.0/2.2);}
 float4 PSMain(PixelInput i):SV_TARGET {
     float2 ndc=i.uv*float2(2,-2)+float2(-1,1);
     float3 ray=normalize(cameraForward.xyz+cameraRight.xyz*(ndc.x*cameraRight.w)+cameraUp.xyz*(ndc.y*cameraUp.w));
@@ -40,5 +39,5 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float2 rainUV=i.position.xy/viewport.xy;
     float rain=step(.991,hash(float2(floor((rainUV.x+rainUV.y*.10)*490),floor((rainUV.y+eyeTime.w*1.8)*38))));
     c+=rain*weather.x*.24;
-    return float4(toneMap(c),1);
+    return float4(max(c,0),1);
 }

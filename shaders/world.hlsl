@@ -104,7 +104,6 @@ float3 localLighting(float3 position,float3 n,float3 v,float3 albedo,float rough
     }
     return result;
 }
-float3 toneMap(float3 c) { c*=weather.y; return pow(saturate((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14)),1.0/2.2); }
 #ifdef ENABLE_RAYTRACING
 RaytracingAccelerationStructure scene : register(t0);
 struct SceneVertex { float3 position; float3 normal; float3 color; float material; };
@@ -198,5 +197,5 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float2 rainUV=i.position.xy/viewport.xy;
     float rain=step(.991,hash(float2(floor((rainUV.x+rainUV.y*.10)*490),floor((rainUV.y+eyeTime.w*1.8)*38))));
     color+=rain*weather.x*.24;
-    return float4(toneMap(color),1);
+    return float4(max(color,0),1);
 }
