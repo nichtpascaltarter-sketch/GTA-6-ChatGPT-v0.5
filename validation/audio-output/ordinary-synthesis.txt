@@ -1,0 +1,4 @@
+empty_world_samples=2319840 fingerprint=b312def52d8eefba
+Raw float bytes: 9279360
+SHA256: 0af02e039470d8a75a07d2828e362df41aef4164109ddc7cc2c1afb4739a485d
+PASS: ordinary synthesis outside the explicit device-prime path remains byte-identical to verified parent38c5c73.

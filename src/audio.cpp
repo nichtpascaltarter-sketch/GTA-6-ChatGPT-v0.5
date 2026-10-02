@@ -2,6 +2,8 @@
 #define NOMINMAX
 #endif
 #include "audio.h"
+#include "audio_mailbox.h"
+#include "audio_output_format.h"
 #include "synth.h"
 #include <windows.h>
 #include <audioclient.h>
@@ -50,36 +52,12 @@ bool isPcmFormat(const WAVEFORMATEX* wave) {
     constexpr GUID pcmGuid={1,0,0x0010,{0x80,0,0,0xaa,0,0x38,0x9b,0x71}};
     return IsEqualGUID(reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(wave)->SubFormat,pcmGuid)!=0;
 }
-void interleave(BYTE* output,const float* stereo,UINT32 frames,const WAVEFORMATEX* format,bool floating) {
-    const unsigned bytes=format->wBitsPerSample/8;
-    unsigned validBits=format->wBitsPerSample;
-    if(format->wFormatTag==WAVE_FORMAT_EXTENSIBLE && format->cbSize>=22) {
-        const unsigned specified=reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(format)->Samples.wValidBitsPerSample;
-        if(specified>0 && specified<validBits) validBits=specified;
-    }
-    for(UINT32 i=0;i<frames;++i) for(unsigned channel=0;channel<format->nChannels;++channel) {
-        float value=0;
-        if(format->nChannels==1) value=(stereo[i*2]+stereo[i*2+1])*0.5f;
-        else if(channel<2) value=stereo[i*2+channel];
-        value=std::max(-1.0f,std::min(1.0f,value));
-        BYTE* destination=output+static_cast<std::size_t>(i)*format->nBlockAlign+channel*bytes;
-        if(floating) {std::memcpy(destination,&value,sizeof(value));continue;}
-        if(bytes==1) {*destination=static_cast<BYTE>((value+1.0f)*127.5f);continue;}
-        const double maximum=bytes==2?32767.0:(bytes==3?8388607.0:2147483647.0);
-        const auto integer=static_cast<std::int32_t>(value*maximum);
-        auto bits=static_cast<std::uint32_t>(integer);
-        // Extensible PCM stores valid samples left-aligned in their containers.
-        const unsigned padding=format->wBitsPerSample-validBits;
-        if(padding>0) bits&=0xffffffffu<<padding;
-        for(unsigned b=0;b<bytes;++b) destination[b]=static_cast<BYTE>(bits>>(b*8));
-    }
-}
 }
 
 struct Audio::Impl {
-    std::mutex stateMutex,initialMutex;
+    std::mutex initialMutex;
     std::condition_variable initialCondition;
-    AudioState state{};
+    AudioMailbox mailbox;
     std::thread worker;
     HANDLE stopEvent=nullptr,sampleEvent=nullptr;
     bool initialized=false,success=false;
@@ -116,9 +94,13 @@ struct Audio::Impl {
         if(FAILED(result)) {error=failure("Cannot read the Windows playback format",result);return result;}
         const bool floating=isFloatFormat(format.value);
         const unsigned bits=format.value->wBitsPerSample;
-        if((!floating && !isPcmFormat(format.value)) || (floating && bits!=32) ||
-            (!floating && bits!=8 && bits!=16 && bits!=24 && bits!=32) ||
-            format.value->nChannels<1 || format.value->nChannels>32 ||
+        unsigned validBits=bits;
+        if(format.value->wFormatTag==WAVE_FORMAT_EXTENSIBLE&&format.value->cbSize>=22) {
+            const auto specified=reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(format.value)->Samples.wValidBitsPerSample;
+            if(specified)validBits=specified;
+        }
+        const AudioOutputFormat outputFormat{format.value->nChannels,bits,validBits,floating};
+        if((!floating && !isPcmFormat(format.value)) || !validAudioOutputFormat(outputFormat) ||
             format.value->nSamplesPerSec<8000 || format.value->nSamplesPerSec>384000 ||
             format.value->nBlockAlign!=format.value->nChannels*(bits/8)) {
             error="The Windows playback device reported an unsupported sample format";
@@ -149,7 +131,8 @@ struct Audio::Impl {
         running=true;
         report(true,{});
         HANDLE events[]={stopEvent,sampleEvent};
-        AudioState latest;
+        AudioState latest;latest.station=0;latest.paused=true;
+        bool primed=false;
         while(true) {
             const DWORD event=WaitForMultipleObjects(2,events,FALSE,2000);
             if(event==WAIT_OBJECT_0) {result=S_OK;break;}
@@ -161,12 +144,16 @@ struct Audio::Impl {
             const UINT32 frames=capacity-padding;
             // A delayed publisher cannot block the device deadline. Reusing the
             // prior serial also lets spatial sources detect stale control data.
-            {std::unique_lock<std::mutex> guard(stateMutex,std::try_to_lock);if(guard.owns_lock())latest=state;}
-            synth.update(latest);
+            const bool received=mailbox.tryRead(latest);
+            if(received&&!primed){synth.prime(latest);primed=true;}
+            else synth.update(latest);
             synth.render(samples.data(),frames);
             result=render->GetBuffer(frames,&buffer);
             if(FAILED(result)) break;
-            interleave(buffer,samples.data(),frames,format.value,floating);
+            if(!packAudioFrames(buffer,samples.data(),frames,outputFormat)) {
+                render->ReleaseBuffer(frames,AUDCLNT_BUFFERFLAGS_SILENT);
+                result=AUDCLNT_E_UNSUPPORTED_FORMAT;break;
+            }
             result=render->ReleaseBuffer(frames,0);
             if(FAILED(result)) break;
         }
@@ -221,7 +208,6 @@ bool Audio::initialize(std::string& error) {
     return okay;
 }
 void Audio::update(const AudioState& state) {
-    std::lock_guard<std::mutex> guard(impl->stateMutex);
-    impl->state=state;
+    impl->mailbox.publish(state);
 }
 }

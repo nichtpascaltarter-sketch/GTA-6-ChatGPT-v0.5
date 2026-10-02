@@ -25,6 +25,12 @@ public:
         scrubLowpass_=filterCoefficient(2600);
         world_.setSampleRate(rate);
     }
+    // First real snapshot after opening a device establishes the event
+    // baseline. A retained muzzle flash must not replay a historical shot.
+    void prime(const AudioState& value) {
+        previousShot_=finiteClamp(value.shot,0,1);
+        update(value);
+    }
     void update(const AudioState& value) {
         world_.update(value.world,value.paused);
         const float newShot=finiteClamp(value.shot,0,1);
