@@ -121,7 +121,7 @@ part of the game distribution.
 8. Next candidate on `development/activities-and-timing`: original Harbor Split
    motorcycle trial, medals, payouts, save migration, HUD/map integration, and
    nonblocking GPU timestamp / CPU submission telemetry. All 36 gameplay suites
-   and the complete portable suite pass. Rebase onto this verified milestone,
+   and the complete portable suite pass. Rebased onto the verified milestone;
    run native Release/Debug, inspect the three trial captures and timestamp
    fallback/lifecycle path, then archive evidence and scorecard.
 9. Subsequent content on `development/harbor-workshop`: a complete enterable
@@ -133,17 +133,15 @@ part of the game distribution.
     destruction, animation, true dynamic GI and volumetric atmosphere. Measure
     actual hardware frame times and compatibility as access becomes available.
 
-### Prepared next integration (not the verified executable)
+### Current candidate (not yet the verified executable)
 
-- Repaired LOD source `3c25f7d` is running native workflow `36949428131`;
-  aggregation-only repair rerun is `36949428138`. Main source remains frozen
-  while those checks run.
-- `/workspace/GTA-6-ChatGPT-v0.5-next`, branch
-  `development/activities-and-timing`, starts at `3c25f7d` and contains
-  `08f283d` (Harbor Split, from isolated `690b40b`) and `0c96edd` (timing,
-  from isolated `7de91e0`). Root owns the added HUD/map, F9 message preservation,
-  three trial scenes and `timing_probe.h`; build validation owns its build/CI
-  and parser changes. Keep this next snapshot separate until LOD is validated.
+- LOD source `3c25f7d` passed native workflow `36949428131` and its evidence
+  is archived. The aggregation-only comparison rerun is `36949428138`.
+- The current candidate integrates Harbor Split and frame timing after the
+  verified LOD milestone. Root owns the added HUD/map, F9 message preservation,
+  three trial scenes and `timing_probe.h`; build validation owns build/CI and
+  parser changes. The executable in `/workspace/outputs/` remains the last
+  verified LOD build until this candidate passes native validation.
 - Harbor Split passes 36 strict and sanitizer gameplay suites. Its full-population
   control-driven route clears nine 6 m gates in 67.833 seconds with full health
   and no penalties. Save v4 preserves records/paid medals and cancels unfinished
@@ -154,10 +152,9 @@ part of the game distribution.
   are reported separately. The next native suite requires matching completed
   samples and tests forced timestamp disable; historical comparison binaries
   retain compatibility because timing validation is optional in that tool.
-- Next design work, not yet implemented: outdoor pedestrian schedules, shared
-  threat reactions and small groups; one seamless enterable Harbor Motor Works
-  garage replacing a single authored parcel with real doorway collision and
-  interior lighting. Preserve the full world scope while extending these systems.
+- Harbor Motor Works is being implemented in the separate workshop worktree.
+  Outdoor pedestrian schedules, shared threat reactions and small groups are
+  planned afterward. Preserve the full world scope while extending these systems.
 
 Captures for the verified checkpoint are in
 `/workspace/scratch/lod-3c25f7d-release/`; machine-readable evidence and selected
