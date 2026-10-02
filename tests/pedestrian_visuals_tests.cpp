@@ -66,6 +66,31 @@ void gesturesAndOwnership(){
     person.activityTime=1;assert(!sameGeometry(alarmed,nearby(game,{})));
     person.activity=PedestrianActivity::Flee;person.motion=1;assert(!sameGeometry(talking,nearby(game,{})));
 }
+void concreteStockCheck(){
+    for(float observerDistance:{10.f,60.f}){
+        Game game=actor(PedestrianActivity::Work);game.player={observerDistance,0,0};
+        const auto working=nearby(game,{});size_t paper=0,pencil=0,graphite=0,eyes=0;
+        float paperTop=-100,tipBottom=100;Vec3 gaze{};
+        for(const auto& vertex:working){
+            if(same(vertex.color,{.85f,.84f,.72f})){++paper;paperTop=std::max(paperTop,vertex.position.y);}
+            if(same(vertex.color,{.78f,.51f,.09f}))++pencil;
+            if(same(vertex.color,{.12f,.13f,.14f})){++graphite;tipBottom=std::min(tipBottom,vertex.position.y);}
+            if(same(vertex.color,{.81f,.79f,.71f})){gaze+=vertex.position;++eyes;}
+        }
+        assert(paper>0&&pencil>0&&graphite>0);
+        assert(std::abs(tipBottom-paperTop)<.008f);
+        game.pedestrians.back().activity=PedestrianActivity::Wait;
+        const auto waiting=nearby(game,{});Vec3 idleGaze{};size_t idleEyes=0;
+        for(const auto& vertex:waiting){
+            assert(!same(vertex.color,{.78f,.51f,.09f})&&!same(vertex.color,{.85f,.84f,.72f}));
+            if(same(vertex.color,{.81f,.79f,.71f})){idleGaze+=vertex.position;++idleEyes;}
+        }
+        if(observerDistance<32){
+            assert(eyes>0&&eyes==idleEyes);gaze=gaze/float(eyes);idleGaze=idleGaze/float(idleEyes);
+            assert(gaze.y<idleGaze.y-.05f&&gaze.z>idleGaze.z+.08f);
+        }
+    }
+}
 void stableAppearance(){
     Game game=actor(PedestrianActivity::Wait);const auto before=nearby(game,{});
     const Pedestrian person=game.pedestrians.back();game.pedestrians.back().position={1000,0,1000};game.pedestrians.push_back(person);
@@ -109,6 +134,6 @@ void invalidTransientPose(){
 }
 }
 int main(){
-    stationaryAndWalking();gesturesAndOwnership();stableAppearance();authoredSeatedContact();invalidTransientPose();
-    std::puts("Pedestrian visuals: stationary feet, displacement-driven stride, conversation/work/startle/run gestures, real parcel ownership, stable identity, pose blending and finite normals passed.");
+    stationaryAndWalking();gesturesAndOwnership();concreteStockCheck();stableAppearance();authoredSeatedContact();invalidTransientPose();
+    std::puts("Pedestrian visuals: stationary feet, displacement-driven stride, conversation/startle/run gestures, stock-check pencil contact and downward gaze, real parcel ownership, stable identity, pose blending and finite normals passed.");
 }

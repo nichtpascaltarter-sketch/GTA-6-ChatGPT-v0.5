@@ -77,6 +77,8 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
     const bool startled=routine&&activity==PedestrianActivity::Startle;
     const float alarm=startled?clamp(1-activityTime/.9f,0,1):0;
     const bool carrying=routine&&!armed&&pedestrian->carrying;
+    const bool checking=routine&&!armed&&!carrying&&activity==PedestrianActivity::Work;
+    const Vec3 pencilTip=checking?Vec3{.045f+std::sin(activityTime*2.6f)*.025f,1.115f,.44f+std::sin(activityTime*1.8f)*.05f}:Vec3{};
     const float parcelRise=alarm*.14f,parcelDepth=.40f-alarm*.06f;
     const float stride=std::sin(phase)*.32f*motion,bob=dead?0.0f:std::abs(std::sin(phase))*.026f*motion;
     auto point=[&](Vec3 local){
@@ -100,6 +102,7 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         }
     }
     tube(mesh,point({0,1.35f,0}),point({0,1.51f,0}),.068f,.064f,skin,sides);
+    const size_t headFirst=mesh.vertices.size();
     ellipsoid(mesh,point({0,1.63f,.006f}),{.134f,.178f,.116f},yaw,skin,headSegments,headRings);
     if(closeDetail){
         ellipsoid(mesh,point({0,1.535f,.026f}),{.093f,.074f,.094f},yaw,skin,10,4);
@@ -119,6 +122,14 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
     if(closeDetail){
         ellipsoid(mesh,point({-.092f,1.729f,-.054f}),{.054f,.058f,.070f},yaw,hair*.88f,8,4);
         ellipsoid(mesh,point({.067f,1.772f,.018f}),{.061f,.048f,.091f},yaw,hair*1.12f,8,4);
+    }
+    if(checking){
+        // Read the manifest while the right hand checks entries. Rotate the
+        // complete authored head around the neck, including facial normals.
+        const Vec3 pivot=point({0,1.47f,0}),axis=right(yaw);
+        const float angle=.78f+std::sin(activityTime*.65f)*.025f,c=std::cos(angle),s=std::sin(angle);
+        auto tilt=[&](Vec3 vector){return vector*c+cross(axis,vector)*s+axis*(dot(axis,vector)*(1-c));};
+        for(size_t index=headFirst;index<mesh.vertices.size();++index){auto& vertex=mesh.vertices[index];vertex.position=pivot+tilt(vertex.position-pivot);vertex.normal=normalized(tilt(vertex.normal));}
     }
     for(float side:{-1.0f,1.0f}){
         float footLift=std::max(0.0f,-std::cos(phase)*side)*.13f*motion;
@@ -143,7 +154,8 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
                 elbow=lerp(elbow,{side*.29f,1.01f,.025f},1-seated);
                 hand=lerp(hand,{side*.29f,.81f,.06f+shift},1-seated);
             }else if(activity==PedestrianActivity::Work){
-                elbow={side*.27f,1.07f,.19f};hand={side*.12f,1.04f+(side>0?std::sin(activityTime*3.1f)*.025f:0),.42f};
+                if(side<0){elbow={-.29f,1.03f,.18f};hand={-.185f,1.07f,.41f};}
+                else {elbow={.26f,1.13f,.21f};hand=pencilTip+Vec3{.008f,.075f,.015f};}
             }else if(activity==PedestrianActivity::Talk){
                 const float speaker=(seed&1u)?1.f:-1.f;
                 if(side==speaker){elbow={side*.29f,1.10f,.18f};hand={side*.31f,1.22f+std::sin(activityTime*2.4f)*.10f,.42f+std::sin(activityTime*1.7f)*.04f};}
@@ -172,11 +184,13 @@ void personMesh(Mesh& mesh,Vec3 position,float yaw,float phase,float motion,Vec3
         addBox(mesh,center+Vec3{0,.161f,0},{.035f,.002f,.17f},{.74f,.61f,.36f},yaw);
         addBox(mesh,center+rotate({0,0,.171f},yaw),{.035f,.16f,.002f},{.74f,.61f,.36f},yaw);
         addBox(mesh,center+rotate({-.10f,.025f,.174f},yaw),{.052f,.040f,.002f},{.88f,.85f,.72f},yaw);
-    }else if(routine&&!armed&&activity==PedestrianActivity::Work){
-        const Vec3 board=point({0,1.005f,.39f});
+    }else if(checking){
+        const Vec3 board=point({0,1.10f,.44f});
         addBox(mesh,board,{.17f,.012f,.20f},{.30f,.22f,.13f},yaw);
         addBox(mesh,board+Vec3{0,.014f,0},{.15f,.002f,.18f},{.85f,.84f,.72f},yaw);
         for(int line=0;line<4;++line)addBox(mesh,board+rotate({0,.017f,-.10f+float(line)*.05f},yaw),{.10f,.001f,.004f},{.19f,.24f,.22f},yaw);
+        tube(mesh,point(pencilTip+Vec3{.002f,.02f,.004f}),point(pencilTip+Vec3{.02f,.18f,.035f}),.006f,.006f,{.78f,.51f,.09f},5);
+        tube(mesh,point(pencilTip),point(pencilTip+Vec3{.002f,.02f,.004f}),.001f,.006f,{.12f,.13f,.14f},5);
     }
     if(armed){addBox(mesh,point({.13f,1.275f,.70f}),{.039f,.043f,.15f},{.049f,.053f,.061f},yaw,1);addBox(mesh,point({.13f,1.207f,.60f}),{.032f,.070f,.040f},{.039f,.032f,.025f},yaw,0);}
 }
