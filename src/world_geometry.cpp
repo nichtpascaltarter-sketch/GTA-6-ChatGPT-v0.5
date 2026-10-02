@@ -1115,7 +1115,7 @@ void appendGarage(Chunk& chunk,const World& world,WorldLod lod) {
         for(int slot=0;slot<13;++slot)addBox(mesh,{x,floor+.6f+slot*.24f,87.50f},{.13f,.045f,.018f},{.095f,.14f,.13f});
     }
     // Back-wall bench, drawer banks, pegboard, hand tools and a stocked rolling cabinet.
-    for(float x:{170,175,180}) {
+    for(float x:{170.0f,175.0f,180.0f}) {
         solid({x,floor+.43f,79.3f},{2.0f,.43f,.62f},teal,1);
         for(int drawer=0;drawer<4;++drawer) {
             addBox(mesh,{x,floor+.16f+drawer*.19f,79.96f},{1.86f,.072f,.035f},{.21f,.37f,.32f},0,1);
