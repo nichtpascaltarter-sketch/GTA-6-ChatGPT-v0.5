@@ -60,6 +60,37 @@ part of the game distribution.
 
 ## Active tasks
 
+Latest combined content checkpoint: `c2080088c3e681aab6b784075d21a4793be9f1ac`,
+[native run](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36946139617).
+Release passed all native tests, 120 frames, and 13 scene captures. Debug passed
+the base launch and stricter lifecycle checks. Native images confirm boats,
+aircraft, new vegetation, map UI, removal of facade banding, and preserved night
+light pools. The city WARP launch step returned to 15 seconds after negligible
+dusk-light pruning (previously 70 seconds, baseline 14 seconds).
+
+Final repairs awaiting another native pass: `f61abc7` keeps abandoned planes
+under physics and uses full 3D police sight distance; `6513081` tests those cases
+(19 gameplay suites pass, and archived pre-fix code fails the three regressions).
+`39214d4` draws the actual winding coastal road on the map, reports horizontal
+waypoint distance, and keeps bitmap glyph cells at least one physical pixel.
+The latter fixes disappearing glyph rows in the 960x541 map/craft HUD captures.
+Coastal route samples and the existing world suite pass strict C++20 checks.
+
+Playable craft now include buoyancy, rudder response, swimming/reboarding,
+aircraft throttle/banking/lift/stall/landing, a 512 m airstrip, and a walkable
+coastal pier. Save version 2 preserves craft attitude and throttle and migrates
+version 1. Audio adds four distinct engines and continuous biome ambience;
+signal tests and ASan/UBSan pass, but native listening remains unverified.
+The new world map supports pan, zoom, waypoints, and craft markers. Root owns
+map/UI/main, gameplay owns game/visuals/tests, renderer owns renderer/shaders,
+world owns generation, and build validation owns scripts/CI.
+
+After the final repair checkpoint: append Milestone 02 with native evidence and
+scorecard, then begin linear-HDR offscreen rendering, MSAA edge antialiasing and
+a dedicated post-process pass. Keep UI crisp. Follow with incremental chunk
+GPU residency/BLAS and asynchronous generation; a detailed architecture review
+is available in the current conversation. Keep the full original target.
+
 Current lighting candidate: `b1a34b7037069fb04fd58062d76e6ed86f602347`, undergoing
 [native validation](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36945666811).
 Release passed all four native test executables, an isolated-EXE 120-frame WARP
