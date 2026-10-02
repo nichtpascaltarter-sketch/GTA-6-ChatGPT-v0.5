@@ -1370,17 +1370,109 @@ void craftContractVisualsSurviveLoad() {
     require(nearbyVertices(pickup, clinic, 1.5f, 2.5f, 0.3f, 2.9f) > 100,
             "restored rescue pickup has no survivor and supplies at the clinic launch");
 
-    game.activeMission = -1;
-    game.missionStage = 0;
-    const auto emptyBoat = nearbyVertices(game.dynamicMesh(), boat.position, 3, 3, 0.2f, 3);
-    game.activeMission = 4;
-    game.missionStage = 2;
-    require(game.save(save.path.string()) && game.load(save.path.string()),
-            "passenger visual fixture could not be saved and restored");
-    const mc::Mesh passenger = game.dynamicMesh();
-    verifyDynamicMesh(passenger, "restored rescue passenger");
-    require(nearbyVertices(passenger, boat.position, 3, 3, 0.2f, 3) > emptyBoat + 100,
-            "restored rescue passenger and supplies are missing from the occupied boat");
+    struct CarrierFixture {
+        mc::VehicleKind kind;
+        const char* name;
+        mc::Vec3 seat, supplies;
+    };
+    const CarrierFixture carriers[] = {
+        {mc::VehicleKind::Boat, "boat", {-.54f, .04f, -1.31f}, {.56f, .64f, .67f}},
+        {mc::VehicleKind::Car, "car", {.40f, -.31f, -.02f}, {0, .94f, -1.55f}},
+        {mc::VehicleKind::Motorcycle, "motorcycle", {0, .08f, -.50f}, {-.42f, .45f, -.63f}},
+        {mc::VehicleKind::Aircraft, "aircraft", {.15f, .23f, .55f}, {-.10f, 1.43f, 0}},
+    };
+    const auto componentVertices = [](const mc::Mesh& mesh, mc::Vec3 color) {
+        std::vector<mc::Vertex> component;
+        std::vector<bool> drawn(mesh.vertices.size(), false);
+        for (uint32_t index : mesh.indices) {
+            require(index < drawn.size(), "passenger mesh has an invalid triangle index");
+            drawn[index] = true;
+        }
+        for (size_t i = 0; i < mesh.vertices.size(); ++i)
+            if (drawn[i] && mc::length(mesh.vertices[i].color - color) < .00001f)
+                component.push_back(mesh.vertices[i]);
+        return component;
+    };
+    const mc::Vec3 patientCoat{.79f, .27f, .065f}, medicalCross{.76f, .075f, .045f};
+    for (const CarrierFixture& fixture : carriers) {
+        game = mc::Game{};
+        game.completedMissions = game.activeMission = 4;
+        game.missionStage = 2;
+        game.missionTimer = 200;
+        mc::Vehicle carrier;
+        carrier.kind = fixture.kind;
+        carrier.position = {3080, fixture.kind == mc::VehicleKind::Aircraft ? 80.0f :
+                            mc::World::WaterLevel, 1080};
+        game.vehicles.push_back(carrier);
+        game.player = carrier.position;
+        game.occupied = 0;
+        const std::string label = std::string("rescued passenger in ") + fixture.name;
+        const mc::Mesh reference = game.dynamicMesh();
+        const auto coat = componentVertices(reference, patientCoat);
+        const auto cross = componentVertices(reference, medicalCross);
+        require(coat.size() > 50, (label + " has no visible patient coat").c_str());
+        require(cross.size() >= 24, (label + " has no medical case cross").c_str());
+        for (const mc::Vertex& vertex : coat) {
+            const mc::Vec3 offset = vertex.position - carrier.position - fixture.seat;
+            require(std::fabs(offset.x) < .5f && offset.y > .5f && offset.y < 1.5f &&
+                    std::fabs(offset.z) < .75f,
+                    (label + " is outside the passenger seat").c_str());
+        }
+        for (const mc::Vertex& vertex : cross)
+            require(mc::length(vertex.position - carrier.position - fixture.supplies -
+                               mc::Vec3{0, .2f, 0}) < .45f,
+                    (label + " has medical supplies outside their carrier mount").c_str());
+        if (fixture.kind == mc::VehicleKind::Car || fixture.kind == mc::VehicleKind::Aircraft) {
+            const mc::Box cabin = fixture.kind == mc::VehicleKind::Car ?
+                mc::Box{{-.83f, .38f, -1}, {.83f, 1.5f, 1}} :
+                mc::Box{{-.39f, 1.32f, -.25f}, {.39f, 2.1f, 1.42f}};
+            for (mc::Vec3 actorColor : {patientCoat, mc::Vec3{.59f, .36f, .23f},
+                                       mc::Vec3{.055f, .065f, .081f}, mc::Vec3{.029f, .024f, .022f}})
+                for (const mc::Vertex& vertex : componentVertices(reference, actorColor)) {
+                    const mc::Vec3 point = vertex.position - carrier.position;
+                    require(point.x >= cabin.min.x - .003f && point.x <= cabin.max.x + .003f &&
+                            point.y >= cabin.min.y - .003f && point.y <= cabin.max.y + .003f &&
+                            point.z >= cabin.min.z - .003f && point.z <= cabin.max.z + .003f,
+                            (label + " protrudes through the cabin floor or walls").c_str());
+                }
+        }
+
+        game.vehicles[0].position += mc::Vec3{7, 13, -9};
+        game.vehicles[0].yaw = mc::Pi * .5f;
+        const bool flying = fixture.kind == mc::VehicleKind::Aircraft;
+        if (flying) {
+            game.vehicles[0].pitch = mc::Pi / 6;
+            game.vehicles[0].roll = -mc::Pi / 6;
+        }
+        game.player = game.vehicles[0].position;
+        const mc::Vec3 restoredOrigin = game.player;
+        require(game.save(save.path.string()) && game.load(save.path.string()),
+                (label + " could not be saved and restored").c_str());
+        const mc::Mesh restored = game.dynamicMesh();
+        verifyDynamicMesh(restored, label.c_str());
+        // Known basis for yaw 90 degrees, pitch 30 degrees, and roll -30 degrees.
+        // Road vehicles and the level boat need only the quarter-turn yaw.
+        const auto oriented = [flying](mc::Vec3 local) {
+            if (!flying) return mc::Vec3{local.z, local.y, -local.x};
+            return mc::Vec3{-.25f, .4330127f, -.8660254f} * local.x +
+                   mc::Vec3{-.4330127f, .75f, .5f} * local.y +
+                   mc::Vec3{.8660254f, .5f, 0} * local.z;
+        };
+        for (mc::Vec3 color : {patientCoat, medicalCross}) {
+            const auto before = componentVertices(reference, color);
+            const auto after = componentVertices(restored, color);
+            require(after.size() == before.size(),
+                    (label + " lost patient or supply geometry after load").c_str());
+            for (size_t i = 0; i < before.size(); ++i) {
+                const mc::Vec3 expected = restoredOrigin +
+                    oriented(before[i].position - carrier.position);
+                require(mc::length(after[i].position - expected) < .003f,
+                        (label + " does not follow the carrier position and attitude").c_str());
+                require(mc::length(after[i].normal - oriented(before[i].normal)) < .002f,
+                        (label + " normals do not follow the carrier attitude").c_str());
+            }
+        }
+    }
 
     game = mc::Game{};
     game.completedMissions = game.activeMission = 5;
