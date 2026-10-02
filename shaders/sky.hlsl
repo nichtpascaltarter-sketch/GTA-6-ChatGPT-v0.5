@@ -16,8 +16,8 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float2 ndc=i.uv*float2(2,-2)+float2(-1,1);
     float3 ray=normalize(cameraForward.xyz+cameraRight.xyz*(ndc.x*cameraRight.w)+cameraUp.xyz*(ndc.y*cameraUp.w));
     float h=saturate(ray.y),sun=dot(ray,sunDay.xyz);
-    float3 zenith=lerp(float3(.012,.023,.065),float3(.11,.34,.66),sunDay.w);
-    float3 horizon=lerp(float3(.035,.05,.10),float3(.65,.78,.84),sunDay.w);
+    float3 zenith=lerp(float3(.012,.023,.065),float3(.07,.25,.52),sunDay.w);
+    float3 horizon=lerp(float3(.035,.05,.10),float3(.48,.65,.74),sunDay.w);
     float sunset=pow(saturate(1-abs(sunDay.y)*2.8),3)*sunDay.w;
     horizon+=float3(.40,.13,.015)*sunset*pow(saturate(dot(normalize(float3(ray.x,.07,ray.z)),normalize(float3(sunDay.x,.07,sunDay.z)))),4);
     float3 c=lerp(horizon,zenith,pow(h,.45));

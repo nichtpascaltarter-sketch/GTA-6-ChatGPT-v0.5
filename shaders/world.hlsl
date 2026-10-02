@@ -7,14 +7,36 @@ cbuffer Frame : register(b0) {
     float4 cameraUp;
     float4 cameraForward;
     float4 viewport;
+    row_major float4x4 lightProjection;
 };
 struct VertexInput { float3 position:POSITION; float3 normal:NORMAL; float3 color:COLOR; float material:TEXCOORD0; };
-struct PixelInput { float4 position:SV_POSITION; float3 world:TEXCOORD0; float3 normal:TEXCOORD1; float3 color:COLOR; nointerpolation float material:TEXCOORD2; };
+struct PixelInput { float4 position:SV_POSITION; float3 world:TEXCOORD0; float3 normal:TEXCOORD1; float3 color:COLOR; nointerpolation float material:TEXCOORD2; float4 shadow:TEXCOORD3; };
 PixelInput VSMain(VertexInput v) {
     PixelInput o;
     o.position=mul(float4(v.position,1),viewProjection);
     o.world=v.position; o.normal=v.normal; o.color=v.color; o.material=v.material;
+    o.shadow=mul(float4(v.position+v.normal*.025,1),lightProjection);
     return o;
+}
+float4 VSShadow(VertexInput v):SV_POSITION { return mul(float4(v.position,1),lightProjection); }
+Texture2D<float> shadowMap : register(t3);
+SamplerComparisonState shadowSampler : register(s0);
+float rasterVisibility(float4 position,float normalDotLight) {
+    float3 projected=position.xyz/position.w;
+    if(projected.z<=0 || projected.z>=1) return 1;
+    float edge=max(abs(projected.x),abs(projected.y));
+    if(edge>=1) return 1;
+    float2 uv=projected.xy*float2(.5,-.5)+.5;
+    float bias=.000015+.000025*(1-normalDotLight);
+    float visibility=0;
+    [unroll] for(int y=-1;y<=1;++y) {
+        [unroll] for(int x=-1;x<=1;++x) {
+            visibility+=shadowMap.SampleCmpLevelZero(shadowSampler,uv+float2(x,y)*viewport.z,projected.z-bias);
+        }
+    }
+    visibility/=9;
+    float coverage=(1-smoothstep(.82,.98,edge))*smoothstep(.02,.12,sunDay.y);
+    return lerp(1,visibility,coverage);
 }
 float hash(float2 p) { return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
 float noise(float2 p) {
@@ -23,8 +45,8 @@ float noise(float2 p) {
 }
 float3 skyColor(float3 direction) {
     float h=saturate(direction.y);
-    float3 zenith=lerp(float3(.012,.023,.065),float3(.11,.34,.66),sunDay.w);
-    float3 horizon=lerp(float3(.035,.05,.10),float3(.65,.78,.84),sunDay.w);
+    float3 zenith=lerp(float3(.012,.023,.065),float3(.07,.25,.52),sunDay.w);
+    float3 horizon=lerp(float3(.035,.05,.10),float3(.48,.65,.74),sunDay.w);
     float sunset=pow(saturate(1-abs(sunDay.y)*2.8),3)*sunDay.w;
     horizon+=float3(.40,.13,.015)*sunset*pow(saturate(dot(normalize(float3(direction.x,.07,direction.z)),normalize(float3(sunDay.x,.07,sunDay.z)))),4);
     float3 c=lerp(horizon,zenith,pow(h,.45));
@@ -71,7 +93,12 @@ float4 PSMain(PixelInput i):SV_TARGET {
     bool road=i.material>3.5;
     if(metal){metallic=.67;roughness=.23;}
     if(glass){metallic=.48;roughness=.18;}
-    if(road){roughness=lerp(.86,.19,weather.x);albedo*=1-weather.x*.37;}
+    if(road){
+        roughness=lerp(.86,.19,weather.x);
+        float aggregate=noise(i.world.xz*24);
+        albedo*=(.92+aggregate*.13)*(1-weather.x*.37);
+    }
+    if(!metal&&!glass&&!water&&!road) albedo*=1-.08*exp(-max(i.world.y,0)*1.4);
     if(water){
         float t=eyeTime.w;
         float dx=cos(i.world.x*.20+i.world.z*.07+t*.9)*.09+sin(i.world.z*.49+t*1.3)*.04;
@@ -86,16 +113,16 @@ float4 PSMain(PixelInput i):SV_TARGET {
     float g=(nl/(nl*(1-k)+k))*(nv/(nv*(1-k)+k));
     float3 f0=lerp(float3(.04,.04,.04),albedo,metallic);
     float3 f=f0+(1-f0)*pow(1-vh,5);
-    float visibility=1;
+    float visibility=rasterVisibility(i.shadow,nl);
 #ifdef ENABLE_RAYTRACING
-    visibility=sunVisibility(i.world,n);
+    visibility=min(visibility,sunVisibility(i.world,n));
 #endif
-    float3 sunColor=lerp(float3(2.6,1.02,.36),float3(2.25,2.08,1.78),saturate(sunDay.y*2));
+    float3 sunColor=lerp(float3(3.1,1.20,.42),float3(2.6,2.42,2.12),saturate(sunDay.y*2));
     sunColor*=sunDay.w*(1-weather.x*.78);
     float3 diffuse=albedo*(1-metallic)/3.14159265;
     float3 color=(diffuse*(1-f)+d*g*f/max(.01,4*nl*nv))*sunColor*nl*visibility;
     float hemi=saturate(n.y*.5+.5);
-    float3 ambient=lerp(float3(.085,.073,.065),float3(.30,.40,.53),hemi)*(.10+.90*sunDay.w);
+    float3 ambient=lerp(float3(.060,.054,.048),float3(.20,.28,.37),hemi)*(.10+.90*sunDay.w);
     color+=ambient*albedo*(1-metallic*.55);
     color+=albedo*float3(.045,.060,.105)*(1-sunDay.w)*saturate(n.y+.25);
     if(glass) {
@@ -108,12 +135,12 @@ float4 PSMain(PixelInput i):SV_TARGET {
         reflected=reflectionColor(i.world,n,r);
 #endif
         float fresnel=.05+.95*pow(1-nv,5);
-        float strength=water?lerp(.28,.92,fresnel):(glass?.50:(metal?.37:weather.x*.33));
+        float strength=water?lerp(.28,.92,fresnel):(glass?(.12+.46*fresnel):(metal?.37:weather.x*.33));
         color=lerp(color,reflected,strength);
         if(water) color+=float3(.55,.65,.56)*pow(saturate(sin(i.world.x*.31+i.world.z*.18+eyeTime.w)*.5+.5),35)*.024;
     }
     float distance=length(i.world-eyeTime.xyz);
-    float haze=1-exp(-distance*(.0011+weather.x*.0021));
+    float haze=1-exp(-distance*(.00065+weather.x*.0021));
     haze=max(haze,smoothstep(260,440,distance));
     color=lerp(color,skyColor(normalize(i.world-eyeTime.xyz)),saturate(haze));
     float2 rainUV=i.position.xy/viewport.xy;
