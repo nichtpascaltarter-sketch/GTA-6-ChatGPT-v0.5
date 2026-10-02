@@ -284,6 +284,33 @@ void movementAndPause() {
     require(close(game.time, beforeNegativeTime), "negative delta changed simulation time");
     require(mc::length(game.player - beforeNegativePosition) < 0.0001f,
             "negative delta moved the player");
+
+    const uint64_t residentRevision = game.world.revision;
+    std::vector<int> residentCoordinates;
+    for (const mc::Chunk& chunk : game.world.chunks) {
+        residentCoordinates.push_back(chunk.x);
+        residentCoordinates.push_back(chunk.z);
+    }
+    game.player = {-3200, game.world.height(-3200, -1000), -1000};
+    const mc::Vec3 remoteStart = game.player;
+    game.update(walk, 1.0f / 60.0f, false);
+    require(mc::length(game.player - remoteStart) > 0.01f,
+            "disabling synchronous streaming also disabled player movement");
+    require(game.world.revision == residentRevision &&
+            game.world.chunks.size() * 2 == residentCoordinates.size(),
+            "simulation replaced resident chunks while synchronous streaming was disabled");
+    for (size_t i = 0; i < game.world.chunks.size(); ++i)
+        require(game.world.chunks[i].x == residentCoordinates[i * 2] &&
+                game.world.chunks[i].z == residentCoordinates[i * 2 + 1],
+                "simulation changed chunk coordinates while synchronous streaming was disabled");
+
+    game.update(walk, 1.0f / 60.0f);
+    const int centerX = int(std::floor(game.player.x / mc::World::ChunkSize));
+    const int centerZ = int(std::floor(game.player.z / mc::World::ChunkSize));
+    require(game.world.revision > residentRevision &&
+            std::any_of(game.world.chunks.begin(), game.world.chunks.end(),
+                [&](const mc::Chunk& chunk) { return chunk.x == centerX && chunk.z == centerZ; }),
+            "default simulation update did not stream the new player location");
 }
 
 void vehicleInteraction() {
