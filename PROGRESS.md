@@ -150,10 +150,26 @@ part of the game distribution.
     develops the origin plaza around unchanged resident destinations and seats.
     Its three distinct stocked stalls, supported canopies, fountain sculpture,
     circulation inlays and night fixtures pass focused geometry, navigation,
-    lighting and five-camera checks. Source `fad1a20` is running the complete
-    17-target portable gate; native captures remain pending. The loaded origin
-    contains 349,211 triangles, 1,470 above the resident source. Keep it isolated
-    until its complete gates pass.
+    lighting and five-camera checks. Source `fad1a20` passed the complete
+    17-target portable gate. It is now integrated as native candidate
+    `8b166eee5b7e9d028d48ed10eede343815a40d40`, running Windows workflow
+    `36953945222`; all 55 source hashes still match the portable gate. The loaded
+    origin contains 349,211 triangles, 1,470 above the resident source. Keep the
+    verified Milestone 08 executable until native and visual acceptance pass.
+13. Police source checkpoint `901f56f` repairs all four lamp-overlapping officer
+    starts, preserves real gunshot evidence during bounded legacy recovery, and
+    passes 92 strict checks (14 integrated / 49 gameplay / 9 residents / 12 core /
+    8 navigation). Its full sanitizer gate is still running. Real aim/fire/reload
+    capture preparation passes with all 84 people and 50 vehicles retained.
+    Spatial gunfire is committed as `a2a105f`; post-recovery visual evidence is
+    `afe706d`. Rebase the completed police branch onto the current market/main
+    tree, then integrate the three natural capture views and run the full union.
+14. The next authored face/material pass is isolated in
+    `/workspace/GTA-6-ChatGPT-v0.5-characters`, branch
+    `development/character-presentation`, based on police checkpoint `afe706d`.
+    Preserve all pose/prop anchors and far topology while improving near heads,
+    eyelids and stable skin/cloth/hair/eye materials. Native acceptance remains
+    a later step after local mesh, pose and shader checks.
 
 ### Integrated workshop source (verified in Milestone 07)
 
@@ -327,6 +343,18 @@ fast-forwards the development branch through authenticated `gh api`; fetch the
 branch first so its remote-tracking base is current. GitHub artifact CLI
 downloads fail at their storage redirect; use the connected GitHub workflow
 artifact download tool, then `download_file` on its returned file ID.
+
+The shell's `gh` credential began returning HTTP 401 during the market upload.
+The connected GitHub tools still authenticate. Eight unpublished commits were
+recreated with `create_blob`, `create_tree` and `create_commit`, verifying the
+exact original tree SHA at every step, then advancing the ref without force.
+The connector cannot set author/date, so commit IDs changed while file contents
+and individual trees stayed identical. Original history remains on
+`archive/market-before-connector-836478a`; the mapping is
+`/workspace/scratch/connector-market-upload/result.json`. The locally gated
+`836478a` tree equals published `8b166ee` (tree `ea2ce3d228ce97f4e3611cc04a616beabbaffbab`).
+Main now follows the published history. Use public REST or connected tools for
+workflow monitoring; do not print credentials or attempt interactive login.
 
 ## Milestone 01 — native playable core, 2026-10-02
 
