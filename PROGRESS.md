@@ -59,6 +59,23 @@ part of the game distribution.
 
 ## Active tasks
 
+Current candidate: `fd058a824a29b3f898327ae91e2b2a10222a9566`, undergoing
+[native validation](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36945312426).
+It adds stable directional raster shadows, six architectural families and a
+market/clock pavilion, rounded character and vehicle meshes in `visuals.cpp`,
+and four original subtitled cinematic conversations. These conversations are
+not voiced. Updated portable tests and ASan/UBSan pass. The Windows check now
+copies only the executable to an empty temporary directory before launching;
+eight additional camera/weather scenes follow the main 120-frame smoke run.
+
+Review fixes in this candidate include keeping pause-menu confirmation from
+skipping conversations, collision-safe cinematic cameras at close walls, and
+a continuous shader animation clock. Native visual approval and the second
+scorecard are pending. Baseline captures before these changes are available in
+`/workspace/scratch/baseline-scenes-950dc95/`; the first verified executable is
+copied to `/workspace/outputs/MeridianCoast.exe` (the file there is still the
+Milestone 01 binary until a newer native candidate passes).
+
 1. Validate the new scenery/weather capture sweep and window lifecycle changes.
 2. Add raster shadowing and improve scene composition, close-up characters, and
    vehicle shapes using captured output for each change.
