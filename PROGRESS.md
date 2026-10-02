@@ -22,7 +22,8 @@ part of the game distribution.
 - Execution environment: Linux, `g++` available, no local Windows SDK, DXC,
   Windows runtime, or GPU validation. The connected Windows desktop is offline.
 - Native Windows Release/Debug build and WARP screenshot validation passed in
-  GitHub Actions at `1bbac2e`. A WARP result is software-rendering evidence and
+  GitHub Actions at `1bbac2e` and `fd058a8`. Release also passed at `b1a34b7`;
+  its Debug lifecycle run is pending. A WARP result is software-rendering evidence and
   cannot establish RTX 4070 performance or DXR correctness.
 - There is no claim of a complete game, AAA visual quality, crash freedom,
   benchmark parity, or measured 1440p/60 performance.
@@ -48,9 +49,9 @@ part of the game distribution.
 
 ## Current validation
 
-- World tests passed optimized C++17 with warnings treated as errors. Origin:
-  199,220 triangles, 411,640 vertices, 49 chunks, approximately 32 ms generation
-  on this Linux host. Tests include seams, deterministic generation, chunk reuse,
+- World tests passed optimized C++20 with warnings treated as errors. At
+  `b1a34b7`, the origin contains 335,720 triangles, 700,724 vertices, 49 chunks.
+  Tests include seams, deterministic generation, chunk reuse,
   biomes, mesh validity, high-speed collision, sliding, and overlap recovery.
 - Audio synthesis tests passed optimized warnings-as-errors and ASan/UBSan.
 - Windows Release/Debug executable builds, launch, screenshot inspection, and
@@ -59,26 +60,45 @@ part of the game distribution.
 
 ## Active tasks
 
-Current candidate: `fd058a824a29b3f898327ae91e2b2a10222a9566`, undergoing
-[native validation](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36945312426).
-It adds stable directional raster shadows, six architectural families and a
-market/clock pavilion, rounded character and vehicle meshes in `visuals.cpp`,
-and four original subtitled cinematic conversations. These conversations are
-not voiced. Updated portable tests and ASan/UBSan pass. The Windows check now
-copies only the executable to an empty temporary directory before launching;
-eight additional camera/weather scenes follow the main 120-frame smoke run.
+Current lighting candidate: `b1a34b7037069fb04fd58062d76e6ed86f602347`, undergoing
+[native validation](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36945666811).
+Release passed all four native test executables, an isolated-EXE 120-frame WARP
+launch, and ten additional camera/weather captures. Debug passed compilation,
+tests, and the base launch; lifecycle validation remains pending. The previous
+candidate `fd058a8` passed both native configurations and an eight-scene sweep.
 
-Review fixes in this candidate include keeping pause-menu confirmation from
-skipping conversations, collision-safe cinematic cameras at close walls, and
-a continuous shader animation clock. Native visual approval and the second
-scorecard are pending. Baseline captures before these changes are available in
-`/workspace/scratch/baseline-scenes-950dc95/`; the first verified executable is
-copied to `/workspace/outputs/MeridianCoast.exe` (the file there is still the
-Milestone 01 binary until a newer native candidate passes).
+Implemented since Milestone 01: directional raster shadows, six building
+families, a market/clock pavilion, rounded actor/vehicle meshes, four original
+subtitled cinematic conversations, street/shop point lights, vehicle spotlights,
+police flashers, and muzzle illumination. Conversations are not voiced; local
+lights are unshadowed. Review fixed close-wall cinematic cameras, menu/skip
+input overlap, and continuity of shader animation time.
 
-1. Validate the new scenery/weather capture sweep and window lifecycle changes.
-2. Add raster shadowing and improve scene composition, close-up characters, and
-   vehicle shapes using captured output for each change.
+Inspected `b1a34b7` captures: night streets and headlights now read clearly;
+portraits remain very primitive, and vertical facade bands still need repair.
+Release's WARP base smoke step increased from 14 seconds at `fd058a8` to 70
+seconds at `b1a34b7`; investigate the lighting/shadow cost before accepting the
+milestone. This is CI software-rendering time, not hardware frame-rate evidence.
+
+An independent ASan/UBSan soak on archived `fd058a8` passed 38,880 updates / 648
+simulated seconds, 152 mesh validations, 52 byte-exact save/load round trips,
+and 16 boundary/biome placements without sanitizer failures or leaks. Harness
+and log: `/tmp/meridian-soak-tYMekg/`.
+
+Current unvalidated content work: biome-specific vegetation, coastal dock and
+inland airstrip, playable boats/aircraft with save migration, and world-map
+navigation. Root's map projection/finite-geometry checks passed against an
+isolated `b1a34b7` source snapshot; native map capture is pending. Lifecycle
+checks now also verify actual Win32 rectangles/styles and client dimensions.
+
+Captures: `/workspace/scratch/lighting-b1a34b7/` and
+`/workspace/scratch/visual-milestone-fd058a8/`. The executable currently copied to
+`/workspace/outputs/MeridianCoast.exe` is the verified `fd058a8` Release binary.
+
+1. Repair facade banding and investigate WARP regression, finish Debug lifecycle
+   and visual verification, then append the second evidence-backed scorecard.
+2. Finish boats, aircraft, swimming, launch sites, vegetation, world map and
+   contextual controls; run native craft/map/biome captures and physics tests.
 3. Remove synchronous streaming stalls, add distant world representation, and
    include moving vehicles/characters in acceleration structures.
 4. Expand authored story, cutscenes, side activities, civilian routines, crime
@@ -111,6 +131,13 @@ Read this file and `git status`, then inspect the latest build results. Preserve
 existing work. Finish the active validation/repair first, append evidence and a
 scorecard at each major milestone, commit, and take the next active improvement.
 Missing features belong in this record, not as code stubs or fake menu options.
+
+This environment's Git transport can fetch but cannot authenticate pushes.
+`/workspace/scratch/update_git_api.py` uploads exact committed Git objects and
+fast-forwards the development branch through authenticated `gh api`; fetch the
+branch first so its remote-tracking base is current. GitHub artifact CLI
+downloads fail at their storage redirect; use the connected GitHub workflow
+artifact download tool, then `download_file` on its returned file ID.
 
 ## Milestone 01 — native playable core, 2026-10-02
 
