@@ -14,6 +14,9 @@ struct LawObstacle {Vec3 min,max;};
 class LawSpace {
 public:
     virtual ~LawSpace()=default;
+    // Dynamic adapters may exclude the observer's own body, never nearby actors.
+    // This carries identity only and does not expose a suspect position.
+    virtual void setObserver(uint32_t) const {}
     virtual bool ready(Vec3 position) const=0;
     virtual bool project(Vec3 desired,float bodyRadius,Vec3& ground) const=0;
     virtual bool walkClear(Vec3 from,Vec3 to,float bodyRadius) const=0;

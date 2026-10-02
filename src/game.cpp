@@ -244,6 +244,16 @@ struct SaveReader {
     float real(){uint32_t bits=u32();float n=0;std::memcpy(&n,&bits,4);if(!finite(n))good=false;return n;}
     Vec3 vector(){float x=real(),y=real(),z=real();return {x,y,z};}
 };
+void writeLawMemory(SaveWriter& writer,const LawMemory& memory){
+    writer.u32(memory.valid?1u:0u);writer.u32(uint32_t(memory.kind));writer.u32(memory.serial);writer.u32(memory.observer);
+    writer.vector(memory.position);writer.vector(memory.velocity);writer.real(memory.age);writer.real(memory.uncertainty);
+}
+LawMemory readLawMemory(SaveReader& reader){
+    LawMemory memory;const uint32_t valid=reader.u32(),kind=reader.u32();
+    if(valid>1||kind>uint32_t(LawEvidenceKind::Report))reader.good=false;
+    memory.valid=valid==1;memory.kind=LawEvidenceKind(kind);memory.serial=reader.u32();memory.observer=reader.u32();
+    memory.position=reader.vector();memory.velocity=reader.vector();memory.age=reader.real();memory.uncertainty=reader.real();return memory;
+}
 uint32_t crc32(const uint8_t* bytes,size_t size){uint32_t crc=0xffffffffu;for(size_t i=0;i<size;++i){crc^=bytes[i];for(int b=0;b<8;++b)crc=(crc>>1)^((0u-(crc&1u))&0xedb88320u);}return ~crc;}
 std::filesystem::path utf8Path(const std::string& value){
 #if defined(__cpp_char8_t)
@@ -313,9 +323,12 @@ void Game::initialize(){
         Pedestrian p;
         if(i<4)p.position=vehicles[size_t(i)+8].position+Vec3{8,0,0};
         else {int block=i-4;float x=float((block%5)-2)*128+12,z=float(((block/5)%5)-2)*128+12;float walk=float((block*31)%100);if(block&1)x+=walk;else z+=walk;p.position={x,0,z};}
-        p.position=atGround(world,p.position);p.phase=random01(uint32_t(i))*2*Pi;p.yaw=random01(uint32_t(i)+7)*2*Pi;pedestrians.push_back(p);pedestrianTargets.push_back(pedestrianCorner(world,p.position,uint32_t(i)*37));
+        p.position=atGround(world,p.position);
+        if(i<4)p.position=world.move(p.position,{},.35f);
+        p.phase=random01(uint32_t(i))*2*Pi;p.yaw=random01(uint32_t(i)+7)*2*Pi;pedestrians.push_back(p);pedestrianTargets.push_back(pedestrianCorner(world,p.position,uint32_t(i)*37));
     }
     initializePedestrians(true);
+    resetLaw();
     message="MERIDIAN COAST  /  Walk to the amber marker. Press M to meet Inez.  E enters a vehicle.";messageTime=13;
 }
 const Mission* Game::missionInfo() const {
@@ -472,7 +485,7 @@ Vec3 Game::cameraTarget() const {
     return player+Vec3{0,occupied>=0?1.65f:1.45f,0}+direction*35;
 }
 void Game::update(const Input& input,float elapsed,bool streamWorld){
-    if(paused||!finite(elapsed)||elapsed<=0)return;
+    if(paused||!finite(elapsed)||elapsed<=0){suspendLaw();return;}
     const float dt=std::min(elapsed,.05f);
     Input in=input;
     in.moveX=finite(in.moveX)?clamp(in.moveX,-1,1):0;in.moveY=finite(in.moveY)?clamp(in.moveY,-1,1):0;
@@ -491,6 +504,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
     if(trafficTargets.size()!=vehicles.size()){trafficTargets.clear();for(size_t i=0;i<vehicles.size();++i)trafficTargets.push_back(nextTrafficTarget(world,vehicles[i],uint32_t(i)));}
     if(pedestrianTargets.size()!=pedestrians.size()){pedestrianTargets.clear();for(size_t i=0;i<pedestrians.size();++i)pedestrianTargets.push_back(pedestrianCorner(world,pedestrians[i].position,uint32_t(i)));}
     beginPedestrianFrame(dt);
+    synchronizeVehicleIdentities();synchronizeLaw();recoverLawStarts();
     if(radio){radioStation=(radioStation+1)%4;static const char* names[]={"Radio off","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};message=names[radioStation];messageTime=4;}
     if(interact){
         if(occupied>=0){
@@ -533,7 +547,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             float nearest=6.0f;int index=-1;
             for(size_t i=0;i<vehicles.size();++i)if(vehicles[i].health>0&&std::abs(vehicles[i].speed)<6&&std::abs(player.y-vehicles[i].position.y)<3.2f){float distance=planarDistance(player,vehicles[i].position);if(distance<nearest&&passengerPathClear(world,player,vehicles[i].position)){nearest=distance;index=int(i);}}
             if(index>=0){occupied=index;Vehicle& v=vehicles[size_t(index)];v.parked=false;player=v.position;verticalSpeed=0;grounded=true;reloadTimer=0;cameraFollowDelay=0;yaw=v.yaw;
-                if(v.police){wanted=std::max(wanted,2);wantedTimer=28;message="Patrol vehicle taken. Dispatch has your description.";}
+                if(v.police){reportCrime(v.position,2,28,false);message="Patrol vehicle taken. Its transponder reported the theft location.";}
                 else if(v.kind==VehicleKind::Boat)message="RUNABOUT  /  W/S thrust and reverse  A/D rudder  Space slow  E leave helm";
                 else if(v.kind==VehicleKind::Aircraft)message="SKYLARK  /  W/S set throttle  A/D bank  Shift climb  Space descend/brake  E exit after landing";
                 else message=v.kind==VehicleKind::Motorcycle?"Motorcycle  /  W/S throttle and reverse  A/D steer  Space brake":"W/S throttle and reverse  A/D steer  Space handbrake  E exit  Q radio";
@@ -602,13 +616,13 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)hit=std::min(hit,rayBox(origin,direction,box,hit));
             for(size_t i=0;i<pedestrians.size();++i){const Pedestrian& p=pedestrians[i];if(p.health<=0)continue;float t=raySphere(origin,direction,pedestrianBodyPoint(p,1.0f),.56f,hit);if(t<hit){hit=t;person=int(i);car=-1;}}
             for(size_t i=0;i<vehicles.size();++i){float t=raySphere(origin,direction,vehicles[i].position+Vec3{0,.85f,0},1.2f,hit);if(t<hit){hit=t;person=-1;car=int(i);}}
-            if(person>=0){Pedestrian& p=pedestrians[size_t(person)];p.health=std::max(0.0f,p.health-40);p.panic=14;frightenPedestrian(size_t(person),origin,14);wanted=std::max(wanted,person<4?3:2);}
-            if(car>=0){Vehicle& v=vehicles[size_t(car)];v.health=std::max(0.0f,v.health-12);if(v.police)wanted=std::max(wanted,3);}
-            shotEnd=origin+direction*hit;wanted=std::max(wanted,1);wantedTimer=22+float(wanted)*5;
+            int severity=1;
+            if(person>=0){Pedestrian& p=pedestrians[size_t(person)];p.health=std::max(0.0f,p.health-40);p.panic=14;frightenPedestrian(size_t(person),origin,14);severity=person<4?3:2;}
+            if(car>=0){Vehicle& v=vehicles[size_t(car)];v.health=std::max(0.0f,v.health-12);if(v.police)severity=3;}
+            shotEnd=origin+direction*hit;reportCrime(origin,severity,22+float(severity)*5,true);
             alertPedestrians(origin,80);
         }else {fireCooldown=.3f;message=reserveAmmo>0?"Magazine empty. Press R to reload.":"Out of ammunition. Visit the outfitter west of the harbor.";messageTime=3;}
     }
-    bool policeSight=false;
     for(size_t i=0;i<vehicles.size();++i){
         if(int(i)==occupied)continue;
         Vehicle& v=vehicles[i];
@@ -625,20 +639,8 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         if(v.health<=0){v.speed=towards(v.speed,0,dt*8);continue;}
         float targetSpeed=0;
         Vec3 target=trafficTargets[i];
-        if(v.police&&wanted>0){
-            v.parked=false;float distance=planarDistance(v.position,player);bool hasSight=false;
-            const Vec3 eye=v.position+Vec3{0,1,0},toPlayer=player+Vec3{0,1,0}-eye;
-            const float sightDistance=length(toPlayer);
-            if(sightDistance<95){
-                const Vec3 ray=normalized(toPlayer);float visible=sightDistance;
-                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,ray,box,visible));
-                if(visible>=sightDistance-.1f){policeSight=true;hasSight=true;}
-            }
-            if(distance<28)target=player;
-            else {float grid=roadGrid(v.position);Vec3 node{std::round(v.position.x/grid)*grid,0,std::round(v.position.z/grid)*grid};Vec3 delta=player-node;if(std::abs(delta.x)>std::abs(delta.z))target=node+Vec3{delta.x>0?grid:-grid,0,Lane};else target=node+Vec3{Lane,0,delta.z>0?grid:-grid};}
-            targetSpeed=distance<8?3.0f:22+float(wanted)*2;
-            if(hasSight&&length(v.position-player)<6&&occupied<0&&invulnerabilityTimer<=0){health=std::max(0.0f,health-dt*(7+float(wanted)*3));}
-        }else if(v.parked){v.speed=0;v.velocity={};continue;}
+        if(v.police&&patrolLawTarget(i,target,targetSpeed)){v.parked=false;}
+        else if(v.parked){v.speed=0;v.velocity={};continue;}
         else {
             if(planarDistance(v.position,target)<11){trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)*391+simulationTick);target=trafficTargets[i];}
             targetSpeed=10+random01(uint32_t(i)*193)*7;
@@ -647,7 +649,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         Vec3 direction=target-v.position;direction.y=0;float desiredYaw=std::atan2(direction.x,direction.z),turn=wrapAngle(desiredYaw-v.yaw);
         if(std::abs(turn)>.7f)targetSpeed=std::min(targetSpeed,6.0f);
         for(size_t j=0;j<vehicles.size();++j){if(i==j||std::abs(vehicles[j].position.y-v.position.y)>2.5f)continue;Vec3 offset=vehicles[j].position-v.position;float ahead=dot(offset,forward(v.yaw));if(ahead>0&&ahead<10+std::abs(v.speed)*.65f&&std::abs(dot(offset,right(v.yaw)))<2.3f)targetSpeed=std::min(targetSpeed,std::max(0.0f,(ahead-5)*.75f));}
-        if(occupied<0){Vec3 offset=player-v.position;if(dot(offset,forward(v.yaw))>0&&planarDistance(player,v.position)<10&&std::abs(dot(offset,right(v.yaw)))<2)targetSpeed=v.police&&wanted>0?2.0f:0.0f;}
+        if(occupied<0){Vec3 offset=player-v.position;if(dot(offset,forward(v.yaw))>0&&planarDistance(player,v.position)<10&&std::abs(dot(offset,right(v.yaw)))<2)targetSpeed=0;}
         targetSpeed=pedestrianTrafficSpeed(v,targetSpeed);
         v.speed=towards(v.speed,targetSpeed,dt*(targetSpeed<v.speed?8:3.8f));v.steer=clamp(turn*1.5f,-1,1);
         v.yaw=wrapAngle(v.yaw+clamp(turn,-1.2f*dt,1.2f*dt));v.velocity=forward(v.yaw)*v.speed;
@@ -657,42 +659,20 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
     if(occupied>=0){
         Vehicle& driven=vehicles[size_t(occupied)];
         for(size_t i=0;i<vehicles.size();++i){if(int(i)==occupied)continue;Vehicle& other=vehicles[i];if(std::abs(driven.position.y-other.position.y)>2.5f)continue;float radius=driven.kind==VehicleKind::Aircraft?4.5f:(driven.kind==VehicleKind::Boat?3.2f:(driven.kind==VehicleKind::Motorcycle?1.55f:2.15f));Vec3 delta=driven.position-other.position;delta.y=0;float distance=length(delta);
-            if(distance>0.01f&&distance<radius){float impact=std::abs(driven.speed-other.speed);Vec3 normal=delta/distance;driven.position=world.move(driven.position,normal*(radius-distance),.8f);other.position=world.move(other.position,-normal*(radius-distance)*.5f,.8f);driven.speed*=.65f;other.speed*=.6f;driven.health=std::max(0.0f,driven.health-std::max(0.0f,impact-3)*.25f);other.health=std::max(0.0f,other.health-std::max(0.0f,impact-3)*.3f);if(other.police&&impact>2){wanted=std::max(wanted,2);wantedTimer=25;}}
+            if(distance>0.01f&&distance<radius){float impact=std::abs(driven.speed-other.speed);Vec3 normal=delta/distance;driven.position=world.move(driven.position,normal*(radius-distance),.8f);other.position=world.move(other.position,-normal*(radius-distance)*.5f,.8f);driven.speed*=.65f;other.speed*=.6f;driven.health=std::max(0.0f,driven.health-std::max(0.0f,impact-3)*.25f);other.health=std::max(0.0f,other.health-std::max(0.0f,impact-3)*.3f);if(other.police&&impact>2)reportCrime(driven.position,2,25,false);}
         }
         player=driven.position;
     }
     updateCivilianPedestrians(dt);
     for(size_t i=0;i<pedestrians.size();++i){
         Pedestrian& p=pedestrians[i];if(p.health<=0)continue;
-        if(i<4){
-            p.panic=std::max(0.0f,p.panic-dt);Vec3 target=pedestrianTargets[i];float speed=1.3f;
-            if(wanted>0&&planarDistance(p.position,player)<85){
-                target=player;speed=3.7f;
-                const Vec3 eye=p.position+Vec3{0,1.55f,0},toPlayer=player+Vec3{0,1.1f,0}-eye;
-                const float distance=length(toPlayer);
-                if(distance<85){
-                    float visible=distance;
-                    for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,normalized(toPlayer),box,visible));
-                    if(visible>=distance-.1f){policeSight=true;if(distance<15){speed=0;if(invulnerabilityTimer<=0)health=std::max(0.0f,health-dt*(2.0f+float(wanted)));}}
-                }
-            }
-            else if(i+8<vehicles.size()){target=vehicles[i+8].position+Vec3{8,0,0};speed=1.3f;}
-            Vec3 delta=target-p.position;delta.y=0;float distance=length(delta);const Vec3 before=p.position;
-            if(distance>.25f&&speed>0){Vec3 direction=delta/distance;p.yaw=wrapAngle(p.yaw+wrapAngle(std::atan2(direction.x,direction.z)-p.yaw)*std::min(1.0f,dt*7));p.position=world.move(p.position,direction*(std::min(distance,speed*dt)),.28f);p.position=atGround(world,p.position);p.phase+=planarDistance(p.position,before)*3;}
-            p.motion=std::min(1.0f,planarDistance(p.position,before)/dt/2.2f);p.activity=p.motion>.05f?PedestrianActivity::Walk:PedestrianActivity::Wait;p.activityTime+=dt;
-        }
-        for(size_t j=0;j<vehicles.size();++j){Vehicle& v=vehicles[j];if(std::abs(v.speed)<2.5f||std::abs(v.position.y-p.position.y)>2.5f)continue;float distanceToCar=planarDistance(p.position,v.position);if(distanceToCar<2){p.health=std::max(0.0f,p.health-std::abs(v.speed)*7);p.position=world.move(p.position,normalized(p.position-v.position)*2,.28f);p.panic=12;frightenPedestrian(i,v.position,12);if(int(j)==occupied){wanted=std::max(wanted,i<4?3:2);wantedTimer=32;v.speed*=.84f;}}}
-    }
-    if(wanted>0){
-        if(policeSight)wantedTimer=std::max(wantedTimer,8.0f);
-        else wantedTimer-=dt;
-        if(wantedTimer<=0){--wanted;wantedTimer=wanted>0?12.0f:0;if(wanted==0){message="The search has ended. You are clear.";messageTime=5;}}
+        for(size_t j=0;j<vehicles.size();++j){Vehicle& v=vehicles[j];if(std::abs(v.speed)<2.5f||std::abs(v.position.y-p.position.y)>2.5f)continue;float distanceToCar=planarDistance(p.position,v.position);if(distanceToCar<2){p.health=std::max(0.0f,p.health-std::abs(v.speed)*7);p.position=world.move(p.position,normalized(p.position-v.position)*2,.28f);p.panic=12;frightenPedestrian(i,v.position,12);if(int(j)==occupied){if(i<4&&p.health>0)reportCrime(v.position,3,32,false);else reportWitnessedCrime(v.position,i<4?3:2,32);v.speed*=.84f;}}}
     }
     populationTimer+=dt;
     if(populationTimer>1){
         populationTimer=0;
         for(size_t i=8;i<vehicles.size();++i){
-            Vehicle& v=vehicles[i];if(!roadVehicle(v.kind)||int(i)==occupied||planarDistance(v.position,player)<430)continue;
+            Vehicle& v=vehicles[i];if(v.police||!roadVehicle(v.kind)||int(i)==occupied||planarDistance(v.position,player)<430)continue;
             float grid=roadGrid(player);float angle=float(hash32(uint32_t(i)+simulationTick)%4u)*Pi*.5f;Vec3 node{std::round(player.x/grid)*grid,0,std::round(player.z/grid)*grid};Vec3 p=node+forward(angle)*grid*2+right(angle)*Lane;
             if(world.biome(p.x,p.z)==Biome::Ocean)continue;
             v.identity=0;v.position=atGround(world,p);v.yaw=wrapAngle(angle+Pi);v.speed=v.police?0.0f:8.0f;v.health=100;v.parked=v.police&&wanted==0;trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)+simulationTick);
@@ -749,7 +729,7 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
             else if(missionStage==1&&distance<16&&roadRide&&speed<4)complete=true;
             break;
         case 2:
-            if(missionStage==0&&roadRide){missionStage=1;wanted=std::max(wanted,2);wantedTimer=22;message="Dispatch intercepted the call. Lose the patrols, then meet Mara south of the canal.";messageTime=9;}
+            if(missionStage==0&&roadRide){missionStage=1;reportCrime(player,2,22,false);message="Dispatch intercepted the call at this location. Lose the patrols, then meet Mara south of the canal.";messageTime=9;}
             if(missionStage==1&&distance<24){missionStage=2;message=wanted>0?"Mara: Don't lead them here. Break line of sight, then circle back.":"Mara: You're clear. Bring the records to me.";messageTime=8;}
             if(missionStage==2&&wanted==0&&distance<30)complete=true;
             break;
@@ -788,10 +768,12 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
         if(complete&&!failed){const Mission& m=missions()[size_t(activeMission)];money=std::min(100000000,money+m.reward);message=std::string("JOB COMPLETE  /  ")+m.title+"  +$"+std::to_string(m.reward);if(activeMission==3)message+="  /  Mara: The recordings are on the air. Meet the clinic crew at Glasswater Landing.";messageTime=12;++completedMissions;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;health=std::min(100.0f,health+20);}
         else if(failed){message=activeMission>=4?"Contract interrupted. Return to the contact; the crew will service a replacement loan craft.":"Job expired. Return to your contact to try again.";messageTime=7;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;}
     }
+    updateLaw(dt);
     const float splitDamage=splitVehicle>=0&&size_t(splitVehicle)<vehicles.size()?std::max(0.0f,splitHealthBefore-vehicles[size_t(splitVehicle)].health):0;
     updateHarborSplit(dt,splitDamage);
     if(health<=0||player.y< -25){
         health=100;money=std::max(0,money-100);wanted=0;wantedTimer=0;occupied=-1;activeMission=-1;missionStage=0;missionTimer=0;missionHold=0;player=atGround(world,{12,0,12});yaw=0;pitch=.2f;verticalSpeed=0;grounded=true;invulnerabilityTimer=5;
+        resetLaw();
         message="Recovered at Harbor Clinic. Treatment -$100. Your completed jobs and possessions are safe.";messageTime=9;
     }else if(wanted==0&&health<35)health=std::min(35.0f,health+dt*1.5f);
     synchronizeVehicleIdentities();
@@ -800,17 +782,21 @@ void Game::update(const Input& input,float elapsed,bool streamWorld){
 bool Game::save(const std::string& path) const {
     try {
         if(path.empty()||vehicles.size()>256||pedestrians.size()>PedestrianSaveLimit)return false;
+        Game pedestrianState;pedestrianState.pedestrians=pedestrians;pedestrianState.pedestrianSimulation=pedestrianSimulation;pedestrianState.synchronizePedestrians();
+        pedestrianState.vehicles=vehicles;pedestrianState.nextVehicleIdentity=nextVehicleIdentity;pedestrianState.synchronizeVehicleIdentities();
+        pedestrianState.law=law;pedestrianState.lawBindings=lawBindings;pedestrianState.wanted=wanted;pedestrianState.wantedTimer=wantedTimer;
+        std::array<LawBinding,LawMaxUnits> bindings;const LawState policeState=pedestrianState.lawSnapshot(bindings);
+        if(!LawSystem::valid(policeState))return false;
         SaveWriter payload;
         payload.vector(player);payload.real(yaw);payload.real(pitch);payload.real(health);payload.integer(money);payload.integer(ammo);payload.integer(reserveAmmo);payload.integer(wanted);
         payload.integer(occupied);payload.integer(activeMission);payload.integer(missionStage);payload.integer(completedMissions);payload.integer(radioStation);
-        payload.real(time);payload.real(dayTime);payload.real(rain);payload.real(missionTimer);payload.real(wantedTimer);payload.real(reloadTimer);payload.real(verticalSpeed);payload.u32(grounded?1u:0u);
+        payload.real(time);payload.real(dayTime);payload.real(rain);payload.real(missionTimer);payload.real(policeState.alertRemaining);payload.real(reloadTimer);payload.real(verticalSpeed);payload.u32(grounded?1u:0u);
         payload.u32(uint32_t(vehicles.size()));
         for(const Vehicle& v:vehicles){payload.vector(v.position);payload.real(v.yaw);payload.real(v.speed);payload.real(v.steer);payload.vector(v.velocity);payload.vector(v.color);payload.integer(int(v.kind));payload.u32(v.police?1u:0u);payload.u32(v.parked?1u:0u);payload.real(v.health);payload.real(v.pitch);payload.real(v.roll);payload.real(v.throttle);}
         payload.u32(uint32_t(pedestrians.size()));
         for(const Pedestrian& p:pedestrians){payload.vector(p.position);payload.real(p.yaw);payload.real(p.phase);payload.real(p.panic);payload.real(p.health);}
         payload.real(missionHold);
         payload.real(harborSplit.bestTime);payload.integer(harborSplit.medal);payload.u32(harborSplit.phase!=TrialPhase::Inactive?1u:0u);
-        Game pedestrianState;pedestrianState.pedestrians=pedestrians;pedestrianState.pedestrianSimulation=pedestrianSimulation;pedestrianState.synchronizePedestrians();
         const auto& simulation=pedestrianState.pedestrianSimulation;
         payload.u32(simulation.nextIdentity);payload.u32(uint32_t(pedestrians.size()));
         for(size_t i=0;i<pedestrians.size();++i){
@@ -821,7 +807,22 @@ bool Game::save(const std::string& path) const {
             payload.real(b.decisionDelay);payload.real(b.dwell);payload.real(b.blockedTime);payload.real(b.crossingWait);payload.real(b.reactionTime);payload.vector(b.threat);payload.vector(b.escape);
             payload.u32(b.crossingFrom);payload.u32(b.crossingTo);payload.u32(b.routeOffset);payload.u32(uint32_t(b.route.size()));for(uint32_t node:b.route)payload.u32(node);
         }
-        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(5);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
+        payload.u32(policeState.schema);payload.u32(policeState.count);payload.u32(policeState.lastEvidenceSerial);payload.u32(policeState.wanted);payload.real(policeState.alertRemaining);
+        writeLawMemory(payload,policeState.shared);payload.u32(policeState.searchedSlots);payload.u32(policeState.decisionCursor);payload.u32(policeState.weaponCursor);
+        payload.u32(std::max(lawEvidenceSerial,policeState.lastEvidenceSerial));payload.u32(lawObserverCursor%std::max(1u,policeState.count));
+        for(uint32_t i=0;i<policeState.count;++i){
+            const auto& unit=policeState.units[i];payload.u32(unit.identity);payload.u32(uint32_t(unit.kind));payload.u32(uint32_t(unit.phase));payload.vector(unit.home);payload.vector(unit.goal);payload.u32(unit.hasGoal?1u:0u);
+            writeLawMemory(payload,unit.memory);writeLawMemory(payload,unit.radio);
+            payload.real(unit.sightExposure);payload.real(unit.relayDelay);payload.real(unit.decisionDelay);payload.real(unit.scanTime);payload.real(unit.pathRetry);
+            payload.integer(unit.searchSlot);payload.u32(unit.searchCursor);payload.u32(unit.searchSerial);
+            payload.u32(unit.weapon.rounds);payload.real(unit.weapon.aimTime);payload.real(unit.weapon.cooldown);payload.real(unit.weapon.reload);payload.u32(unit.weapon.shotsFired);
+            int record=-1;
+            if(unit.kind==LawUnitKind::Officer){for(size_t n=0;n<pedestrianState.pedestrians.size();++n)if(pedestrianState.pedestrians[n].identity==bindings[i].pedestrian)record=int(n);}
+            else {for(size_t n=0;n<pedestrianState.vehicles.size();++n)if(pedestrianState.vehicles[n].identity==bindings[i].vehicle)record=int(n);}
+            if(record<0)return false;
+            payload.integer(record);
+        }
+        SaveWriter header;for(char c:std::string("MCSTSAVE"))header.data.push_back(uint8_t(c));header.u32(6);header.u32(uint32_t(payload.data.size()));header.u32(crc32(payload.data.data(),payload.data.size()));
         const std::filesystem::path destination=utf8Path(path);
         std::filesystem::path temporary=destination;temporary+=".tmp";
         if(!destination.parent_path().empty())std::filesystem::create_directories(destination.parent_path());
@@ -841,7 +842,7 @@ bool Game::load(const std::string& path){
         std::vector<uint8_t> bytes(static_cast<size_t>(size));file.seekg(0);file.read(reinterpret_cast<char*>(bytes.data()),size);if(!file)return false;
         const uint8_t magic[8]={'M','C','S','T','S','A','V','E'};
         if(std::memcmp(bytes.data(),magic,8)!=0)return false;
-        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>5)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
+        SaveReader header{bytes,8};const uint32_t version=header.u32();if(version<1||version>6)return false;uint32_t payloadSize=header.u32(),checksum=header.u32();if(payloadSize!=bytes.size()-20)return false;if(crc32(bytes.data()+20,payloadSize)!=checksum)return false;
         Game state;SaveReader reader{bytes,20};
         state.player=reader.vector();state.yaw=reader.real();state.pitch=reader.real();state.health=reader.real();state.money=reader.integer();state.ammo=reader.integer();state.reserveAmmo=reader.integer();state.wanted=reader.integer();
         state.occupied=reader.integer();state.activeMission=reader.integer();state.missionStage=reader.integer();state.completedMissions=reader.integer();state.radioStation=reader.integer();
@@ -901,6 +902,25 @@ bool Game::load(const std::string& path){
                 }
             }
         }
+        LawState policeState;std::array<int,LawMaxUnits> policeRecords{};
+        if(version>=6){
+            policeState.schema=reader.u32();policeState.count=reader.u32();policeState.lastEvidenceSerial=reader.u32();const uint32_t alert=reader.u32();policeState.wanted=uint8_t(alert);policeState.alertRemaining=reader.real();
+            if(policeState.count>LawMaxUnits||alert>5)return false;
+            policeState.shared=readLawMemory(reader);policeState.searchedSlots=reader.u32();policeState.decisionCursor=reader.u32();policeState.weaponCursor=reader.u32();
+            state.lawEvidenceSerial=reader.u32();state.lawObserverCursor=reader.u32();
+            if(state.lawEvidenceSerial<policeState.lastEvidenceSerial||state.lawObserverCursor>=std::max(1u,policeState.count))return false;
+            for(uint32_t i=0;i<policeState.count;++i){
+                auto& unit=policeState.units[i];unit.identity=reader.u32();const uint32_t kind=reader.u32(),phase=reader.u32();unit.kind=LawUnitKind(kind);unit.phase=LawPhase(phase);
+                unit.home=reader.vector();unit.goal=reader.vector();const uint32_t hasGoal=reader.u32();unit.hasGoal=hasGoal==1;
+                if(kind>uint32_t(LawUnitKind::Patrol)||phase>uint32_t(LawPhase::Down)||hasGoal>1)return false;
+                unit.memory=readLawMemory(reader);unit.radio=readLawMemory(reader);
+                unit.sightExposure=reader.real();unit.relayDelay=reader.real();unit.decisionDelay=reader.real();unit.scanTime=reader.real();unit.pathRetry=reader.real();
+                unit.searchSlot=reader.integer();unit.searchCursor=reader.u32();unit.searchSerial=reader.u32();
+                const uint32_t rounds=reader.u32();if(rounds>6)return false;unit.weapon.rounds=uint8_t(rounds);
+                unit.weapon.aimTime=reader.real();unit.weapon.cooldown=reader.real();unit.weapon.reload=reader.real();unit.weapon.shotsFired=reader.u32();policeRecords[i]=reader.integer();
+            }
+            if(!LawSystem::valid(policeState)||policeState.wanted!=state.wanted||policeState.alertRemaining!=state.wantedTimer)return false;
+        }
         if(!reader.good||reader.offset!=bytes.size()||state.missionHold<0||state.missionHold>3||(state.missionHold>0&&(state.activeMission!=4||state.missionStage!=1)))return false;
         if(state.occupied>=0&&planarDistance(state.player,state.vehicles[size_t(state.occupied)].position)>3)return false;
         if(version==1){if(state.vehicles.size()>254)return false;appendStarterCraft(state.vehicles,state.world);}
@@ -908,6 +928,24 @@ bool Game::load(const std::string& path){
         state.world.stream(state.player);
         if(version<5)state.initializePedestrians(false);
         else {state.pedestrianSimulation.network=state.world.pedestrianNetwork(state.player);state.pedestrianSimulation.revision=state.world.pedestrianResidency();if(!state.validatePedestrianRoutes(true))return false;}
+        if(version>=6){
+            std::set<int> officerRecords,patrolRecords,canonicalPatrolRecords;
+            for(size_t i=0;i<state.vehicles.size()&&canonicalPatrolRecords.size()<4;++i)if(state.vehicles[i].police&&roadVehicle(state.vehicles[i].kind))canonicalPatrolRecords.insert(int(i));
+            const size_t expectedPatrols=canonicalPatrolRecords.size();
+            if(policeState.count!=std::min(size_t(4),state.pedestrians.size())+expectedPatrols)return false;
+            for(uint32_t i=0;i<policeState.count;++i){
+                const auto& unit=policeState.units[i];const int record=policeRecords[i];
+                if(record<0)return false;
+                if(unit.kind==LawUnitKind::Officer){
+                    if(size_t(record)>=std::min(size_t(4),state.pedestrians.size())||unit.identity!=uint32_t(record+1)||!officerRecords.insert(record).second)return false;
+                    state.lawBindings[i]={unit.identity,state.pedestrians[size_t(record)].identity,0};
+                }else {
+                    if(size_t(record)>=state.vehicles.size()||unit.identity<101||unit.identity>104||!canonicalPatrolRecords.count(record)||!patrolRecords.insert(record).second)return false;
+                    state.lawBindings[i]={unit.identity,0,state.vehicles[size_t(record)].identity};
+                }
+            }
+            if(!state.law.restore(policeState))return false;
+        }else state.resetLaw();
         for(size_t i=0;i<state.vehicles.size();++i)state.trafficTargets.push_back(nextTrafficTarget(state.world,state.vehicles[i],uint32_t(i)*719));
         for(size_t i=0;i<state.pedestrians.size();++i)state.pedestrianTargets.push_back(pedestrianCorner(state.world,state.pedestrians[i].position,uint32_t(i)*37));
         state.message=interruptedTrial?"Save restored. Harbor Split's interrupted run was cancelled; your records are safe. Return to Rafi's violet flag to retry.":"Save restored. Welcome back to Meridian Coast.";state.messageTime=interruptedTrial?10.0f:5.0f;

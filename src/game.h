@@ -1,6 +1,7 @@
 #pragma once
 #include "world.h"
 #include "pedestrians.h"
+#include "law.h"
 #include <string>
 #include <vector>
 
@@ -40,6 +41,12 @@ struct HarborSplitState {
     int checkpoint=0,medal=0;
     float elapsed=0,penalty=0,countdown=0,bestTime=0;
 };
+struct PolicePose {
+    LawPhase phase=LawPhase::Patrol;
+    float aim=0,reload=0,flash=0;
+    bool reloading=false;
+    Vec3 aimPoint,muzzle,impact;
+};
 struct Game {
     World world;
     Vec3 player{8,0,8}; float yaw=0,pitch=.20f,health=100; int money=250,ammo=30,reserveAmmo=120,wanted=0;
@@ -70,6 +77,9 @@ struct Game {
     static Vec3 harborSplitStart();
     static const std::vector<Vec3>& harborSplitCourse();
     static float harborSplitLimit();
+    const LawState& lawState() const{return law.state();}
+    std::span<const LawShot> lawShots() const{return law.shots();}
+    PolicePose policePose(size_t pedestrianIndex) const;
     bool save(const std::string& path) const;
     bool load(const std::string& path);
 private:
@@ -98,5 +108,22 @@ private:
     bool validatePedestrianRoutes(bool rejectInvalid);
     uint64_t nextVehicleIdentity=1;
     void synchronizeVehicleIdentities();
+    struct LawBinding {uint32_t logical=0,pedestrian=0;uint64_t vehicle=0;};
+    struct LawFlash {uint32_t logical=0;float remaining=0;Vec3 muzzle,impact;};
+    LawSystem law;
+    std::array<LawBinding,LawMaxUnits> lawBindings{};
+    std::array<LawFlash,LawMaxUnits> lawFlashes{};
+    uint32_t lawEvidenceSerial=0,lawObserverCursor=0;
+    Vec3 lawPreviousPlayer;
+    bool lawHasPreviousPlayer=false;
+    LawState lawSnapshot(std::array<LawBinding,LawMaxUnits>& bindings) const;
+    void synchronizeLaw();
+    void resetLaw();
+    void suspendLaw();
+    void recoverLawStarts();
+    void updateLaw(float dt);
+    void reportCrime(Vec3 origin,int severity,float duration,bool audible);
+    void reportWitnessedCrime(Vec3 origin,int severity,float duration);
+    bool patrolLawTarget(size_t vehicleIndex,Vec3& target,float& speed);
 };
 }

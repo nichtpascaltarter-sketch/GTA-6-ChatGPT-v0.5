@@ -1089,38 +1089,26 @@ void shoulderAimAndNearestHit() {
 
 void policeObstruction() {
     mc::Game game;
-    game.initialize();
-    game.vehicles.clear();
-    game.pedestrians.clear();
-    const float ground = game.world.height(0, 0);
-    game.player = {0, ground, 0};
-    game.health = 80;
-    game.wanted = 1;
-    mc::Pedestrian officer;
-    officer.position = {0, game.world.height(0, 10), 10};
+    game.initialize();game.vehicles.clear();game.pedestrians.clear();
+    const float ground=game.world.height(0,0);
+    game.player={0,ground,0};game.health=80;game.wanted=1;
+    mc::Pedestrian officer;officer.position={0,game.world.height(0,10),10};officer.yaw=mc::Pi;
     game.pedestrians.push_back(officer);
-    game.world.chunks.front().solids.push_back({{-5, ground - 1, 4}, {5, ground + 3, 6}});
-    tick(game);
-    require(close(game.health, 80), "officer dealt damage through a solid wall");
-    game.world.chunks.front().solids.pop_back();
-    game.wanted = 1;
-    tick(game);
-    require(game.health < 80, "visible nearby officer did not engage the wanted player");
-
-    game.health = 80;
-    game.wanted = 1;
-    game.pedestrians.clear();
-    mc::Vehicle patrol;
-    patrol.position = {0, game.world.height(0, 4), 4};
-    patrol.police = true;
+    game.world.chunks.front().solids.push_back({{-5,ground-1,4},{5,ground+3,6}});
+    for(int frame=0;frame<120;++frame){tick(game);require(close(game.health,80)&&game.lawShots().empty(),"officer fired or dealt damage through a solid wall");}
+    game.world.chunks.front().solids.pop_back();game.wanted=1;game.pedestrians[0].yaw=mc::Pi;
+    for(int frame=0;frame<180;++frame){
+        const float health=game.health;tick(game);
+        if(game.health<health)require(!game.lawShots().empty(),"officer applied continuous damage without a shot");
+    }
+    require(game.health<80,"visible nearby officer did not acquire, aim, and fire at the wanted player");
+    game.health=80;game.wanted=1;game.pedestrians.clear();
+    mc::Vehicle patrol;patrol.position={0,game.world.height(0,4),4};patrol.yaw=mc::Pi;patrol.police=true;
     game.vehicles.push_back(patrol);
-    game.world.chunks.front().solids.push_back({{-5, ground - 1, 1}, {5, ground + 3, 2}});
-    tick(game);
-    require(close(game.health, 80), "patrol vehicle dealt damage through a solid wall");
-    game.world.chunks.front().solids.pop_back();
-    game.wanted = 1;
-    tick(game);
-    require(game.health < 80, "visible patrol vehicle did not engage the wanted player");
+    game.world.chunks.front().solids.push_back({{-5,ground-1,1},{5,ground+3,2}});
+    tick(game,{},120);require(close(game.health,80),"patrol vehicle dealt damage through a solid wall");
+    game.world.chunks.front().solids.pop_back();game.wanted=1;
+    tick(game,{},120);require(close(game.health,80)&&game.lawShots().empty(),"patrol proximity retained an invisible damage aura");
 }
 
 void verifyPoliceDetectionAltitude(bool onFoot) {
@@ -1146,17 +1134,15 @@ void verifyPoliceDetectionAltitude(bool onFoot) {
             patrol.parked = true;
             game.vehicles.push_back(patrol);
         }
-        tick(game);
-        require(close(game.health, 80), "ground police damaged an aircraft out of weapon range");
-        if (altitude > 100) {
-            require(game.wanted == 0, onFoot
-                ? "ground officer maintained detection beyond vertical sight range"
-                : "ground patrol maintained detection beyond vertical sight range");
-        } else {
-            require(game.wanted == 1, onFoot
-                ? "nearby officer failed to retain a clearly visible suspect"
-                : "nearby patrol failed to retain a clearly visible suspect");
-        }
+        tick(game,{},30);
+        require(close(game.health,80),"ground police bypassed the aiming delay against an aircraft");
+        bool sight=false;
+        for(uint32_t i=0;i<game.lawState().count;++i){const auto& memory=game.lawState().units[i].memory;sight|=memory.valid&&memory.kind==mc::LawEvidenceKind::Sight;}
+        if(altitude>100){
+            require(!sight&&!game.lawState().shared.valid,"ground police acquired an aircraft beyond vertical sight range");
+            const float remaining=game.lawState().alertRemaining;tick(game,{},10);
+            require(game.lawState().alertRemaining<remaining,"out-of-range aircraft renewed police search time");
+        }else require(sight,"nearby police failed to acquire a clearly visible low aircraft");
     }
 }
 
@@ -1373,7 +1359,7 @@ size_t versionFourPrefixSize(const std::vector<char>& bytes) {
 }
 
 std::vector<char> versionFourFixture(const std::vector<char>& current) {
-    require(littleEndian(current, 8) == 5, "migration fixture requires a version 5 source save");
+    require(littleEndian(current, 8) >= 5 && littleEndian(current, 8) <= 6, "migration fixture requires a current source save");
     const size_t end = versionFourPrefixSize(current);
     std::vector<char> result(current.begin(), current.begin() + end);
     setLittleEndian(result, 8, 4);
@@ -1553,7 +1539,7 @@ void legacySaveMigration() {
     require(countKind(mc::VehicleKind::Boat) == 1 && countKind(mc::VehicleKind::Aircraft) == 1,
             "legacy migration duplicated or omitted a starter craft");
     require(game.save(save.path.string()) && game.load(save.path.string()),
-            "migrated save could not be saved and reloaded as version 5");
+            "migrated save could not be saved and reloaded as version 6");
     require(game.vehicles.size() == legacyVehicleCount + 2,
             "reloading a migrated save duplicated starter craft");
 }
@@ -1588,7 +1574,7 @@ void versionTwoSaveMigration() {
     require(game.save(save.path.string()), "migrated version 2 save could not be upgraded");
     std::ifstream upgradedInput(save.path, std::ios::binary);
     const std::vector<char> upgraded((std::istreambuf_iterator<char>(upgradedInput)), {});
-    require(littleEndian(upgraded, 8) == 5 && littleEndian(upgraded, versionFourPrefixSize(upgraded) - 16) == 0,
+    require(littleEndian(upgraded, 8) == 6 && littleEndian(upgraded, versionFourPrefixSize(upgraded) - 16) == 0,
             "version 2 migration did not initialize the rescue hold to zero");
 }
 
@@ -2214,7 +2200,7 @@ void harborSplitSaveAndCorruption() {
     std::ifstream input(save.path, std::ios::binary);
     const std::vector<char> original((std::istreambuf_iterator<char>(input)), {});
     input.close();
-    require(littleEndian(original, 8) == 5, "Harbor Split records did not use save version 5");
+    require(littleEndian(original, 8) == 6, "Harbor Split records did not use save version 6");
     require(game.load(save.path.string()), "Harbor Split records could not be restored");
     require(game.harborSplit.phase == mc::TrialPhase::Inactive &&
             game.harborSplit.checkpoint == 0 && close(game.harborSplit.elapsed, 0) &&
@@ -2295,7 +2281,7 @@ std::vector<char> readSaveBytes(const std::filesystem::path& path) {
 }
 
 std::vector<size_t> pedestrianRecordOffsets(const std::vector<char>& bytes) {
-    require(littleEndian(bytes, 8) == 5, "pedestrian records require save version 5");
+    require(littleEndian(bytes, 8) >= 5 && littleEndian(bytes, 8) <= 6, "pedestrian records require save version 5 or 6");
     const size_t prefix = versionFourPrefixSize(bytes);
     const size_t count = littleEndian(bytes, prefix + 4);
     require(count <= 512, "pedestrian fixture has too many records");
@@ -2308,7 +2294,8 @@ std::vector<size_t> pedestrianRecordOffsets(const std::vector<char>& bytes) {
         offset += 128 + routeCount * 4;
         require(offset <= bytes.size(), "pedestrian fixture has a truncated record");
     }
-    require(offset == bytes.size(), "pedestrian fixture contains unexpected trailing data");
+    require(littleEndian(bytes, 8) == 6 ? offset < bytes.size() : offset == bytes.size(),
+            "pedestrian fixture has an invalid versioned tail");
     return records;
 }
 
@@ -2348,7 +2335,7 @@ void versionFourSaveMigration() {
     std::vector<uint32_t> identities;
     for (const auto& p : game.pedestrians) identities.push_back(p.identity);
     require(game.save(save.path.string()) && game.load(save.path.string()), "migrated version 4 save could not be upgraded");
-    require(littleEndian(readSaveBytes(save.path), 8) == 5 && game.pedestrians.size() == identities.size(),
+    require(littleEndian(readSaveBytes(save.path), 8) == 6 && game.pedestrians.size() == identities.size(),
             "version 4 migration did not produce the current save format");
     for (size_t i = 0; i < identities.size(); ++i)
         require(game.pedestrians[i].identity == identities[i], "reloading a migrated save replaced resident identity");
@@ -2445,8 +2432,8 @@ void authenticLegacyPopulationMigration() {
                         "distant legacy migration omitted or duplicated a new resident identity");
         }
         const size_t migratedCount = game.pedestrians.size();
-        require(game.save(save.path.string()) && game.load(save.path.string()), "migrated production population could not round trip as version 5");
-        require(game.pedestrians.size() == migratedCount, "version 5 reload inserted another resident roster");
+        require(game.save(save.path.string()) && game.load(save.path.string()), "migrated production population could not round trip as version 6");
+        require(game.pedestrians.size() == migratedCount, "current save reload inserted another resident roster");
         verifyLegacyPeople(game, before);
         tick(game);
         require(game.pedestrianStats().persistentResidents == 16, "legacy migration did not establish sixteen persistent residents");
@@ -2456,11 +2443,11 @@ void authenticLegacyPopulationMigration() {
     mc::Game oversized;
     oversized.initialize();
     oversized.pedestrians.resize(85);
-    require(oversized.save(save.path.string()), "could not create a well-formed 85-person version 5 bound fixture");
+    require(oversized.save(save.path.string()), "could not create a well-formed 85-person current-format bound fixture");
     writeBytes(save.path, versionFourFixture(readSaveBytes(save.path)));
     require(!oversized.load(save.path.string()), "legacy parser accepted more than 84 people");
     oversized.pedestrians.resize(101);
-    require(!oversized.save(save.path.string()), "version 5 writer accepted more than 100 people");
+    require(!oversized.save(save.path.string()), "current save writer accepted more than 100 people");
 }
 
 void pedestrianSaveRoundTripAndCorruption() {

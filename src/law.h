@@ -88,6 +88,8 @@ public:
     static bool valid(const LawState&);
     bool alert(uint8_t level,float seconds);
     bool report(const LawEvidence&);
+    // Apply a small physical depenetration without discarding queued evidence.
+    bool recoverStart(uint32_t identity,Vec3 previous,Vec3 corrected);
     // Returns false for malformed actor inputs. Pause/invalid dt never advances state.
     bool update(const LawFrame&,const LawSpace&);
     const LawState& state() const{return state_;}

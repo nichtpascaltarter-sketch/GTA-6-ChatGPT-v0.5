@@ -308,6 +308,18 @@ void pauseAndMalformedFrames(){
     auto malformed=f.actors;malformed[0].position.x=std::numeric_limits<float>::quiet_NaN();
     require(!f.law.update({1.f/60,false,malformed},f.space),"malformed actor accepted");
     require(same(frozen,f.law.state()),"malformed actor partially advanced persistent state");
+    Fixture recovery;
+    const auto clue=recovery.evidence(mc::LawEvidenceKind::Report,{6,1.1f,7});
+    require(recovery.law.report(clue),"recovery fixture rejected its queued clue");
+    const auto beforeRecovery=recovery.law.state();const size_t pending=recovery.law.queuedEvidence();
+    require(!recovery.law.recoverStart(1,{0,0,0},{1.01f,0,0})&&same(beforeRecovery,recovery.law.state())&&recovery.law.queuedEvidence()==pending,
+            "overlong start correction mutated state or dropped queued evidence");
+    require(recovery.law.recoverStart(1,{0,0,0},{.5f,0,0})&&recovery.law.queuedEvidence()==pending,
+            "local start correction discarded a pending clue");
+    require(recovery.law.state().lastEvidenceSerial==beforeRecovery.lastEvidenceSerial,"start correction consumed evidence prematurely");
+    recovery.actors[0].position={.5f,0,0};recovery.step();
+    require(recovery.law.state().shared.valid&&recovery.law.state().shared.serial==clue.serial&&same(recovery.law.state().shared.position,clue.position),
+            "queued clue was lost during start recovery");
 }
 
 void persistenceValidationAndContinuation(){

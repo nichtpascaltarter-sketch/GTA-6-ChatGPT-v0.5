@@ -112,6 +112,16 @@ bool LawSystem::report(const LawEvidence& e) {
     while(position&&events_[position-1].serial>e.serial){events_[position]=events_[position-1];checkedListeners_[position]=checkedListeners_[position-1];--position;}
     events_[position]=e;checkedListeners_[position]=0;++eventCount_;return true;
 }
+bool LawSystem::recoverStart(uint32_t identity,Vec3 previous,Vec3 corrected){
+    const int i=index(identity);
+    if(i<0||!point(previous)||!point(corrected)||length(corrected-previous)>1)return false;
+    auto& unit=state_.units[size_t(i)];
+    if(length(unit.home-previous)<1)unit.home=corrected;
+    if(unit.hasGoal&&length(unit.goal-previous)<1)unit.goal=corrected;
+    unit.decisionDelay=0;routes_[size_t(i)]={};
+    if(navigationOwner_==identity)navigation_.clear();
+    return true;
+}
 void LawSystem::processEvidence(const LawSpace& space) {
     uint32_t consumed=0;
     while(consumed<eventCount_&&stats_.evidenceProcessed<8) {
@@ -132,6 +142,7 @@ void LawSystem::processEvidence(const LawSpace& space) {
                 checkedListeners_[consumed]|=1u<<unsigned(listener);
                 const Vec3 ear=actors_[size_t(listener)].position+Vec3{0,1.6f,0};
                 if(!space.ready(ear)||!space.ready(e.position))continue;
+                space.setObserver(state_.units[size_t(listener)].identity);
                 bool heard=nearest<=35;
                 if(!heard){++stats_.sightChecks;heard=space.lineClear(ear,e.position);}
                 if(heard){observer=listener;accepted=true;break;}
@@ -146,6 +157,7 @@ void LawSystem::processEvidence(const LawSpace& space) {
             const Vec3 eye=actor.position+Vec3{0,1.6f,0};const float range=unit.kind==LawUnitKind::Patrol?95.0f:85.0f;
             const Vec3 offset=e.position-eye;const Vec3 horizontal{offset.x,0,offset.z};
             const bool inView=length(horizontal)<3||dot(normalized(horizontal),forward(actor.yaw))>=.422618f;
+            space.setObserver(unit.identity);
             ++stats_.sightChecks;
             if(!inView||length(offset)>range||!space.ready(eye)||!space.ready(e.position)||!space.lineClear(eye,e.position)) {
                 unit.sightExposure=0;unit.weapon.aimTime=0;continue;
@@ -191,7 +203,7 @@ void LawSystem::moveGoal(size_t index,const LawSpace& space) {
     auto& command=commands_[index];auto& route=routes_[index];auto& unit=state_.units[index];const auto& actor=actors_[index];
     command.speed=0;
     if(!unit.hasGoal||!space.ready(actor.position)||!space.ready(unit.goal))return;
-    if(distanceXZ(actor.position,unit.goal)<.65f)return;
+    if(distanceXZ(actor.position,unit.goal)<(unit.kind==LawUnitKind::Patrol?8.0f:.65f))return;
     if(unit.kind==LawUnitKind::Patrol) {
         command.moveTarget=unit.goal;command.speed=unit.phase==LawPhase::Pursue?24.0f:9.0f;return;
     }
@@ -245,7 +257,7 @@ void LawSystem::decide(size_t index,const LawSpace& space) {
                 setGoal(memory->position+memory->velocity*std::min(memory->age,.5f));
                 unit.phase=memory->kind==LawEvidenceKind::Sight?LawPhase::Pursue:LawPhase::Investigate;
             }
-            if(unit.phase!=LawPhase::Search&&unit.hasGoal&&distanceXZ(actor.position,unit.goal)<3) {
+            if(unit.phase!=LawPhase::Search&&unit.hasGoal&&distanceXZ(actor.position,unit.goal)<(unit.kind==LawUnitKind::Patrol?9.0f:3.0f)) {
                 unit.phase=LawPhase::Search;unit.hasGoal=false;
             }
             if(unit.phase==LawPhase::Search) {
@@ -257,7 +269,7 @@ void LawSystem::decide(size_t index,const LawSpace& space) {
         }
     }
     command.phase=unit.phase;
-    if(unit.phase==LawPhase::Search&&(!unit.hasGoal||distanceXZ(actor.position,unit.goal)<1.2f)) {
+    if(unit.phase==LawPhase::Search&&(!unit.hasGoal||distanceXZ(actor.position,unit.goal)<(unit.kind==LawUnitKind::Patrol?9.0f:1.2f))) {
         const float angle=float(unit.identity%8)*Pi*.25f+(unit.scanTime-1.5f)*.8f;
         command.lookTarget=actor.position+forward(angle)*8+Vec3{0,1.4f,0};command.hasLookTarget=true;
     } else if(fresh(unit.memory)){command.lookTarget=unit.memory.position;command.hasLookTarget=true;}
@@ -291,6 +303,7 @@ void LawSystem::advanceWeapons(float dt,const LawSpace& space) {
         const Vec3 aim=unit.memory.position+unit.memory.velocity*std::min(unit.memory.age+.08f,.2f);
         const Vec3 direction=normalized(aim-body),origin=body+direction*.45f;
         ++stats_.weaponChecks;
+        space.setObserver(unit.identity);
         // Recheck both shoulder-to-muzzle and muzzle-to-observation. Eye visibility
         // alone must never let a weapon fire through a nearby wall or railing.
         if(!space.lineClear(body,origin)||!space.lineClear(origin,aim)) {weapon.aimTime=0;continue;}
@@ -330,7 +343,7 @@ bool LawSystem::update(const LawFrame& frame,const LawSpace& space) {
             unit.phase=LawPhase::Down;unit.hasGoal=false;releaseSearch(unit);unit.weapon.aimTime=0;unit.sightExposure=0;unit.radio={};routes_[i]={};commands_[i].speed=0;commands_[i].phase=unit.phase;continue;
         }
         if(unit.phase==LawPhase::Down){unit.phase=LawPhase::Patrol;unit.decisionDelay=0;}
-        if(unit.phase==LawPhase::Search&&(!unit.hasGoal||distanceXZ(actors_[i].position,unit.goal)<1.2f)) {
+        if(unit.phase==LawPhase::Search&&(!unit.hasGoal||distanceXZ(actors_[i].position,unit.goal)<(unit.kind==LawUnitKind::Patrol?9.0f:1.2f))) {
             unit.scanTime=std::min(3.5f,unit.scanTime+dt);
             if(unit.searchSlot<0&&unit.scanTime>=3.5f)unit.scanTime=0;
         }
