@@ -1,5 +1,6 @@
 #pragma once
 #include "world.h"
+#include "render_timing.h"
 #include <string>
 #include <memory>
 #include <vector>
@@ -39,6 +40,8 @@ public:
     // epoch after reset/load. Mesh data is copied before this call returns.
     bool setWorld(const World&,uint64_t epoch,std::string& error);
     StreamStats streamStats() const;
+    // Polls only completed frame fences; never waits. Call from render thread.
+    RenderTimingStats timingStats() const;
     bool render(const RenderFrame&,std::string& error);
     bool resize(uint32_t width,uint32_t height,std::string& error);
     bool rayTracingAvailable() const;

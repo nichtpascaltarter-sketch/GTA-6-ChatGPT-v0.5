@@ -107,6 +107,7 @@ struct Renderer::Impl {
         ComPtr<ID3D12Resource> constants,dynamicVertices,dynamicIndices,ui,lights;
         uint8_t* mappedConstants=nullptr;
         uint64_t fence=0,dynamicVertexCapacity=0,dynamicIndexCapacity=0,uiCapacity=0;
+        FrameTiming timing;bool timingPending=false;
     };
     ComPtr<IDXGIFactory4> factory;ComPtr<IDXGISwapChain3> swapChain;
     ComPtr<ID3D12Device> device;ComPtr<ID3D12Device5> device5;
@@ -117,6 +118,12 @@ struct Renderer::Impl {
     ComPtr<ID3D12GraphicsCommandList4> commands4;
     ComPtr<ID3D12Fence> fence;HANDLE fenceEvent=nullptr;uint64_t nextFence=1,totalFrames=0;
     std::array<Frame,FrameCount> frames;
+    ComPtr<ID3D12QueryHeap> timestampHeap;
+    ComPtr<ID3D12Resource> timestampReadback;
+    const uint64_t* mappedTimestamps=nullptr;
+    uint64_t cpuFrequency=0;
+    RenderTimingStats timing;
+    detail::TimingHistory timingHistory;
     ComPtr<ID3D12DescriptorHeap> rtvHeap,dsvHeap,resourceHeap;
     std::array<ComPtr<ID3D12Resource>,FrameCount> backBuffers;ComPtr<ID3D12Resource> depth,shadowDepth,sceneColor,resolvedColor;
     ComPtr<ID3D12RootSignature> rootSignature;
@@ -156,7 +163,66 @@ struct Renderer::Impl {
     uint64_t worldRevision=0;bool worldPublished=false;
     UINT width=0,height=0,rtvStride=0,srvStride=0,sceneSamples=1,lastPresented=0;bool tearing=false,raySupported=false,hasPresented=false;
     std::string gpuName="Unavailable";
-    ~Impl(){std::string ignored;if(queue&&fence&&fenceEvent)flush(ignored);for(auto& f:frames)if(f.constants&&f.mappedConstants)f.constants->Unmap(0,nullptr);if(fenceEvent)CloseHandle(fenceEvent);}
+    ~Impl(){std::string ignored;if(queue&&fence&&fenceEvent)flush(ignored);for(auto& f:frames)if(f.constants&&f.mappedConstants)f.constants->Unmap(0,nullptr);if(mappedTimestamps){D3D12_RANGE written{0,0};timestampReadback->Unmap(0,&written);}if(fenceEvent)CloseHandle(fenceEvent);}
+    uint64_t cpuTick()const{
+        LARGE_INTEGER value{};return cpuFrequency&&QueryPerformanceCounter(&value)&&value.QuadPart>=0?uint64_t(value.QuadPart):0;
+    }
+    double cpuElapsed(uint64_t begin,uint64_t end)const{
+        double ms=0;if(begin&&end)detail::timestampMilliseconds(begin,end,cpuFrequency,ms);return ms;
+    }
+    void initializeTiming(){
+        LARGE_INTEGER frequency{};
+        if(QueryPerformanceFrequency(&frequency)&&frequency.QuadPart>0)cpuFrequency=uint64_t(frequency.QuadPart);
+        timing.cpuAvailable=cpuFrequency!=0;
+        std::fprintf(stderr,"Renderer CPU timings: %s; scope=Renderer::render; setWorld=separate\n",timing.cpuAvailable?"enabled":"unavailable");
+        char setting[8]{};
+        if(GetEnvironmentVariableA("MERIDIAN_GPU_TIMESTAMPS",setting,sizeof(setting))==1&&setting[0]=='0'){
+            std::fputs("GPU frame timestamps: disabled by MERIDIAN_GPU_TIMESTAMPS=0\n",stderr);return;
+        }
+        // Direct queues support timestamp queries. Frequency discovery and all
+        // optional resource creation may nevertheless fail; never block launch.
+        uint64_t gpuFrequency=0;std::string reason;
+        D3D12_QUERY_HEAP_DESC desc{};desc.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;desc.Count=FrameCount*2;
+        bool available=checked(queue->GetTimestampFrequency(&gpuFrequency),"Get direct-queue timestamp frequency",reason)&&gpuFrequency!=0;
+        if(available)available=checked(device->CreateQueryHeap(&desc,IID_PPV_ARGS(&timestampHeap)),"Create frame timestamp heap",reason);
+        if(available)available=createBuffer(FrameCount*2*sizeof(uint64_t),D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST,timestampReadback,reason);
+        if(available){
+            void* mapped=nullptr;D3D12_RANGE read{0,FrameCount*2*sizeof(uint64_t)};
+            available=checked(timestampReadback->Map(0,&read,&mapped),"Map frame timestamps",reason);
+            if(available)mappedTimestamps=static_cast<const uint64_t*>(mapped);
+        }
+        if(!available){
+            timestampReadback.Reset();timestampHeap.Reset();
+            std::fprintf(stderr,"GPU frame timestamps: unavailable (%s)\n",reason.empty()?"zero queue timestamp frequency":reason.c_str());return;
+        }
+        timing.gpuAvailable=true;timing.gpuTimestampFrequency=gpuFrequency;
+        std::fprintf(stderr,"GPU frame timestamps: enabled; frequency=%llu Hz; slots=%u; history=120\n",static_cast<unsigned long long>(gpuFrequency),FrameCount);
+        std::fputs("GPU timing scope: shadow through final PRESENT transition, including scene, HDR resolve, post and UI; excludes world upload/AS lists, queue backlog, Present/vsync, capture and timestamp resolve.\n",stderr);
+    }
+    void collectTimings(){
+        if(!fence)return;
+        const uint64_t completed=fence->GetCompletedValue();
+        if(completed==UINT64_MAX)return; // Device removed: readback is not safe.
+        // Swap-chain indices need not arrive in index order. Publish completed
+        // pairs by frame ID so latest and the bounded window stay chronological.
+        for(UINT processed=0;processed<FrameCount;++processed){
+            UINT oldest=FrameCount;
+            for(UINT i=0;i<FrameCount;++i)if(frames[i].timingPending&&frames[i].fence<=completed&&
+                (oldest==FrameCount||frames[i].timing.frameIndex<frames[oldest].timing.frameIndex))oldest=i;
+            if(oldest==FrameCount)break;
+            auto& frame=frames[oldest];
+            if(timing.gpuAvailable){
+                frame.timing.gpuValid=detail::timestampMilliseconds(mappedTimestamps[oldest*2],mappedTimestamps[oldest*2+1],timing.gpuTimestampFrequency,frame.timing.gpuRenderMs);
+                if(!frame.timing.gpuValid)++timing.invalidGpuSamples;
+            }
+            timingHistory.append(frame.timing);frame.timingPending=false;
+        }
+    }
+    RenderTimingStats timingStats(){
+        collectTimings();RenderTimingStats result=timing;timingHistory.summarize(result);
+        for(const auto& frame:frames)result.pendingFrames+=frame.timingPending?1u:0u;
+        return result;
+    }
     bool checkDebugMessages(std::string& error){
 #if defined(MC_DEBUG) && MC_DEBUG
         if(!debugMessages)return true;
@@ -194,7 +260,7 @@ struct Renderer::Impl {
         DWORD status=WaitForSingleObject(fenceEvent,15000);
         if(status!=WAIT_OBJECT_0){error="GPU fence did not complete within 15 seconds";if(status==WAIT_FAILED)checked(HRESULT_FROM_WIN32(GetLastError()),"Wait for GPU fence",error);return false;}return true;
     }
-    bool flush(std::string& error){const uint64_t value=nextFence++;return checked(queue->Signal(fence.Get(),value),"Signal GPU fence",error)&&wait(value,error);}
+    bool flush(std::string& error){const uint64_t value=nextFence++;if(!checked(queue->Signal(fence.Get(),value),"Signal GPU fence",error)||!wait(value,error))return false;collectTimings();return true;}
     bool createBuffer(uint64_t bytes,D3D12_HEAP_TYPE heap,D3D12_RESOURCE_STATES state,ComPtr<ID3D12Resource>& result,std::string& error,D3D12_RESOURCE_FLAGS flags=D3D12_RESOURCE_FLAG_NONE){
         auto desc=bufferDesc(bytes,flags);auto properties=heapProperties(heap);return checked(device->CreateCommittedResource(&properties,D3D12_HEAP_FLAG_NONE,&desc,state,nullptr,IID_PPV_ARGS(&result)),"Allocate GPU buffer",error);
     }
@@ -522,10 +588,15 @@ bool Renderer::initialize(void* window,uint32_t width,uint32_t height,std::strin
     p.rtvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     p.srvStride=p.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
     std::fprintf(stderr,"Scene depth: reverse-Z; near=%.2fm; far=%.0fm; shadows=forward-Z\n",SceneNear,SceneFar);
+    p.initializeTiming();
     return p.selectSceneSamples(error)&&p.createTargets(error)&&p.createShadowTarget(error)&&p.createPipelines(error)&&p.checkDebugMessages(error);
 }
 bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
     auto& p=*impl;if(!p.device){error="Renderer is not initialized";return false;}
+    struct WorldTimer {
+        Impl& owner;uint64_t start;
+        ~WorldTimer(){const double ms=owner.cpuElapsed(start,owner.cpuTick());auto& t=owner.timing;++t.worldCalls;t.worldLastMs=ms;t.worldTotalMs+=ms;t.worldMaxMs=std::max(t.worldMaxMs,ms);}
+    } worldTimer{p,p.cpuTick()};
     if(!p.collectRetired(error))return false;
     if(p.worldPublished&&p.streaming.epoch==epoch&&p.worldRevision==world.renderRevision)return true;
     const auto views=world.renderTiles();
@@ -686,11 +757,15 @@ bool Renderer::setWorld(const World& world,uint64_t epoch,std::string& error){
     return p.checkDebugMessages(error);
 }
 StreamStats Renderer::streamStats()const{return impl->stats();}
+RenderTimingStats Renderer::timingStats()const{return impl->timingStats();}
 
 bool Renderer::render(const RenderFrame& input,std::string& error){
     auto& p=*impl;if(!p.swapChain){error="Renderer is not initialized";return false;}
+    const uint64_t renderStart=p.cpuTick();
     const UINT current=p.swapChain->GetCurrentBackBufferIndex();auto& frame=p.frames[current];
-    if(!p.wait(frame.fence,error)||!p.collectRetired(error))return false;
+    const uint64_t waitStart=p.cpuTick();if(!p.wait(frame.fence,error))return false;
+    const uint64_t prepareStart=p.cpuTick();
+    p.collectTimings();if(!p.collectRetired(error))return false;
     const Mesh* dynamic=input.dynamic;size_t dynamicVertexBytes=dynamic?dynamic->vertices.size()*sizeof(Vertex):0,dynamicIndexBytes=dynamic?dynamic->indices.size()*sizeof(uint32_t):0,uiBytes=input.ui?input.ui->size()*sizeof(UiVertex):0;
     if(dynamicVertexBytes>UINT_MAX||dynamicIndexBytes>UINT_MAX||uiBytes>UINT_MAX){error="Frame geometry exceeds Direct3D buffer view limits";return false;}
     if(!p.ensureUpload(frame.dynamicVertices,frame.dynamicVertexCapacity,dynamicVertexBytes,error)||!p.ensureUpload(frame.dynamicIndices,frame.dynamicIndexCapacity,dynamicIndexBytes,error)||!p.ensureUpload(frame.ui,frame.uiCapacity,uiBytes,error))return false;
@@ -736,7 +811,11 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     c.viewport[2]=1.0f/float(ShadowSize);c.viewport[3]=float(lightCount);
     const ClipVolume mainVolume(c.viewProjection),shadowVolume(c.lightProjection,true);
     std::memcpy(frame.mappedConstants,&c,sizeof(c));
+    const uint64_t recordStart=p.cpuTick();
     if(!checked(frame.allocator->Reset(),"Reset frame allocator",error)||!checked(p.commands->Reset(frame.allocator.Get(),nullptr),"Reset frame command list",error))return false;
+    // The direct queue has already completed preceding upload/AS lists when
+    // this query executes. Pair slots are reused only after their frame fence.
+    if(p.timing.gpuAvailable)p.commands->EndQuery(p.timestampHeap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,current*2);
     p.commands->SetGraphicsRootSignature(p.rootSignature.Get());p.commands->SetGraphicsRootConstantBufferView(0,frame.constants->GetGPUVirtualAddress());
     p.commands->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     transition(p.commands.Get(),p.shadowDepth.Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -775,11 +854,26 @@ bool Renderer::render(const RenderFrame& input,std::string& error){
     if(p.sceneSamples==1)transition(p.commands.Get(),p.sceneColor.Get(),D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_RENDER_TARGET);
     if(uiBytes){p.commands->SetPipelineState(p.uiPipeline.Get());D3D12_VERTEX_BUFFER_VIEW vb{frame.ui->GetGPUVirtualAddress(),UINT(uiBytes),sizeof(UiVertex)};p.commands->IASetVertexBuffers(0,1,&vb);p.commands->DrawInstanced(UINT(input.ui->size()),1,0,0);}
     transition(p.commands.Get(),p.backBuffers[current].Get(),D3D12_RESOURCE_STATE_RENDER_TARGET,D3D12_RESOURCE_STATE_PRESENT);
+    if(p.timing.gpuAvailable){
+        p.commands->EndQuery(p.timestampHeap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,current*2+1);
+        p.commands->ResolveQueryData(p.timestampHeap.Get(),D3D12_QUERY_TYPE_TIMESTAMP,current*2,2,p.timestampReadback.Get(),uint64_t(current)*2*sizeof(uint64_t));
+    }
     if(!checked(p.commands->Close(),"Close frame command list",error))return false;ID3D12CommandList* lists[]={p.commands.Get()};p.queue->ExecuteCommandLists(1,lists);
+    const uint64_t presentStart=p.cpuTick();
     HRESULT presented=p.swapChain->Present(input.vsync?1:0,(!input.vsync&&p.tearing)?DXGI_PRESENT_ALLOW_TEARING:0);
+    const uint64_t signalStart=p.cpuTick();
     frame.fence=p.nextFence++;if(!checked(p.queue->Signal(p.fence.Get(),frame.fence),"Signal frame completion",error))return false;
+    const uint64_t signalEnd=p.cpuTick();
     if(!checked(presented,"Present frame",error)){HRESULT removed=p.device->GetDeviceRemovedReason();if(FAILED(removed)){char reason[64]{};std::snprintf(reason,sizeof(reason)," Device removed: 0x%08lX",static_cast<unsigned long>(removed));error+=reason;}return false;}
-    p.lastPresented=current;p.hasPresented=true;++p.totalFrames;return p.checkDebugMessages(error);
+    p.lastPresented=current;p.hasPresented=true;++p.totalFrames;if(!p.checkDebugMessages(error))return false;
+    FrameTiming sample;sample.frameIndex=p.totalFrames;
+    sample.cpuRenderMs=p.cpuElapsed(renderStart,p.cpuTick());
+    sample.cpuFenceWaitMs=p.cpuElapsed(waitStart,prepareStart);sample.cpuPrepareMs=p.cpuElapsed(prepareStart,recordStart);
+    sample.cpuRecordSubmitMs=p.cpuElapsed(recordStart,presentStart)+p.cpuElapsed(signalStart,signalEnd);
+    sample.cpuPresentMs=p.cpuElapsed(presentStart,signalStart);
+    ++p.timing.submittedFrames;
+    frame.timing=sample;frame.timingPending=true;
+    return true;
 }
 bool Renderer::resize(uint32_t width,uint32_t height,std::string& error){
     auto& p=*impl;if(!p.swapChain||!width||!height||(p.width==width&&p.height==height))return true;
