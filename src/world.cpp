@@ -5,7 +5,7 @@
 
 namespace mc {
 namespace {
-constexpr float WaterLevel=-1.8f;
+constexpr float WaterLevel=World::WaterLevel;
 constexpr float RoadHalf=10.0f;
 float smooth(float a,float b,float x) { float t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); }
 uint32_t seedAt(int x,int z,uint32_t salt=0) { return hash32(uint32_t(x)*0x9e3779b9u ^ uint32_t(z)*0x85ebca6bu ^ salt); }
@@ -28,6 +28,13 @@ float islandDistance(float x,float z) {
 }
 float landDistance(float x,float z) { return std::max(mainlandDistance(x,z),islandDistance(x,z)); }
 bool wetlands(float x,float z) { return x>400 && x<2100 && z<-1750 && z>-4080; }
+bool airfieldReserve(float x,float z) {
+    return (std::abs(x+3200)<60 && std::abs(z+1000)<420) || (x>-3300&&x<-3240&&z>-1064&&z<-984);
+}
+bool dockDeck(float x,float z) {
+    return (x>=2600&&x<=2675&&std::abs(z-768)<=3)||(x>=2667&&x<=2675&&z>=754&&z<=782);
+}
+bool siteReserve(float x,float z) {return airfieldReserve(x,z)||(x>2494&&x<2690&&z>742&&z<794);}
 float naturalHeight(float x,float z) {
     float md=mainlandDistance(x,z),id=islandDistance(x,z),d=std::max(md,id);
     if(d<0) return std::max(-35.0f,-2.8f+d*.055f);
@@ -44,7 +51,9 @@ float naturalHeight(float x,float z) {
         float w=smooth(400,680,x)*smooth(2100,1810,x)*smooth(-1750,-2040,z)*smooth(-4080,-3790,z);
         h=lerp(h,-1.15f+.9f*std::sin(x*.015f)*std::cos(z*.009f),w);
     }
-    return lerp(-2.8f,h,shore);
+    float ground=lerp(-2.8f,h,shore);
+    float airport=smooth(120,40,std::max(-3200-x-55,x+3200))*smooth(440,340,std::abs(z+1000));
+    return lerp(ground,4.0f,airport);
 }
 float gridDistance(float p,float step) { return std::abs(p-std::round(p/step)*step); }
 float localRoadStep(float x,float z) {
@@ -54,6 +63,7 @@ float localRoadStep(float x,float z) {
 }
 bool causeway(float x,float z) { return x>coast(z)-160 && x<4540 && std::abs(z)<=RoadHalf+.5f; }
 bool axialRoad(float x,float z) {
+    if(std::abs(x+3200)<40&&std::abs(z+1000)<300)return false;
     if(mainlandDistance(x,z)<45 || std::abs(x)>World::Extent-30 || std::abs(z)>World::Extent-30) return false;
     float s=localRoadStep(x,z);
     return gridDistance(x,s)<RoadHalf || gridDistance(z,s)<RoadHalf;
@@ -75,27 +85,103 @@ void cone(Mesh& m,Vec3 bottom,float radius,float height,Vec3 color,int sides) {
         tri(m,bottom+Vec3{radius*std::cos(b),0,radius*std::sin(b)},bottom+Vec3{radius*std::cos(a),0,radius*std::sin(a)},bottom+Vec3{0,height,0},color);
     }
 }
+void branch(Mesh& m,Vec3 a,Vec3 b,float radius0,float radius1,Vec3 color,int sides=5) {
+    Vec3 direction=normalized(b-a),u=normalized(cross(direction,std::abs(direction.y)>.95f?Vec3{1,0,0}:Vec3{0,1,0})),v=cross(direction,u);
+    for(int i=0;i<sides;++i) {
+        float t0=2*Pi*i/sides,t1=2*Pi*(i+1)/sides;
+        Vec3 r0=u*std::cos(t0)+v*std::sin(t0),r1=u*std::cos(t1)+v*std::sin(t1);
+        addQuad(m,a+r0*radius0,a+r1*radius0,b+r1*radius1,b+r0*radius1,color);
+    }
+}
+void leafCrown(Mesh& m,Vec3 p,Vec3 radius,Vec3 color,uint32_t seed,int sides=7) {
+    // Three unequal crown rings keep individual branches readable without texture cards.
+    auto point=[&](int i,float y,float width) {
+        float a=2*Pi*i/sides,irregular=.86f+random01(seed+static_cast<uint32_t>((i%sides)*13))*.27f;
+        return p+Vec3{std::cos(a)*radius.x*width*irregular,y*radius.y,std::sin(a)*radius.z*width*irregular};
+    };
+    for(int i=0;i<sides;++i) {
+        Vec3 a=point(i,-.35f,.83f),b=point(i+1,-.35f,.83f),c=point(i,.4f,.88f),d=point(i+1,.4f,.88f);
+        Vec3 shade=color*(.84f+random01(seed+static_cast<uint32_t>(i)*71)*.28f);
+        tri(m,p+Vec3{0,-radius.y,0},a,b,shade*.78f);
+        addQuad(m,b,a,c,d,shade);
+        tri(m,d,c,p+Vec3{radius.x*.12f,radius.y,0},shade*1.1f);
+    }
+}
+void grassTuft(Mesh& m,Vec3 p,float scale,uint32_t seed,bool reed) {
+    int blades=reed?5:4;
+    for(int i=0;i<blades;++i) {
+        float angle=random01(seed+static_cast<uint32_t>(i)*13)*2*Pi;
+        Vec3 dir{std::cos(angle),0,std::sin(angle)},side{-dir.z,0,dir.x};
+        float height=(reed?1.6f:.45f)*scale*(.65f+random01(seed+static_cast<uint32_t>(i)*17)*.65f),width=(reed?.055f:.045f)*scale;
+        Vec3 root=p+dir*(.15f*scale),bend=root+Vec3{0,height*.63f,0}+dir*(height*.11f),tip=root+Vec3{0,height,0}+dir*(height*.35f);
+        Vec3 color=reed?Vec3{.35f,.43f,.17f}:Vec3{.28f,.39f,.12f};
+        addQuad(m,root-side*width,root+side*width,bend+side*width*.7f,bend-side*width*.7f,color);
+        tri(m,bend-side*width*.7f,bend+side*width*.7f,tip,color*1.1f);
+        if(reed && i%2==0)branch(m,tip-Vec3{0,.21f*scale,0},tip+Vec3{0,.18f*scale,0},.045f*scale,.035f*scale,{.35f,.24f,.11f},3);
+    }
+}
 void palm(Mesh& m,Vec3 p,float scale,uint32_t seed) {
-    float h=(8+random01(seed)*3)*scale;
-    addCylinder(m,p,.22f*scale,h,{.40f,.29f,.18f},6);
-    addCylinder(m,p+Vec3{0,h-.4f,0},.36f*scale,.75f*scale,{.26f,.32f,.11f},6);
-    for(int f=0;f<7;++f) {
-        float a=2*Pi*f/7+random01(seed+17)*2;
+    float h=(8+random01(seed)*3)*scale,leanAngle=random01(seed+41)*2*Pi;
+    Vec3 lean{std::cos(leanAngle)*scale*.65f,0,std::sin(leanAngle)*scale*.65f};
+    Vec3 middle=p+Vec3{0,h*.53f,0}+lean*.3f,top=p+Vec3{0,h,0}+lean;
+    branch(m,p,middle,.25f*scale,.20f*scale,{.41f,.31f,.20f},5);
+    branch(m,middle,top,.20f*scale,.15f*scale,{.48f,.39f,.25f},5);
+    cone(m,top-Vec3{0,.35f*scale,0},.38f*scale,.65f*scale,{.27f,.34f,.11f},6);
+    for(int f=0;f<8;++f) {
+        float a=2*Pi*f/8+random01(seed+17)*2;
         Vec3 dir{std::cos(a),0,std::sin(a)},side{-dir.z,0,dir.x};
-        Vec3 prev=p+Vec3{0,h,0};
-        for(int j=0;j<3;++j) {
-            float t=float(j+1)/3,old=float(j)/3;
-            Vec3 next=p+Vec3{0,h+std::sin(t*Pi)*1.45f*scale-t*t*1.8f*scale,0}+dir*(t*4.4f*scale);
-            float w0=(.12f+std::sin(old*Pi)*.5f)*scale,w1=(j==2?.012f:.12f+std::sin(t*Pi)*.5f)*scale;
-            addQuad(m,prev-side*w0,next-side*w1,next+side*w1,prev+side*w0,{.09f+.025f*f,.25f+.016f*f,.08f});prev=next;
+        float span=(3.9f+random01(seed+static_cast<uint32_t>(f)*37)*.9f)*scale;
+        Vec3 bend=top+dir*(span*.48f)+Vec3{0,1.0f*scale,0},tip=top+dir*span-Vec3{0,1.65f*scale,0};
+        Vec3 color{.105f+.007f*f,.30f+.008f*f,.075f};
+        addQuad(m,top-side*.06f*scale,bend-side*.25f*scale,bend+side*.25f*scale,top+side*.06f*scale,color);
+        addQuad(m,bend-side*.25f*scale,tip-side*.025f*scale,tip+side*.025f*scale,bend+side*.25f*scale,color*.91f);
+        for(int pair=0;pair<3;++pair) {
+            float t=.26f+pair*.22f;
+            Vec3 rib=t<.48f?lerp(top,bend,t/.48f):lerp(bend,tip,(t-.48f)/.52f);
+            float width=(.67f-.10f*pair)*scale;
+            for(float sign:{-1.0f,1.0f})tri(m,rib-dir*.30f*scale,rib+side*(width*sign)+dir*.43f*scale-Vec3{0,.28f*scale,0},rib+dir*.49f*scale,color*(sign>0?1.05f:.89f));
         }
     }
 }
 void broadleaf(Mesh& m,Vec3 p,float scale,uint32_t seed) {
-    addCylinder(m,p,.25f*scale,3.5f*scale,{.28f,.20f,.12f},5);
-    for(int n=0;n<3;++n) {
-        Vec3 q=p+Vec3{(random01(seed+n*11)-.5f)*2*scale,(2.7f+n*1.15f)*scale,(random01(seed+n*29)-.5f)*2*scale};
-        cone(m,q,(2.7f-n*.35f)*scale,3.2f*scale,{.075f+n*.025f,.22f+n*.035f,.085f+n*.012f},7);
+    Vec3 fork=p+Vec3{.18f*scale,3.6f*scale,-.12f*scale};
+    branch(m,p,fork,.40f*scale,.20f*scale,{.28f,.23f,.16f});
+    for(int limb=0;limb<5;++limb) {
+        float a=2*Pi*limb/5+random01(seed)*2,spread=(1.7f+random01(seed+limb*19)*1.1f)*scale;
+        Vec3 end=p+Vec3{std::cos(a)*spread,(4.9f+random01(seed+limb*41)*1.5f)*scale,std::sin(a)*spread};
+        branch(m,fork-Vec3{0,.6f*scale,0},end,.17f*scale,.055f*scale,{.31f,.25f,.17f},4);
+        leafCrown(m,end,{2.3f*scale,1.9f*scale,2.2f*scale},{.14f,.31f,.09f},seed+limb*83);
+    }
+}
+void cypress(Mesh& m,Vec3 p,float scale,uint32_t seed) {
+    branch(m,p,p+Vec3{.12f*scale,8.7f*scale,0},.52f*scale,.08f*scale,{.38f,.31f,.23f},6);
+    for(int root=0;root<5;++root) {
+        float a=2*Pi*root/5;Vec3 dir{std::cos(a),0,std::sin(a)};
+        branch(m,p+dir*(1.5f*scale),p+Vec3{0,1.7f*scale,0},.17f*scale,.21f*scale,{.36f,.29f,.21f},4);
+        if(root%2==0)branch(m,p+dir*(2.2f*scale),p+dir*(2.3f*scale)+Vec3{0,.7f*scale,0},.18f*scale,.065f*scale,{.35f,.28f,.20f},4);
+    }
+    for(int level=0;level<4;++level) {
+        float y=(4.7f+level*1.7f)*scale,spread=(2.65f-level*.42f)*scale;
+        Vec3 crown=p+Vec3{std::sin(float(level)*2.3f)*.35f*scale,y,0};
+        leafCrown(m,crown,{spread,1.65f*scale,spread*.86f},{.15f,.29f,.16f},seed+level*61,7);
+        if(level<3)for(float sign:{-1.0f,1.0f}) {
+            Vec3 b=crown+Vec3{spread*.8f*sign,-.25f*scale,0};
+            branch(m,p+Vec3{0,y-.7f*scale,0},b,.10f*scale,.035f*scale,{.34f,.29f,.23f},4);
+            addQuad(m,b+Vec3{-.10f*scale,0,0},b+Vec3{-.035f*scale,-1.75f*scale,0},b+Vec3{.04f*scale,-1.6f*scale,0},b+Vec3{.13f*scale,0,0},{.40f,.43f,.30f});
+        }
+    }
+}
+void mangrove(Mesh& m,Vec3 p,float scale,uint32_t seed) {
+    Vec3 fork=p+Vec3{0,2.1f*scale,0};
+    branch(m,p,fork,.24f*scale,.16f*scale,{.33f,.30f,.22f},5);
+    for(int limb=0;limb<5;++limb) {
+        float a=2*Pi*limb/5+random01(seed)*2;Vec3 dir{std::cos(a),0,std::sin(a)};
+        Vec3 elbow=p+dir*(1.45f*scale)+Vec3{0,1.35f*scale,0};
+        branch(m,p+dir*(2.4f*scale),elbow,.12f*scale,.09f*scale,{.35f,.30f,.23f},4);
+        branch(m,elbow,fork,.09f*scale,.12f*scale,{.35f,.30f,.23f},4);
+        Vec3 end=fork+dir*(2.3f*scale)+Vec3{0,(.9f+random01(seed+limb*31))*scale,0};
+        branch(m,fork,end,.13f*scale,.04f*scale,{.32f,.29f,.21f},4);
+        leafCrown(m,end,{1.9f*scale,1.35f*scale,1.85f*scale},{.17f,.34f,.13f},seed+limb*97,6);
     }
 }
 void streetlight(Chunk& chunk,Vec3 p,float yaw) {
@@ -380,6 +466,84 @@ void landmarkPlaza(Chunk& c,const World& w,float x,float z,int kind) {
     }
     for(int i=0;i<4;++i) bench(m,{x+26+i*25,h+.08f,z+41},0);
 }
+void transportSites(Chunk& c,const World& world) {
+    float x0=c.x*World::ChunkSize,z0=c.z*World::ChunkSize,x1=x0+World::ChunkSize,z1=z0+World::ChunkSize;
+    auto owns=[&](float x,float z){return x>=x0&&x<x1&&z>=z0&&z<z1;};
+    auto patch=[&](float ax,float az,float bx,float bz,Vec3 color,float lift=0,float material=0) {
+        ax=std::max(ax,x0);az=std::max(az,z0);bx=std::min(bx,x1);bz=std::min(bz,z1);
+        if(bx>ax&&bz>az)groundPatch(c.mesh,world,ax,az,bx,bz,color,lift,material);
+    };
+    Mesh& m=c.mesh;
+    if(x1>-3320&&x0<-3050&&z1>-1430&&z0<-550) {
+        patch(-3218,-1256,-3182,-744,{.13f,.16f,.17f},.025f,4);
+        patch(-3288,-1058,-3182,-994,{.20f,.22f,.21f},.025f,4);
+        patch(-3182,-1029,-3072,-1019,{.20f,.22f,.21f},.025f,4);
+        for(float x:{-3216.0f,-3184.0f})patch(x-.10f,-1248,x+.10f,-752,{.82f,.82f,.68f},.038f);
+        for(int stripe=0;stripe<15;++stripe) {
+            float z=-1232+stripe*32.0f;patch(-3200.17f,z,-3199.83f,z+12,{.84f,.83f,.72f},.04f);
+        }
+        for(int bar=0;bar<8;++bar)for(float z:{-1248.0f,-764.0f}) {
+            float x=-3213.5f+bar*3.7f;patch(x,z,x+1.3f,z+12,{.85f,.83f,.72f},.04f);
+        }
+        for(float x:{-3213.0f,-3193.0f})for(float z:{-1200.0f,-812.0f})patch(x,z,x+6,z+12,{.84f,.83f,.72f},.04f);
+        for(float x:{-3220.0f,-3180.0f})for(int lamp=0;lamp<9;++lamp) {
+            float z=-1256+lamp*64.0f;if(!owns(x,z))continue;
+            addCylinder(m,{x,4.02f,z},.19f,.18f,{.48f,.47f,.32f},6);
+            addCylinder(m,{x,4.20f,z},.12f,.11f,{.95f,.77f,.33f},6,2);
+        }
+        if(owns(-3268,-1024)) {
+            Vec3 p{-3268,4,-1024};
+            addBox(m,p+Vec3{0,5,0},{20,5,27},{.48f,.53f,.47f});
+            roofGable(m,p+Vec3{0,10,0},20.7f,27.7f,4.5f,{.33f,.40f,.37f});
+            addBox(m,p+Vec3{20.06f,4,0},{.07f,4,19},{.22f,.29f,.28f});
+            for(int rail=1;rail<8;++rail)addBox(m,p+Vec3{20.16f,rail*.95f,0},{.04f,.04f,19},{.53f,.58f,.51f});
+            signText(m,p+Vec3{20.2f,8.45f,0},{0,0,1},"BREAKER AIR",.19f,{.93f,.86f,.63f});
+            c.solids.push_back({p-Vec3{20,0,27},p+Vec3{20,11,27}});
+        }
+        if(owns(-3231,-1236)) {
+            Vec3 p{-3231,4,-1236};addCylinder(m,p,.11f,6.4f,{.55f,.57f,.48f},6,1);
+            for(int band=0;band<5;++band) {
+                float a=band/5.0f,b=(band+1)/5.0f;
+                branch(m,p+Vec3{a*2.8f,6.2f-a*.4f,0},p+Vec3{b*2.8f,6.2f-b*.4f,0},.36f-a*.22f,.36f-b*.22f,band%2?Vec3{.88f,.80f,.60f}:Vec3{.83f,.29f,.10f},8);
+            }
+            c.solids.push_back({p-Vec3{.12f,0,.12f},p+Vec3{.12f,6.4f,.12f}});
+        }
+    }
+    if(x1>2494&&x0<2690&&z1>740&&z0<795) {
+        patch(2504,765,2600,771,{.58f,.54f,.39f},.035f);
+        for(int board=0;board<34;++board) {
+            float x=2600+board*2.0f;patch(x,765,std::min(x+1.97f,2667.0f),771,board%3?Vec3{.48f,.35f,.20f}:Vec3{.55f,.41f,.24f});
+        }
+        for(int board=0;board<14;++board) {
+            float z=754+board*2.0f;patch(2667,z,2675,z+1.97f,board%3?Vec3{.48f,.35f,.20f}:Vec3{.55f,.41f,.24f});
+        }
+        for(float z:{765.3f,770.7f})for(int piling=0;piling<7;++piling) {
+            float x=2624+piling*8.0f;if(!owns(x,z))continue;
+            float bottom=naturalHeight(x,z)-.8f;
+            addCylinder(m,{x,bottom,z},.24f,.32f-bottom,{.31f,.25f,.17f},7);
+            addBox(m,{x,.18f,768},{.18f,.17f,3.1f},{.38f,.28f,.16f});
+            c.solids.push_back({{x-.24f,bottom,z-.24f},{x+.24f,.32f,z+.24f}});
+        }
+        auto rail=[&](Vec3 a,Vec3 b) {
+            Vec3 mid=(a+b)*.5f;if(!owns(mid.x,mid.z))return;
+            Vec3 half{std::max(.065f,std::abs(b.x-a.x)*.5f),.07f,std::max(.065f,std::abs(b.z-a.z)*.5f)};
+            addBox(m,mid+Vec3{0,.85f,0},half,{.54f,.41f,.25f});
+            for(Vec3 p:{a,b})addBox(m,p+Vec3{0,.47f,0},{.085f,.47f,.085f},{.43f,.31f,.19f});
+            c.solids.push_back({mid-Vec3{half.x,0,half.z},mid+Vec3{half.x,.92f,half.z}});
+        };
+        for(float z:{765.0f,771.0f})for(int section=0;section<5;++section)rail({2624+section*8.6f,.4f,z},{2624+(section+1)*8.6f,.4f,z});
+        rail({2667,.4f,754},{2675,.4f,754});rail({2667,.4f,782},{2675,.4f,782});
+        rail({2667,.4f,754},{2667,.4f,765});rail({2667,.4f,771},{2667,.4f,782});
+        rail({2675,.4f,754},{2675,.4f,764});rail({2675,.4f,772},{2675,.4f,782});
+        for(float z:{755.0f,781.0f})if(owns(2668,z)) {
+            Vec3 p{2668,.4f,z};addCylinder(m,p,.10f,4,{.25f,.31f,.29f},6,1);
+            addBox(m,p+Vec3{0,4,0},{.38f,.10f,.38f},{1,.76f,.43f},0,2);
+            c.lights.push_back({p+Vec3{0,3.9f,0},20,{1,.76f,.43f},55,{0,-1,0},-.15f});
+            c.solids.push_back({p-Vec3{.1f,0,.1f},p+Vec3{.1f,4,.1f}});
+        }
+    }
+}
+
 }
 
 void addQuad(Mesh& m,Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 color,float material) {
@@ -413,12 +577,14 @@ void appendMesh(Mesh& dst,const Mesh& src) {
     for(uint32_t i:src.indices)dst.indices.push_back(base+i);
 }
 float World::height(float x,float z) const {
+    if(dockDeck(x,z))return lerp(naturalHeight(2600,z),.4f,clamp((x-2600)/24,0,1));
     if(causeway(x,z)) {
         float shoreX=coast(0)-160;
         return lerp(naturalHeight(shoreX,0),5.2f,smooth(shoreX,shoreX+200,x));
     }
     return naturalHeight(x,z);
 }
+float World::waterDepth(float x,float z) const {return std::max(0.0f,WaterLevel-naturalHeight(x,z));}
 Biome World::biome(float x,float z) const {
     float md=mainlandDistance(x,z),id=islandDistance(x,z),d=std::max(md,id);
     if(d<25) return Biome::Ocean;
@@ -429,7 +595,7 @@ Biome World::biome(float x,float z) const {
     if(x>-2816 && x<1900 && z>-2304 && z<2816) return Biome::Residential;
     return Biome::Countryside;
 }
-bool World::road(float x,float z) const {return axialRoad(x,z)||coastalRoad(x,z)||causeway(x,z);}
+bool World::road(float x,float z) const {return axialRoad(x,z)||coastalRoad(x,z)||causeway(x,z)||(x>=-3200&&x<=-3072&&std::abs(z+1024)<5);}
 
 Chunk World::generate(int cx,int cz) const {
     Chunk c;c.x=cx;c.z=cz;Mesh& m=c.mesh;
@@ -528,18 +694,34 @@ Chunk World::generate(int cx,int cz) const {
                 palm(m,t,.86f,seed+uint32_t(edge*53+off));
             }
         }
-    } else if(center!=Biome::Ocean) {
-        int count=center==Biome::Wetland?23:center==Biome::Countryside?18:12;
+    } else {
+        int count=center==Biome::Wetland?18:center==Biome::Countryside?18:center==Biome::Ocean?5:14;
         for(int n=0;n<count;++n) {
             uint32_t ts=seed+n*137u;float px=x+8+random01(ts)*112,pz=z+8+random01(ts+47)*112;
-            float h=height(px,pz);if(road(px,pz)||h<WaterLevel+.15f||landDistance(px,pz)<40)continue;
-            if(center==Biome::Beach || center==Biome::Island)palm(m,{px,h,pz},.8f+random01(ts+8)*.6f,ts);
-            else broadleaf(m,{px,h,pz},.7f+random01(ts+8)*.8f,ts);
-            c.solids.push_back({{px-.3f,h,pz-.3f},{px+.3f,h+4,pz+.3f}});
+            float h=height(px,pz);Biome local=biome(px,pz);
+            if(road(px,pz)||siteReserve(px,pz)||h<WaterLevel-(local==Biome::Wetland?.5f:-.15f)||landDistance(px,pz)<40)continue;
+            float scale=.7f+random01(ts+8)*.8f;
+            if(local==Biome::Beach || local==Biome::Island)palm(m,{px,h,pz},scale,ts);
+            else if(local==Biome::Wetland) {
+                if(h<WaterLevel+.7f)mangrove(m,{px,h,pz},scale,ts);else cypress(m,{px,h,pz},scale,ts);
+            } else if(local!=Biome::Ocean)broadleaf(m,{px,h,pz},scale,ts);
+            else continue;
+            float radius=local==Biome::Wetland?.55f:.38f;
+            c.solids.push_back({{px-radius,h,pz-radius},{px+radius,h+4,pz+radius}});
+        }
+        int coverCount=center==Biome::Wetland?36:48;
+        for(int n=0;n<coverCount;++n) {
+            uint32_t gs=seed+static_cast<uint32_t>(n)*503+19;
+            float px=x+3+random01(gs)*122,pz=z+3+random01(gs+23)*122,h=height(px,pz);
+            Biome local=biome(px,pz);
+            if(road(px,pz)||siteReserve(px,pz)||local==Biome::Ocean||h<WaterLevel-.20f)continue;
+            if(local==Biome::Wetland)grassTuft(m,{px,h,pz},.75f+random01(gs+47)*.6f,gs,true);
+            else if(n%7==0)leafCrown(m,{px,h+.55f,pz},{1.2f,.8f,1.1f},{.21f,.34f,.11f},gs,6);
+            else grassTuft(m,{px,h,pz},local==Biome::Beach?.8f:1.25f,gs,false);
         }
         if(center==Biome::Countryside && seed%13==0) {
             float px=x+64,pz=z+64;
-            if(!road(px,pz)) {
+            if(!road(px,pz)&&!siteReserve(px,pz)) {
                 building(c,{px,height(px,pz),pz},12,19,6.5f,seed,true);
                 addCylinder(m,{px+21,height(px+21,pz),pz},4,11,{.58f,.61f,.58f},12,1);
             }
@@ -556,6 +738,7 @@ Chunk World::generate(int cx,int cz) const {
             }
         }
     }
+    transportSites(c,*this);
     return c;
 }
 
@@ -646,7 +829,7 @@ const char* World::district(Vec3 p) const {
     return "MERIDIAN COAST";
 }
 const std::vector<Landmark>& World::landmarks() {
-    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,5.2f,0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"}};
+    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,5.2f,0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"}};
     return places;
 }
 }

@@ -18,6 +18,7 @@ void addQuad(Mesh&,Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 color,float material=0);
 void appendMesh(Mesh&,const Mesh&);
 class World {
 public:
+    static constexpr float WaterLevel=-1.8f;
     static constexpr float ChunkSize=128.0f;
     static constexpr float Extent=6144.0f;
     static constexpr int StreamRadius=3;
@@ -25,6 +26,7 @@ public:
     uint64_t revision=0;
     bool stream(Vec3 position);
     float height(float x,float z) const;
+    float waterDepth(float x,float z) const;
     Biome biome(float x,float z) const;
     bool road(float x,float z) const;
     bool blocked(Vec3 position,float radius) const;
