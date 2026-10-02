@@ -75,12 +75,12 @@ try {
     $common = @('/nologo', '/std:c++20', '/EHsc', '/MT', '/W4', '/permissive-',
         '/Zc:__cplusplus', '/Zc:inline', '/utf-8', '/DWIN32_LEAN_AND_MEAN',
         '/DNOMINMAX', '/DUNICODE', '/D_UNICODE', '/D_WIN32_WINNT=0x0A00',
-        "/I$(Join-Path $repo 'src')", "/I$generated")
+        "/I$generated")
     if ($Configuration -eq 'Release') {
         $common += @('/O2', '/GL', '/DNDEBUG')
         $linkConfiguration = @('/LTCG', '/OPT:REF', '/OPT:ICF')
     } else {
-        $common += @('/Od', '/Zi', '/RTC1')
+        $common += @('/Od', '/Zi', '/RTC1', '/DMC_DEBUG=1')
         $linkConfiguration = @('/DEBUG:FULL', '/INCREMENTAL:NO')
     }
     $systemLibraries = @('kernel32.lib', 'user32.lib', 'gdi32.lib', 'shell32.lib',

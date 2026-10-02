@@ -5,11 +5,11 @@ set -euo pipefail
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 compiler="${CXX:-c++}"
 configuration=portable
-flags=(-std=c++20 -O2 -g -Wall -Wextra -Wpedantic -I "$repo/src")
+flags=(-std=c++20 -O2 -g -Wall -Wextra -Wpedantic)
 if [[ "${1:-}" == --sanitize ]]; then
     configuration=portable-sanitized
     flags=(-std=c++20 -O1 -g -Wall -Wextra -Wpedantic -fno-omit-frame-pointer
-        -fsanitize=address,undefined -I "$repo/src")
+        -fsanitize=address,undefined)
     shift
 fi
 if (( $# != 0 )); then
