@@ -222,19 +222,29 @@ no validation check was removed.
   authored DSP pass strict/sanitizer tests, deterministic lifecycle checks and
   byte-identical empty-world comparisons against 2,319,840 reference samples.
   Its eight-engine/eight-contact inputs feed bounded 12/12 voice banks and 36
-  contact tails without real-time allocation. Real entity tracking and runtime
-  vehicle identity are being implemented next; root owns main-loop integration.
-  Audit also found that focus loss/minimization currently
-  blocks before publishing paused audio; repair that lifecycle path in the audio
-  implementation; the audio branch now publishes suspension before those waits.
-  Spatial sound integration, physical listening and device recovery remain
-  unverified until implemented and tested.
+  contact tails without real-time allocation. Stable runtime vehicle identities,
+  bounded source selection and real-displacement pedestrian contacts are now
+  integrated. Six tracker groups pass strict and sanitizer checks, all 49 gameplay
+  suites pass, and 1,000 tracker updates allocate no memory. The main loop publishes
+  from the final camera before GPU work and suspends before inactive/minimized
+  waits. A real 84-person/50-vehicle integration trace generates 843,200 audio
+  frames, reaches six engines/two walkers, and verifies silence and no historical
+  footsteps on resume or save/load under strict and sanitized builds. Device
+  review repaired unsigned 8-bit silence, withheld default audio before the first
+  publication, and prevented old gunfire replay when constructing a new device
+  synth. The complete 16-target portable gate is next, followed by native compile
+  and launch validation. Physical listening and actual device recovery remain
+  unverified. Evidence is under the audio worktree's `validation/spatial-audio/`
+  and `validation/audio-output/`; source is not yet promoted to main.
 - The following gameplay milestone will separate police severity from observed
   location knowledge, add bounded last-known-position pursuit/search, and replace
   continuous close-range damage with visible aimed shots and reloads. Preserve
   existing contracts and test that different hidden player positions cannot
-  change police search decisions without new evidence. Implementation follows
-  the current audio and routine integration gates.
+  change police search decisions without new evidence. Isolated perception and
+  navigation modules are being implemented in
+  `/workspace/GTA-6-ChatGPT-v0.5-police`, branch `development/police-perception`.
+  Game integration follows the current audio and routine gates, preserving
+  vehicle identity, old-save migration and the populated contract/trial routes.
 - The evidence-only push at `58b4103` started duplicate native workflow
   `36951477521`; it was cancelled because game, shader and build source were
   unchanged from the accepted run. The next tooling batch ignores documentation
