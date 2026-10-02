@@ -3,9 +3,11 @@ param(
     [string] $Executable = (Join-Path (Split-Path -Parent $PSScriptRoot) 'build\Release\MeridianCoast.exe'),
     [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 180,
     [ValidateRange(1, 10000)] [int] $Frames = 120,
-    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'lifecycle', 'streaming', 'lod')]
+    [ValidateSet('city', 'coast', 'wetland', 'suburbs', 'rural', 'drive', 'night', 'storm', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'trial', 'trial-run', 'trial-map', 'lifecycle', 'streaming', 'lod')]
     [string] $Scene = 'city',
-    [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0
+    [ValidateSet(0, 1, 2, 4)] [int] $MsaaLimit = 0,
+    [switch] $RequireTiming,
+    [switch] $DisableGpuTimestamps
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -16,6 +18,7 @@ $Executable = (Resolve-Path -LiteralPath $Executable).Path
 $directory = Split-Path -Parent $Executable
 $prefix = if ($Scene -eq 'city') { 'smoke' } else { "smoke-$Scene" }
 if ($MsaaLimit -gt 0) { $prefix += "-msaa$MsaaLimit" }
+if ($DisableGpuTimestamps) { $prefix += '-no-gpu-timestamps' }
 $screenshot = Join-Path $directory "$prefix.bmp"
 $stdout = Join-Path $directory "$prefix-stdout.log"
 $stderr = Join-Path $directory "$prefix-stderr.log"
@@ -30,6 +33,7 @@ $isolatedExecutable = Join-Path $runDirectory $fileName
 $process = $null
 $processTimer = [Diagnostics.Stopwatch]::new()
 $previousMsaaLimit = [Environment]::GetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', 'Process')
+$previousGpuTimestamps = [Environment]::GetEnvironmentVariable('MERIDIAN_GPU_TIMESTAMPS', 'Process')
 $exitCode = -1
 $startedAt = [DateTime]::UtcNow
 try {
@@ -37,6 +41,7 @@ try {
     # shaders, and neighboring DLLs cannot silently satisfy runtime dependencies.
     Copy-Item -LiteralPath $Executable -Destination $isolatedExecutable
     if ($MsaaLimit -gt 0) { [Environment]::SetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', "$MsaaLimit", 'Process') }
+    if ($DisableGpuTimestamps) { [Environment]::SetEnvironmentVariable('MERIDIAN_GPU_TIMESTAMPS', '0', 'Process') }
     $processTimer.Start()
     $process = Start-Process -FilePath $isolatedExecutable -WorkingDirectory $runDirectory -PassThru -NoNewWindow `
         -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
@@ -53,6 +58,7 @@ try {
 } finally {
     $processTimer.Stop()
     if ($MsaaLimit -gt 0) { [Environment]::SetEnvironmentVariable('MERIDIAN_MSAA_LIMIT', $previousMsaaLimit, 'Process') }
+    if ($DisableGpuTimestamps) { [Environment]::SetEnvironmentVariable('MERIDIAN_GPU_TIMESTAMPS', $previousGpuTimestamps, 'Process') }
     try {
         if ($process) {
             if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
@@ -86,6 +92,68 @@ $sessionText = [IO.File]::ReadAllText($sessionCopy)
 $frameMatch = [regex]::Match($sessionText, 'Exit 0 after ([0-9]+) frames')
 if (-not $frameMatch.Success -or [int] $frameMatch.Groups[1].Value -ne $Frames) {
     throw 'The session log does not confirm the requested number of rendered frames.'
+}
+# Historic pinned binaries used by compare-warp.ps1 predate telemetry. They may
+# omit it; a present report is always validated, and current native CI requires it.
+$renderTiming = $null
+$timingStatus = 'not reported by this binary'
+$timingMatches = [regex]::Matches($sessionText, '(?m)^Render timing: (?<metrics>[^\r\n]+)\r?$')
+$timingLineCount = [regex]::Matches($sessionText, '(?m)^Render timing:').Count
+if ($timingLineCount -ne 0 -or $RequireTiming -or $DisableGpuTimestamps) {
+    if ($timingMatches.Count -ne 1 -or $timingLineCount -ne 1) {
+        throw 'The session must contain exactly one complete final render timing report.'
+    }
+    $integerMetrics = @('cpu', 'gpu', 'frequency', 'submitted', 'completed', 'pending', 'samples',
+        'gpuSamples', 'invalid', 'latest', 'worldCalls')
+    $durationMetrics = @('cpuMean', 'cpuMax', 'waitMean', 'prepareMean', 'recordMean',
+        'presentMean', 'gpuMean', 'gpuMax', 'worldMean', 'worldMax')
+    $renderTiming = [ordered] @{}
+    foreach ($part in $timingMatches[0].Groups['metrics'].Value.Split(';')) {
+        $metric = [regex]::Match($part.Trim(), '^([A-Za-z]+)=([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)$')
+        if (-not $metric.Success) { throw 'Malformed render timing metric.' }
+        $name = $metric.Groups[1].Value
+        if (($name -notin $integerMetrics -and $name -notin $durationMetrics) -or $renderTiming.Contains($name)) {
+            throw "Unexpected or duplicate render timing metric: $name"
+        }
+        if ($name -in $integerMetrics) {
+            $renderTiming[$name] = [UInt64]::Parse($metric.Groups[2].Value, [Globalization.CultureInfo]::InvariantCulture)
+        } else {
+            $value = [double]::Parse($metric.Groups[2].Value, [Globalization.CultureInfo]::InvariantCulture)
+            if ([double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0) {
+                throw "Render timing duration is not finite and nonnegative: $name"
+            }
+            $renderTiming[$name] = $value
+        }
+    }
+    foreach ($name in ($integerMetrics + $durationMetrics)) {
+        if (-not $renderTiming.Contains($name)) { throw "Missing render timing metric: $name" }
+    }
+    $t = $renderTiming
+    if ($t.cpu -ne 1 -or $t.gpu -notin @(0, 1) -or $t.submitted -ne $Frames -or
+        $t.completed -ne $Frames -or $t.latest -ne $Frames -or $t.pending -ne 0 -or $t.invalid -ne 0 -or
+        $t.samples -ne [Math]::Min(120, $Frames) -or $t.cpuMax -lt $t.cpuMean -or
+        ($t.waitMean + $t.prepareMean + $t.recordMean + $t.presentMean) -gt ($t.cpuMean + 0.01) -or
+        $t.worldCalls -eq 0 -or $t.worldMax -lt $t.worldMean) {
+        throw 'Render timing did not confirm drained, ordered frame samples and valid CPU durations.'
+    }
+    $timingStatusMatch = [regex]::Match($stderrText, '(?m)^GPU frame timestamps: ([^\r\n]+)\r?$')
+    if (-not $timingStatusMatch.Success) { throw 'The renderer did not explain GPU timestamp availability.' }
+    $timingStatus = $timingStatusMatch.Groups[1].Value
+    if ($t.gpu -eq 1) {
+        $enabledStatus = "enabled; frequency=$($t.frequency) Hz; slots=2; history=120"
+        if ($DisableGpuTimestamps -or $t.frequency -eq 0 -or $t.gpuSamples -ne $t.samples -or
+            $t.gpuMean -le 0 -or $t.gpuMax -lt $t.gpuMean -or $timingStatus -ne $enabledStatus) {
+            throw 'GPU timing did not confirm valid matched frame intervals and timestamp frequency.'
+        }
+    } else {
+        if ($t.frequency -ne 0 -or $t.gpuSamples -ne 0 -or $t.gpuMean -ne 0 -or $t.gpuMax -ne 0 -or
+            $timingStatus -notmatch '^(disabled by MERIDIAN_GPU_TIMESTAMPS=0|unavailable \(.+\))$') {
+            throw 'Unavailable GPU timestamps did not preserve clean CPU-only timing samples.'
+        }
+        if ($DisableGpuTimestamps -and $timingStatus -ne 'disabled by MERIDIAN_GPU_TIMESTAMPS=0') {
+            throw 'The renderer did not acknowledge the forced GPU timestamp disable setting.'
+        }
+    }
 }
 $verifiedWindowStates = @()
 if ($Scene -eq 'lifecycle') {
@@ -262,6 +330,10 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     renderTargetFormat = $targetMatch.Groups[1].Value
     sampleCount = $actualSamples
     requestedSampleLimit = $requestedSamples
+    timingRequired = [bool] $RequireTiming
+    gpuTimestampsForcedDisabled = [bool] $DisableGpuTimestamps
+    gpuTimestampStatus = $timingStatus
+    renderTiming = $renderTiming
     originalFilename = $fileName
     singleExeDirectory = $true
     windowTransitionsVerified = ($Scene -eq 'lifecycle')

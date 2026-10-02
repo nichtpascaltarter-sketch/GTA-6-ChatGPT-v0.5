@@ -9,8 +9,8 @@ $ErrorActionPreference = 'Stop'
 $Executable = (Resolve-Path -LiteralPath $Executable).Path
 $directory = Split-Path -Parent $Executable
 $reports = @()
-foreach ($scene in @('night', 'storm', 'coast', 'suburbs', 'wetland', 'rural', 'drive', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane')) {
-    & (Join-Path $PSScriptRoot 'smoke.ps1') -Executable $Executable -Frames $Frames -Scene $scene -TimeoutSeconds $TimeoutSeconds
+foreach ($scene in @('night', 'storm', 'coast', 'suburbs', 'wetland', 'rural', 'drive', 'cinematic', 'portrait', 'vehicle', 'map', 'boat', 'aircraft', 'rescue', 'survey', 'passenger-car', 'passenger-bike', 'passenger-boat', 'passenger-plane', 'trial', 'trial-run', 'trial-map')) {
+    & (Join-Path $PSScriptRoot 'smoke.ps1') -Executable $Executable -Frames $Frames -Scene $scene -TimeoutSeconds $TimeoutSeconds -RequireTiming
     $reports += Get-Content -Raw (Join-Path $directory "smoke-$scene-report.json") | ConvertFrom-Json
 }
 $reports | ConvertTo-Json -Depth 4 | Set-Content -Encoding Ascii -Path (Join-Path $directory 'visual-sweep.json')

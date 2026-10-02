@@ -107,6 +107,7 @@ try {
             @{ Name = 'world_lod_geometry'; Sources = @('world', 'world_geometry') },
             @{ Name = 'world_lod_streaming'; Sources = @('world', 'world_geometry', 'world_streamer') },
             @{ Name = 'render_visibility'; Sources = @() },
+            @{ Name = 'render_timing'; Sources = @() },
             @{ Name = 'game'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
