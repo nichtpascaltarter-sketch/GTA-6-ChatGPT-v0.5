@@ -1,0 +1,23 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "map",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 2.324,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 35,
+  "executableSha256": "6526232eed390ee5cf33341656ba09f40b99b81a4981a96714e577b2bbf8da4d",
+  "screenshotSha256": "93d51d99a59aa2af53aa9d4613e0f73d1b8b4a009ea2c5b7fed7f866f5081d99"
+}

@@ -1,0 +1,23 @@
+{
+  "adapter": "D3D12 WARP",
+  "scene": "night",
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "sampleCount": 4,
+  "requestedSampleLimit": 4,
+  "originalFilename": "MeridianCoast.exe",
+  "singleExeDirectory": true,
+  "windowTransitionsVerified": false,
+  "verifiedWindowStates": [],
+  "streamingVerified": false,
+  "streamingPhases": [],
+  "reportedAdapter": "Microsoft Basic Render Driver",
+  "requestedFrames": 8,
+  "renderedFrames": 8,
+  "exitCode": 0,
+  "elapsedSeconds": 7.0,
+  "width": 960,
+  "height": 541,
+  "sampledColors": 1082,
+  "executableSha256": "6526232eed390ee5cf33341656ba09f40b99b81a4981a96714e577b2bbf8da4d",
+  "screenshotSha256": "f707317f8de560bb9adeb8723cfbf6858643427cef16f70046744f390f1cfaaf"
+}

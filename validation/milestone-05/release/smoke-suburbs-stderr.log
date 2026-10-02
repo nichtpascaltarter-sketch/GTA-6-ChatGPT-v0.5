@@ -1,0 +1,2 @@
+Scene target: R16G16B16A16_FLOAT; samples=4; requested limit=4
+World stream arenas: vertex=67108840 index=16777216 bytes; limits=256/64 MiB, staging=384 MiB/4 batches.

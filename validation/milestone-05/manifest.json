@@ -1,0 +1,111 @@
+{
+  "sourceCommit": "9628aab94861bcba7d78e91c5717ca0cfaf3b351",
+  "workflowRun": 36948177017,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36948177017",
+  "workflowConclusion": "success",
+  "releaseArtifact": 11202647893,
+  "debugArtifact": 11202483296,
+  "executables": {
+    "release": {
+      "bytes": 824832,
+      "sha256": "6526232eed390ee5cf33341656ba09f40b99b81a4981a96714e577b2bbf8da4d"
+    },
+    "debug": {
+      "bytes": 2272768,
+      "sha256": "0d101b93a2604cb20d7a018fed88c20b6cb283598db30a5e48ae164bc29fc2de"
+    }
+  },
+  "nativeConfigurations": [
+    "Release",
+    "Debug"
+  ],
+  "nativeTestSuites": [
+    "world",
+    "world_streamer (6 groups)",
+    "game (29/29)",
+    "procedural audio",
+    "cinematics"
+  ],
+  "precompiledShaderVariants": 9,
+  "compileWarningsObserved": 0,
+  "releaseAdditionalScenes": 19,
+  "standaloneLaunches": 26,
+  "renderedFramesTotal": 992,
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "releaseSampleCount": 4,
+  "debugSampleCountsValidated": [
+    1,
+    2,
+    4
+  ],
+  "debugLayer": "D3D12 debug layer and corruption/error validation enabled in all five Debug launches; no errors reported",
+  "lifecycleValidation": "Each sample count completed 120 frames; verified clients 976x657 at frame 30, 1024x768 fullscreen at frame 60, 976x657 restored at frame 90; captured images match restored client dimensions",
+  "streamingValidation": "Both configurations passed all eight settled phases, exact upload/retention counts, worker generation on three adjacent moves, epoch reset and zero ordinary/pressure/repack waits",
+  "passengerInspection": "Closer car angle clearly shows Leena through the open passenger window; left/rear boat angle separates her orange coat from the driver. The boat view is partly beneath the pier edge.",
+  "selectedCaptures": [
+    {
+      "scene": "city",
+      "path": "captures/city.bmp",
+      "sha256": "cc5982a546f1bd8af92a7f07ddb0a28b55ca439c3dd3fd9ecbf91234a1898d40"
+    },
+    {
+      "scene": "night",
+      "path": "captures/night.bmp",
+      "sha256": "f707317f8de560bb9adeb8723cfbf6858643427cef16f70046744f390f1cfaaf"
+    },
+    {
+      "scene": "coast",
+      "path": "captures/coast.bmp",
+      "sha256": "27a244d9ad253185d7d55a39913cad6753e994b2a7b3b7d2a5f1b41cf576101f"
+    },
+    {
+      "scene": "survey",
+      "path": "captures/survey.bmp",
+      "sha256": "593206201faea3916eed5642ca5b1b952ef40b369411550f9927d8006edf408b"
+    },
+    {
+      "scene": "passenger-car",
+      "path": "captures/passenger-car.bmp",
+      "sha256": "40251bf5b5ae2e103423b25f53ea4457e957a533e7b30f0e9b3db56d62395863"
+    },
+    {
+      "scene": "passenger-boat",
+      "path": "captures/passenger-boat.bmp",
+      "sha256": "d25fcb167a34b5a520405e32fbab5e65268b9301e22b2334ec043e539592cb9a"
+    }
+  ],
+  "captureProvenance": "Exact original native Release BMP bytes, verified against the artifact report SHA256; no resampling or editing",
+  "elapsedSecondsByReport": {
+    "release/smoke-vehicle-report.json": 2.476,
+    "release/smoke-passenger-plane-report.json": 2.158,
+    "release/smoke-passenger-car-report.json": 2.72,
+    "release/smoke-rescue-report.json": 1.375,
+    "release/smoke-cinematic-report.json": 2.456,
+    "release/smoke-rural-report.json": 2.033,
+    "release/smoke-boat-report.json": 1.591,
+    "release/smoke-streaming-report.json": 29.359,
+    "release/smoke-survey-report.json": 1.604,
+    "release/smoke-passenger-boat-report.json": 1.593,
+    "release/smoke-suburbs-report.json": 1.88,
+    "release/smoke-report.json": 30.331,
+    "release/smoke-passenger-bike-report.json": 2.613,
+    "release/smoke-drive-report.json": 2.241,
+    "release/smoke-wetland-report.json": 2.176,
+    "release/smoke-night-report.json": 7.0,
+    "release/smoke-storm-report.json": 2.343,
+    "release/smoke-portrait-report.json": 2.522,
+    "release/smoke-aircraft-report.json": 1.538,
+    "release/smoke-coast-report.json": 1.279,
+    "release/smoke-map-report.json": 2.324,
+    "debug/smoke-streaming-report.json": 30.326,
+    "debug/smoke-lifecycle-report.json": 35.894,
+    "debug/smoke-report.json": 32.174,
+    "debug/smoke-lifecycle-msaa2-report.json": 33.736,
+    "debug/smoke-lifecycle-msaa1-report.json": 31.262
+  },
+  "performance": "Uncontrolled hosted WARP process timings only. A separate pinned same-runner comparison is in progress; no GPU frame-time improvement is claimed here.",
+  "runtimeDependencies": "Each smoke executable launched alone from a fresh temporary directory; import audit permits Windows system DLLs only",
+  "nativeRendering": "D3D12 WARP; hardware DXR and RTX 4070 frame rates remain unverified",
+  "audio": "Procedural synthesis and state transitions tested; native WASAPI listening not verified",
+  "archiveContents": "Original reports, session/diagnostic logs, executable hashes/imports, selected original captures and manifest; no executable files"
+}
