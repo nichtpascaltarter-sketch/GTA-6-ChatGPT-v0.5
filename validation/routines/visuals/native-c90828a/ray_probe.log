@@ -1,0 +1,14 @@
+Resident capture: scene=residents-talk; identity=5; activity=Talking; warmup=117.433; hour=19.5657; people=84; residents=16; groups=2; displacement=0; position=49.3498,0,63.0002
+eye=52.2822,2.25,68.6594 target=49.3599,1.15,64 player=54.6732,0,72.4717
+pixel=270,440 t=3.89973 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=52,0.1,64 / 52.4089,0.1,67.1058 / 52.4089,0.8,67.1058
+pixel=270,350 t=4.52377 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=52,0.1,64 / 52.4089,0.8,67.1058 / 52,0.8,64
+pixel=280,520 t=3.48527 dynamic=0 chunk=0,0 material=0 color=0.63,0.63,0.56 vertices=15,0.05,15 / 15,0.05,113 / 113,0.05,113
+pixel=20,300 t=7.85419 dynamic=0 chunk=0,0 material=3 color=0.14,0.49,0.58 vertices=64,0.86,64 / 55.3397,0.86,59 / 54.3407,0.86,61.4118
+pixel=480,270 t=11.2179 dynamic=0 chunk=0,0 material=0 color=0.63,0.63,0.56 vertices=15,0.05,15 / 15,0.05,113 / 113,0.05,113
+Resident capture: scene=residents-startle; identity=5; activity=Startled; warmup=117.567; hour=19.5674; people=84; residents=16; groups=0; displacement=0; position=49.3498,0,63.0002
+eye=52.2721,2.25,67.6596 target=49.3498,1.15,63.0002 player=47.956,0,72.9026
+pixel=270,440 t=2.85653 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=64,0.8,64 / 52,0.8,64 / 52.4089,0.8,67.1058
+pixel=270,350 t=4.24098 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=64,0.8,64 / 52.4089,0.8,60.8942 / 52,0.8,64
+pixel=280,520 t=2.797 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=52,0.1,64 / 52.4089,0.8,67.1058 / 52,0.8,64
+pixel=20,300 t=8.19322 dynamic=0 chunk=0,0 material=0 color=0.62,0.63,0.56 vertices=64,0.8,64 / 53.6077,0.8,58 / 52.4089,0.8,60.8942
+pixel=480,270 t=5.46758 dynamic=1 chunk=0,0 material=0 color=0.627731,0.284295,0.197103 vertices=49.3511,1.1,63.1372 / 49.4772,1.1,63.1097 / 49.4889,1.27,63.104
