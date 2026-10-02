@@ -179,6 +179,12 @@ no validation check was removed.
 
 ### Current candidate (not yet the verified executable)
 
+- Combined native workflow `36950765589` is testing exact source
+  `b0c0c4c4096316d6bd007cafcd01099cbbed2728`: workshop, trial, timing and FPS repair.
+  The smoke scene allowlist now admits all 28 capture scenes. Earlier combined
+  run `36950727233` was cancelled after review caught that missing allowlist
+  update, before spending a full capture sweep on it. Source is frozen while
+  validation runs; the downloadable EXE remains Milestone 06.
 - LOD source `3c25f7d` passed native workflow `36949428131` and its evidence
   is archived. The aggregation-only comparison rerun `36949428138` also passed. Its 120-frame
   median changed by -2.288%, smaller than the old build's 5.658% spread; all
