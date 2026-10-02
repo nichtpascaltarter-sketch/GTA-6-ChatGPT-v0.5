@@ -158,18 +158,28 @@ part of the game distribution.
     verified Milestone 08 executable until native and visual acceptance pass.
 13. Police source checkpoint `901f56f` repairs all four lamp-overlapping officer
     starts, preserves real gunshot evidence during bounded legacy recovery, and
-    passes 92 strict checks (14 integrated / 49 gameplay / 9 residents / 12 core /
-    8 navigation). Its full sanitizer gate is still running. Real aim/fire/reload
-    capture preparation passes with all 84 people and 50 vehicles retained.
-    Spatial gunfire is committed as `a2a105f`; post-recovery visual evidence is
-    `afe706d`. Rebase the completed police branch onto the current market/main
-    tree, then integrate the three natural capture views and run the full union.
+    passes all 92 strict and all 92 ASan/UBSan/leak checks (14 integrated / 49
+    gameplay / 9 residents / 12 core / 8 navigation). The branch is now rebased
+    onto market/main; frozen source `e048adf` includes natural aim/fire/reload
+    captures with all 84 people and 50 vehicles retained. A per-frame guard
+    preserves the captured pose and actual shot without changing normal pause.
+    Its complete 23-target gate is running. Fresh-source compatibility evidence
+    `b42b180` passes all six resident and five market preparations, including
+    28 framed/clear sample points. Original pre-rebase history remains on
+    `archive/police-before-market-28a917e`.
 14. The next authored face/material pass is isolated in
     `/workspace/GTA-6-ChatGPT-v0.5-characters`, branch
     `development/character-presentation`, based on police checkpoint `afe706d`.
     Preserve all pose/prop anchors and far topology while improving near heads,
     eyelids and stable skin/cloth/hair/eye materials. Native acceptance remains
     a later step after local mesh, pose and shader checks.
+15. Audio device recovery is isolated in
+    `/workspace/GTA-6-ChatGPT-v0.5-audio-devices`, branch
+    `development/audio-device-recovery`, based on `e048adf`. Repair initial
+    absence of a playback device and default-device switching while the former
+    endpoint remains alive. Keep callbacks bounded, shutdown safe, and reopened
+    synthesis primed against historical gunfire/footstep replay. Device hardware
+    behavior remains unverified until it can be exercised natively.
 
 ### Integrated workshop source (verified in Milestone 07)
 
