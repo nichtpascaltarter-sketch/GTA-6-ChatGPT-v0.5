@@ -63,7 +63,11 @@ part of the game distribution.
   sounds, biome ambience, finite output, transition continuity and chunking.
 - Archived `fd058a8` passed a 648-simulated-second sanitizer soak, 38,880 updates,
   152 mesh validations, 52 exact save/load round trips and 16 boundary cases.
-  A new craft-focused 570-second soak of `a56e058` is running; result pending.
+  A craft-focused 570-second soak of `a56e058` also passed 34,200 updates,
+  150 mesh checks, 114 light checks and 42 exact save/load round trips without
+  sanitizer errors (peak RSS 331 MiB). Its additional landing probe exposed
+  inconsistent hard-landing damage, now being repaired: a fast descending plane
+  within 10 cm of terrain was incorrectly treated as already grounded.
 - Native audio listening, real controller hardware, clean Windows 10 coverage,
   hardware DXR, and 2560x1440 RTX 4070 frame-time measurements remain unverified.
 
@@ -72,12 +76,19 @@ part of the game distribution.
 1. HDR/MSAA rendering is now in progress: linear floating-point scene color,
    queried 4x/2x MSAA with 1x fallback, resolve, tone mapping, restrained bloom,
    then crisp UI. Renderer agent owns renderer/shaders; coordinate build-time DXC
-   additions with build validation. Validate resize resources and all captures.
+   additions with build validation. Validate resize resources and all captures,
+   including explicit 1x/2x limits via `MERIDIAN_MSAA_LIMIT`. Renderer code is
+   committed as `1f14074`, shader tooling `68707c7`, lifecycle coverage `5bec864`.
 2. Include the already committed aircraft exit preference improvement (`b8c4821`,
    tests `0f1770e`) and smoke process-duration reporting (`798a0f8`) in the next
    native checkpoint. The original deep-water exit was already safe; the actual
    improvement prefers clear dry land/deck and reports swimming correctly.
-3. Complete the craft sanitizer soak and preserve results. Root owns main/UI/map
+3. Validate the isolated hard-landing repair. In parallel, gameplay/world are
+   adding two original playable contracts: Leena's offshore clinic-launch
+   rescue and a three-pass aircraft radio survey followed by runway landing.
+   Root has drafted matching cinematics, intentionally uncommitted until the
+   contracts exist. Current verified executable still has four contracts.
+   Root owns main/UI/map
    and milestone documentation; gameplay owns game/visuals/tests; world owns
    deterministic generation; build validation owns build scripts and CI.
 4. Remove full-world GPU replacement and synchronous generation stalls. Preserve
