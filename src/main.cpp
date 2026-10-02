@@ -145,7 +145,7 @@ void drawMenu(Ui& ui,const App& app,const Settings& settings,const Renderer& ren
     const char** items=app.showSettings?options:normal;int count=app.showSettings?6:4;
     for(int i=0;i<count;++i){float y=(344+i*48)*s;if(i==app.selected){ui.rect(46*s,y-12*s,panel-98*s,42*s,teal,.13f);ui.rect(46*s,y-12*s,3*s,42*s,teal);}ui.text(66*s,y,items[i],2*s,i==app.selected?Vec3{.94f,.98f,.95f}:muted);}
     if(app.showSettings&&!renderer.rayTracingAvailable())ui.text(56*s,658*s,"DXR UNAVAILABLE ON THIS ADAPTER",1.3f*s,{.98f,.68f,.38f});
-    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE    M JOB / TRIAL",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    TAB WORLD MAP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
+    if(!app.showSettings){ui.text(56*s,578*s,"WASD MOVE / DRIVE   M JOB / TRIAL / SERVICE",1.35f*s,muted);ui.text(56*s,603*s,"E ENTER VEHICLE      MOUSE LOOK / AIM",1.35f*s,muted);ui.text(56*s,628*s,"R RELOAD  Q RADIO    TAB WORLD MAP",1.35f*s,muted);ui.text(56*s,653*s,"F5 SAVE  F9 LOAD     F11 FULLSCREEN",1.35f*s,muted);}
     ui.text(56*s,ui.height-63*s,"ARROWS / DPAD SELECT   ENTER / A CONFIRM",1.25f*s,muted);
     ui.text(56*s,ui.height-37*s,"ORIGINAL WORLD. ORIGINAL SOUND.",1.25f*s,teal);
     if(ui.width>1100*s){float x=panel+45*s;ui.text(x,ui.height-142*s,"PORT SOLACE",2.2f*s);ui.text(x,ui.height-112*s,"THE COAST IS CALLING.",1.5f*s,teal);ui.wrapped(x,ui.height-83*s,"A stolen tide chart. A missing courier. One last job before the storm.",1.35f*s,ui.width-x-50*s,muted);}
@@ -185,6 +185,25 @@ int execute(HINSTANCE instance,const Options& options) {
                 log<<"Trial capture: phase="<<int(game.harborSplit.phase)<<"; checkpoint="<<game.harborSplit.checkpoint
                    <<"; story="<<game.activeMission<<"; completedStory="<<game.completedMissions
                    <<"; occupied="<<game.occupied<<"; elapsed="<<game.harborSplit.elapsed<<"; penalty="<<game.harborSplit.penalty<<'\n';
+            }
+            else if(options.scene.rfind("workshop",0)==0){
+                const auto& site=World::garageSite();game.player=site.marker;game.yaw=Pi;game.pitch=.12f;
+                if(options.scene=="workshop-day"||options.scene=="workshop-night")game.player=site.vehicleStop+Vec3{-3,0,5};
+                else if(options.scene=="workshop-office"){game.player=site.counter;game.health=65;}
+                else if(options.scene=="workshop-door")game.player=site.pedestrianDoor+Vec3{0,0,-2};
+                else if(options.scene=="workshop-service"){
+                    game.occupied=0;auto& vehicle=game.vehicles[0];
+                    vehicle.kind=VehicleKind::Car;vehicle.position=site.vehicleStop;vehicle.yaw=site.vehicleHeading;
+                    vehicle.speed=0;vehicle.velocity={};vehicle.throttle=0;vehicle.parked=false;vehicle.health=55;
+                    game.player=vehicle.position;game.yaw=vehicle.yaw;
+                    const int before=game.money;Input service;service.mission=true;game.update(service,1.f/60);
+                    if(vehicle.health!=100||game.money!=before-75||game.activeMission!=-1)
+                        throw std::runtime_error("Workshop capture failed its vehicle service transaction.");
+                }
+                game.player.y=game.world.height(game.player.x,game.player.z);game.world.stream(game.player);
+                if(game.world.blocked(game.player,.35f))throw std::runtime_error("Workshop capture position is obstructed.");
+                log<<"Workshop capture: scene="<<options.scene<<"; position="<<game.player.x<<','<<game.player.y<<','<<game.player.z
+                   <<"; occupied="<<game.occupied<<"; money="<<game.money<<"; health="<<game.health<<'\n';
             }
             else if(options.scene=="coast"){game.player={2510,0,260};game.yaw=1.4f;game.pitch=.10f;}
             else if(options.scene=="wetland"){game.player={1024,0,-2560};game.yaw=.5f;game.pitch=.13f;}
@@ -290,6 +309,7 @@ int execute(HINSTANCE instance,const Options& options) {
             }
             if(options.smoke&&options.scene.rfind("passenger-",0)==0)game.paused=true;
             if(options.smoke&&(options.scene=="trial"||options.scene=="trial-run"))game.paused=true;
+            if(options.smoke&&options.scene.rfind("workshop",0)==0){game.paused=true;game.dayTime=options.scene=="workshop-night"?23.0f:14.0f;game.rain=0;}
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(options.smoke&&options.scene=="lod"){
                 lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
@@ -332,6 +352,15 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
             if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
             if(options.smoke&&options.scene=="trial"){frame.eye={249,game.world.height(249,-184)+3.6f,-184};frame.target={269,game.world.height(269,-173)+1.4f,-173};}
+            if(options.smoke&&options.scene=="workshop"){
+                const auto& site=World::garageSite();frame.eye=site.marker+Vec3{16,7,20};frame.target=(site.shell.min+site.shell.max)*.5f;
+            }
+            if(options.smoke&&(options.scene=="workshop-day"||options.scene=="workshop-night")){
+                const auto& site=World::garageSite();frame.eye=site.vehicleStop+Vec3{5,2.1f,5};frame.target=site.vehicleStop+Vec3{-4,1.8f,-4};
+            }
+            if(options.smoke&&options.scene=="workshop-office"){
+                const auto& site=World::garageSite();frame.eye=site.counter+Vec3{.8f,1.8f,2};frame.target=site.staff+Vec3{0,1.1f,0};
+            }
             if(options.smoke&&options.scene.rfind("passenger-",0)==0&&game.occupied>=0){
                 const auto& carrier=game.vehicles[size_t(game.occupied)];
                 const Vec3 view=carrier.kind==VehicleKind::Aircraft?Vec3{2.4f,2.6f,2.5f}:carrier.kind==VehicleKind::Motorcycle?Vec3{-3,2.1f,3.4f}:carrier.kind==VehicleKind::Car?Vec3{2.7f,1.7f,.4f}:Vec3{-3.3f,2.2f,-4.4f};

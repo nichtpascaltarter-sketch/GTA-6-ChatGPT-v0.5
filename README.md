@@ -40,7 +40,7 @@ frame rates remain under validation.
 | Jump / handbrake | Space | Left bumper / B |
 | Fire / aim | Left / right mouse | Right / left trigger |
 | Reload | R | X |
-| Start nearby contract / trial | M | D-pad up |
+| Nearby contract / trial / service | M | D-pad up |
 | Radio station | Q | D-pad right |
 | Pause | Escape | Start |
 | World map | Tab | Back / View |
@@ -86,6 +86,14 @@ nine gates in order. Gold is 85 seconds, silver 110 and bronze under 150; each
 collision penalty adds five seconds. Medal prizes pay once, up to $650 total;
 repeats improve your best time. M / D-pad up withdraws from a run. Saves preserve
 your records, but loading cancels an unfinished trial and explains how to retry.
+
+Harbor Motor Works is the orange marker east of Meridian Exchange. Drive a car
+or motorcycle into the open workshop bay and stop on the service pad. M / D-pad
+up repairs a damaged vehicle for $75. The separate office entrance leads to a
+first-aid counter, where treatment costs $25. Healthy vehicles and uninjured
+customers are not charged. Service is unavailable during a police pursuit.
+The location stays open by day and night; its rooms can be entered without
+a loading screen.
 
 ## Validation
 

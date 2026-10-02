@@ -93,6 +93,7 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     }
     for(const auto& vehicle:game.vehicles)if(vehicle.kind==VehicleKind::Boat||vehicle.kind==VehicleKind::Aircraft)dot(vehicle.position,vehicle.kind==VehicleKind::Boat?Vec3{.42f,.72f,1}:Vec3{.88f,.83f,.97f},3);
     dot(Game::harborSplitContact(),violet,3.5f);
+    dot(World::garageSite().marker,{.96f,.58f,.25f},3.5f);
     if(game.missionInfo())dot(game.missionTarget(),gold,game.objectiveIsTrial()?3.0f:5.0f);
     if(game.objectiveIsTrial())dot(game.objectiveTarget(),violet,5);
     if(map.hasWaypoint){Vec2 at=project(map.waypoint);if(inside(at,7*s)){ui.line(at.x-6*s,at.y,at.x+6*s,at.y,2*s,teal);ui.line(at.x,at.y-6*s,at.x,at.y+6*s,2*s,teal);}}
@@ -103,16 +104,17 @@ inline void drawWorldMap(Ui& ui,const Game& game,const WorldMap& map) {
     ui.line(cx-7*s,cy,cx+7*s,cy,s,{.9f,.95f,.93f},.65f);ui.line(cx,cy-7*s,cx,cy+7*s,s,{.9f,.95f,.93f},.65f);
     float x=p.x+p.size+28*s,w=ui.width-x-28*s;char text[120];
     ui.text(x,p.y,"EXPLORE THE COAST",1.7f*s,teal);
-    ui.wrapped(x,p.y+28*s,"Find contracts, the Harbor Split trial, coastal launch sites and the inland airstrip.",1.45f*s,w,muted);
+    ui.wrapped(x,p.y+28*s,"Find contracts, the Harbor Split trial, Harbor Motor Works and coastal launch sites.",1.45f*s,w,muted);
     ui.text(x,p.y+106*s,"GOLD   CONTRACT",1.3f*s,gold);ui.text(x,p.y+133*s,"TEAL   YOU / WAYPOINT",1.3f*s,teal);
     ui.text(x,p.y+160*s,"BLUE   BOAT",1.3f*s,{.42f,.72f,1});ui.text(x,p.y+187*s,"LILAC  AIRCRAFT",1.3f*s,{.88f,.83f,.97f});
     ui.text(x,p.y+214*s,"VIOLET HARBOR SPLIT",1.3f*s,violet);
-    ui.text(x,p.y+264*s,"WASD / LEFT STICK  PAN",1.2f*s,muted);
-    ui.text(x,p.y+289*s,"WHEEL / +/- / LB RB  ZOOM",1.15f*s,muted);
-    ui.text(x,p.y+314*s,"CLICK / ENTER / A  MARK",1.2f*s,muted);
-    ui.text(x,p.y+339*s,"DELETE / X  CLEAR",1.2f*s,muted);
-    ui.text(x,p.y+364*s,"F / Y  CENTER ON YOU",1.2f*s,muted);
-    ui.text(x,p.y+389*s,"TAB / BACK / B  CLOSE",1.2f*s,muted);
+    ui.text(x,p.y+241*s,"ORANGE MOTOR WORKS",1.3f*s,{.96f,.58f,.25f});
+    ui.text(x,p.y+291*s,"WASD / LEFT STICK  PAN",1.2f*s,muted);
+    ui.text(x,p.y+316*s,"WHEEL / +/- / LB RB  ZOOM",1.15f*s,muted);
+    ui.text(x,p.y+341*s,"CLICK / ENTER / A  MARK",1.2f*s,muted);
+    ui.text(x,p.y+366*s,"DELETE / X  CLEAR",1.2f*s,muted);
+    ui.text(x,p.y+391*s,"F / Y  CENTER ON YOU",1.2f*s,muted);
+    ui.text(x,p.y+416*s,"TAB / BACK / B  CLOSE",1.2f*s,muted);
     if(map.hasWaypoint){std::snprintf(text,sizeof(text),"WAYPOINT  %.2f KM",std::hypot(map.waypoint.x-game.player.x,map.waypoint.z-game.player.z)*.001f);ui.text(x,p.y+p.size-64*s,text,1.4f*s,teal);}
     std::snprintf(text,sizeof(text),"MAP WIDTH  %.2f KM",map.span*.001f);ui.text(p.x,p.y+p.size+18*s,text,1.3f*s,muted);
     ui.text(p.x+p.size-15*s,p.y+10*s,"N",1.5f*s,{.9f,.94f,.94f});

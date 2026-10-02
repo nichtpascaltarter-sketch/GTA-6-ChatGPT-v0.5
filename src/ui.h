@@ -107,6 +107,7 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
         if(xx>mx+5*s&&xx<mx+map-5*s&&yy>my+5*s&&yy<my+map-5*s)ui.circle(xx,yy,radius*s,color);};
     for(const auto& v:g.vehicles)marker(v.position,v.police?Vec3{.38f,.6f,1}:Vec3{.65f,.7f,.7f},v.police?2.5f:1.4f);
     marker(Game::harborSplitContact(),violet,3);
+    marker(World::garageSite().marker,{.96f,.58f,.25f},3);
     Vec3 objective=g.objectiveTarget();float cx=mx+map*.5f,cy=my+map*.5f;
     float ox=(objective.x-g.player.x)*map/(range*2),oy=-(objective.z-g.player.z)*map/(range*2);
     float edge=std::max(std::fabs(ox),std::fabs(oy)),limit=map*.5f-9*s;
@@ -120,6 +121,12 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     }
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
+    if(const char* instruction=g.workshopInstruction()){
+        const float y=my-102*s,w=390*s;
+        ui.rect(mx,y,w,90*s,{.025f,.045f,.06f},.93f);ui.rect(mx,y,3*s,90*s,{.96f,.58f,.25f});
+        ui.text(mx+12*s,y+12*s,World::garageSite().name,1.4f*s,{.96f,.58f,.25f});
+        ui.wrapped(mx+12*s,y+34*s,instruction,1.2f*s,w-24*s,muted);
+    }
     const Mission* mission=g.objectiveInfo();float tx=mx+map+24*s,ty=contentBottom-margin-64*s;
     const float remaining=g.objectiveTimeRemaining();
     if(active&&remaining>0){int seconds=int(std::ceil(remaining));std::snprintf(b,sizeof(b),"%s  /  %d:%02d",trial?"ACTIVE TRIAL":"ACTIVE CONTRACT",seconds/60,seconds%60);ui.shadowText(tx,ty,b,1.4f*s,objectiveColor);}
