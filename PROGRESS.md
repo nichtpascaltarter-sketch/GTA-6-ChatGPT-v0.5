@@ -21,8 +21,8 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `9628aab94861bcba7d78e91c5717ca0cfaf3b351`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 05 below.
+- Latest verified executable: `3c25f7def4417a6ad22d95ca3b695ab01f4a710d`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 06 below.
 - Native Release/Debug, system-import audits, 29 gameplay suites, 19 additional
   scene captures, and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
@@ -106,38 +106,37 @@ part of the game distribution.
    cache eviction. A saturated-cache regression reproduces the old hole and
    verifies its repair. Coarse cache cap is 64 MiB; detail fallback cap 64 MiB.
    Causeway height and geometry now follow island terrain consistently, and
-   coarse road patches follow their actual rendered ground. Geometry and build
-   source commits are landing; full integrated native validation is pending.
+   coarse road patches follow their actual rendered ground. Full integrated native Release/Debug validation passed in Milestone 06.
 7. Integrated renderer work: bounds-based main/shadow culling, eligibility-aware
    TLAS retention, coverage-driven horizontal fog to 2 km, reversed scene depth
    with forward shadow depth, and ground-anchored shadows for high aircraft.
    Interactive first display must remain prompt; smoke coverage can prewarm with
    message pumping and bounded timeout. Preserve existing streaming regression
    with distant mode disabled. Root owns main/probes and milestone documentation.
-   Source `a2aa8ba2cbbe01a27f5c781195c642381c1db15d` is now synced for
-   native workflow `36948934996`. Full world/worker/LOD/game/audio/cinematic portable suites
-   pass, as do 400,000 culling oracle cases and reverse-depth tests. Source review
-   found no blocking issue. The five-phase native LOD probe and extended captures
-   still need to pass before this becomes the verified executable.
-   First native run built and passed both city/legacy-streaming checks, then
-   stopped at LOD phase 1 because the probe omitted the cache's one-cell medium
-   hysteresis. The correct selected counts after that move are 49/191/849, with
-   240 shadow candidates; phase 0 correctly has 49/176/864 and 225. A real CPU
-   route reproduced all five expected selections. The corrected probe now has
-   a dedicated regression and 320-frame budget (Debug phase 0 used 70 frames).
-   Two test-local MSVC shadowing warnings were also repaired. Initial evidence
-   is under `validation/milestone-06/initial-lod/`; native rerun is next.
-8. Next content is an original repeatable motorcycle trial, developed separately
-   from the LOD batch. Broader goals remain pedestrian routines, police tactics,
-   interiors, destruction, animation, true dynamic GI and volumetric atmosphere.
-   Measure actual hardware frame times and compatibility as access becomes available.
-9. Prepare GPU timestamp telemetry in an isolated worktree, without adding waits,
-   so future rendering changes can be assessed beyond whole-process WARP timings.
+   Source `3c25f7def4417a6ad22d95ca3b695ab01f4a710d` passed native workflow
+   `36949428131`. The first run exposed a test expectation that omitted one-cell
+   medium-LOD hysteresis; actual selected counts after an axial move are
+   49/191/849. The corrected regression and all five native phases pass.
+   Initial and repaired evidence remain under `validation/milestone-06/`.
+8. Next candidate on `development/activities-and-timing`: original Harbor Split
+   motorcycle trial, medals, payouts, save migration, HUD/map integration, and
+   nonblocking GPU timestamp / CPU submission telemetry. All 36 gameplay suites
+   and the complete portable suite pass. Rebase onto this verified milestone,
+   run native Release/Debug, inspect the three trial captures and timestamp
+   fallback/lifecycle path, then archive evidence and scorecard.
+9. Subsequent content on `development/harbor-workshop`: a complete enterable
+   Harbor Motor Works, shared site metadata, continuous forecourt, segmented
+   collision, always-lit interior fixtures, bay repair and office treatment,
+   boarding/exit obstruction fixes, contextual guidance and native captures.
+   World, gameplay, renderer and root UI work are active in an isolated worktree.
+10. Broader goals remain pedestrian routines, police tactics, authored districts,
+    destruction, animation, true dynamic GI and volumetric atmosphere. Measure
+    actual hardware frame times and compatibility as access becomes available.
 
 Captures for the verified checkpoint are in
-`/workspace/scratch/sky-9628aab/`; Debug evidence is in
-`/workspace/scratch/debug-sky-9628aab/`. Machine-readable evidence is under
-`validation/milestone-05/`. The full original target remains unchanged.
+`/workspace/scratch/lod-3c25f7d-release/`; machine-readable evidence and selected
+original captures are under `validation/milestone-06/`. The full original target
+remains unchanged.
 
 ## Initial scorecard — before native validation
 
@@ -422,3 +421,55 @@ unverified.
 | Missions and story | 0.5/10 | Six original contracts and short conversations work, but story scale, acting and cinematic detail remain small. |
 | Audio | 0.5/10 | Original footsteps, splashes and tire scrub join radio and engines; speech, acoustics and native listening still lag or remain unverified. |
 | Performance and stability | 0.5/10 | Both native builds pass isolated launches and Debug resource checks; software-rendering cost is under investigation and target GPU performance is unknown. |
+
+
+## Milestone 06 — distant world coverage and visibility, 2026-10-02
+
+Validated source: `3c25f7def4417a6ad22d95ca3b695ab01f4a710d`.
+[Windows build and launch evidence](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36949428131).
+Release is 909,824 bytes; SHA256:
+`61673c04ced42197e3aadb22251d6bf92b522000276a66be66ef7f4ddcd60e7d`.
+The verified EXE and checksum are in `/workspace/outputs/`. Its seven imports are
+Windows system libraries; shaders remain embedded and the C/C++ runtime static.
+
+A separate medium/far visual cache extends coverage while keeping 49 detailed
+collision tiles. Two bounded workers generate missing coverage first. One
+representation is selected per cell, with a short medium-detail hysteresis ring;
+visibility-aware rendering retains unchanged GPU geometry and eligible ray data.
+Main-scene reverse depth, conservative frustum tests, ground-anchored aircraft
+shadows and coverage-driven fog support the longer view. Causeway terrain and
+coarse road clearance are corrected. Inspected aircraft, survey, coast and night
+captures show continuous distant geography and coherent atmospheric blending;
+repetition and simple geometry remain conspicuous.
+
+Both native builds pass all build/test targets, city and legacy streaming
+checks, the five-phase distant route, and Debug 4x/1x/2x resource lifecycle
+checks. The route tests cold coverage, adjacent movement, inland relocation,
+coastal relocation and epoch reset. Release phases settle at frames
+44/48/88/133/137, with 2,048–2,052 m ready coverage and 2,000 m fog endpoints;
+settled upload batches, retired bytes and ordinary/pressure/repack waits are
+zero. The 19-scene Release sweep also passes. Across the run, 28 executable
+launches render 1,632 frames. Native software rendering verifies these paths,
+not hardware DXR or target frame rate.
+
+Release city/legacy-streaming/LOD processes take 34.134/29.164/52.935 seconds.
+These include setup and capture and are not per-frame GPU measurements. The
+separate controlled comparison of old combined and per-chunk rendering found
+only a 0.755% difference in 120-frame medians, below observed run variation,
+with identical images. A nonblocking timestamp candidate is next. Hardware
+DXR, 1440p/60 on an RTX 4070, native listening, physical controllers, clean
+Windows 10 and long native soaks remain unverified.
+
+### Milestone 06 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | A large procedural geography now has tested distant coverage, but individual neighborhoods and activity density lack the benchmark's authored variety. |
+| Visual fidelity | 0.5/10 | Two-kilometer views and coherent fog improve continuity, while repetitive buildings, simple vegetation, characters and lighting remain far below the target. |
+| World density and life | 0.5/10 | Traffic and pedestrians populate the streets without rich daily routines, crowd diversity or incidental interactions. |
+| Vehicles and driving | 1/10 | Four controllable vehicle classes and complete campaign routes work, with limited handling, damage and animation depth. |
+| On-foot and combat | 0.5/10 | Movement, aiming, shooting and contact audio function, but encounters, animation and interaction breadth remain sparse. |
+| NPC and police AI | 0.5/10 | Basic pursuit and civilian panic are tested without advanced tactics, social behavior or persistent routines. |
+| Missions and story | 0.5/10 | Six original contracts have objectives, conversations and saves, while narrative scale and presentation remain small. |
+| Audio | 0.5/10 | Original synthesized radio, ambience, vehicles and movement feedback work; voiced acting, acoustics and native listening remain absent or unverified. |
+| Performance and stability | 0.5/10 | Bounded streaming and 28 native launches pass, but software-rendering checks do not establish hardware performance or extended crash-free operation. |
