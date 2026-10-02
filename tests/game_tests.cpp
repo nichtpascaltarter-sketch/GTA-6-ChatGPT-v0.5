@@ -42,6 +42,28 @@ void verifyMesh(const mc::Mesh& mesh) {
         require(index < mesh.vertices.size(), "mesh index exceeds its vertex buffer");
 }
 
+size_t verifyDynamicMesh(const mc::Mesh& mesh, const char* pose) {
+    verifyMesh(mesh);
+    const size_t triangles = mesh.indices.size() / 3;
+    if (triangles >= 90000)
+        throw std::runtime_error(std::string(pose) + " dynamic mesh exceeds triangle budget: " +
+                                 std::to_string(triangles));
+    for (size_t i = 0; i < mesh.indices.size(); i += 3) {
+        const mc::Vertex& a = mesh.vertices[mesh.indices[i]];
+        const mc::Vertex& b = mesh.vertices[mesh.indices[i + 1]];
+        const mc::Vertex& c = mesh.vertices[mesh.indices[i + 2]];
+        const mc::Vec3 area = mc::cross(b.position - a.position, c.position - a.position);
+        // Collapsed pole and fan triangles do not have a meaningful surface normal.
+        if (mc::dot(area, area) <= 1e-14f) continue;
+        for (const mc::Vertex* vertex : {&a, &b, &c}) {
+            if (!close(mc::length(vertex->normal), 1, 0.02f))
+                throw std::runtime_error(std::string(pose) +
+                    " dynamic mesh has a non-unit normal on triangle " + std::to_string(i / 3));
+        }
+    }
+    return triangles;
+}
+
 void initializationAndGeometry() {
     mc::Game game;
     game.initialize();
@@ -53,8 +75,15 @@ void initializationAndGeometry() {
     require(finite(game.cameraEye()) && finite(game.cameraTarget()), "camera is not finite");
     require(mc::length(game.cameraEye() - game.cameraTarget()) > 0.1f,
             "camera eye and target are coincident");
-    verifyMesh(game.dynamicMesh());
+    const size_t spawnTriangles = verifyDynamicMesh(game.dynamicMesh(), "spawn");
     verifyMesh(game.world.combinedMesh());
+    game.player = {128, game.world.height(128, 128), 128};
+    require(game.world.biome(game.player.x, game.player.z) == mc::Biome::Downtown,
+            "urban mesh fixture is outside the downtown biome");
+    tick(game, {}, 70);
+    const size_t urbanTriangles = verifyDynamicMesh(game.dynamicMesh(), "urban teleport");
+    std::cout << "Dynamic mesh triangles: spawn " << spawnTriangles
+              << ", urban teleport " << urbanTriangles << '\n';
 }
 
 void movementAndPause() {
