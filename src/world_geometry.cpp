@@ -8,6 +8,17 @@ namespace mc {
 namespace {
 constexpr float WaterLevel=World::WaterLevel;
 constexpr float RoadHalf=10.0f;
+struct GarageGrade {float x0,x1,z0,z1;};
+GarageGrade garageGrade() {
+    const auto site=World::garageSite();return {site.shell.min.x-8,site.shell.max.x+6,site.shell.min.z-4,site.shell.max.z+20};
+}
+bool garagePaving(float x,float z) {
+    const auto grade=garageGrade();return x>=grade.x0&&x<=grade.x1&&z>=grade.z0&&z<=grade.z1;
+}
+float garageElevation(float x,float z) {
+    const auto site=World::garageSite();const auto grade=garageGrade();
+    return site.floorHeight*clamp(std::min({(x-grade.x0)/8,(grade.x1-x)/6,(z-grade.z0)/4,(grade.z1-z)/20}),0,1);
+}
 struct SurfaceArea {
     float x0,z0,x1,z1;
     bool contains(float x,float z) const {return x>=x0&&x<=x1&&z>=z0&&z<=z1;}
@@ -145,6 +156,15 @@ void groundPatch(Mesh& m,const World& world,float x0,float z0,float x1,float z1,
         const Vec3 v=m.vertices[i].position;m.vertices[i].normal=terrainNormal(v.x,v.z);
     }
 }
+void sidewalkPatch(Mesh& mesh,const World& world,float x0,float z0,float x1,float z1,Vec3 color,float lift) {
+    const auto grade=garageGrade();
+    if(x1<=grade.x0||x0>=grade.x1||z1<=grade.z0||z0>=grade.z1) {groundPatch(mesh,world,x0,z0,x1,z1,color,lift);return;}
+    auto patch=[&](float ax,float az,float bx,float bz){if(bx>ax&&bz>az)groundPatch(mesh,world,ax,az,bx,bz,color,lift);};
+    patch(x0,z0,std::min(x1,grade.x0),z1);patch(std::max(x0,grade.x1),z0,x1,z1);
+    const float a=std::max(x0,grade.x0),b=std::min(x1,grade.x1);
+    patch(a,z0,b,std::min(z1,grade.z0));patch(a,std::max(z0,grade.z1),b,z1);
+}
+
 void cone(Mesh& m,Vec3 bottom,float radius,float height,Vec3 color,int sides) {
     for(int i=0;i<sides;++i) {
         float a=2*Pi*float(i)/float(sides),b=2*Pi*float(i+1)/float(sides);
@@ -304,13 +324,13 @@ const char* letterStrokes(char c) {
     case 'Y':return "him";case 'Z':return "adij";default:return "";
     }
 }
-void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 color) {
+void signText(Mesh& m,Vec3 center,Vec3 along,const char* label,float scale,Vec3 color,float material=2) {
     // Thirteen original monoline strokes form a compact, geometry-only shop alphabet.
     static constexpr float strokes[13][4]={{0,6,4,6},{4,6,4,3},{4,3,4,0},{4,0,0,0},{0,0,0,3},{0,3,0,6},{0,3,4,3},{0,6,2,3},{4,6,2,3},{0,0,2,3},{4,0,2,3},{2,6,2,3},{2,3,2,0}};
     int count=0;for(const char* p=label;*p;++p)++count;
     Vec3 origin=center-along*((count*5.3f-1.3f)*scale*.5f);
     for(const char* p=label;*p;++p,origin+=along*(5.3f*scale))for(const char* s=letterStrokes(*p);*s;++s) {
-        const float* a=strokes[*s-'a'];facadeLine(m,origin,along,a[0]*scale,a[1]*scale,a[2]*scale,a[3]*scale,.31f*scale,color,2);
+        const float* a=strokes[*s-'a'];facadeLine(m,origin,along,a[0]*scale,a[1]*scale,a[2]*scale,a[3]*scale,.31f*scale,color,material);
     }
 }
 void shopfront(Chunk& chunk,Vec3 p,float width,float yaw,uint32_t seed,bool illuminated) {
@@ -812,6 +832,7 @@ BlockSpec describeBlock(const World& world,int cx,int cz) {
     } else if(block.urban) {
         for(int j=0;j<2;++j)for(int i=0;i<2;++i) {
             const uint32_t seed=seedAt(cx*2+i,cz*2+j,71);
+            if(cx==1&&cz==0&&i==0&&j==1) {block.garage=true;continue;}
             const float px=x+36+i*56,pz=z+36+j*56;
             if(world.road(px,pz)||world.biome(px,pz)==Biome::Ocean)continue;
             const bool sub=block.biome==Biome::Residential;
@@ -845,6 +866,198 @@ std::vector<TreeSpec> describeNaturalTrees(const World& world,int cx,int cz) {
     }
     return trees;
 }
+namespace {
+void workshopTire(Mesh& mesh,Vec3 center,float radius,float width,int segments=16,int rings=8) {
+    const uint32_t first=static_cast<uint32_t>(mesh.vertices.size());
+    for(int side=0;side<segments;++side)for(int ring=0;ring<rings;++ring) {
+        const float a=2*Pi*side/segments,b=2*Pi*ring/rings;
+        const Vec3 radial{std::cos(a),0,std::sin(a)},normal=radial*std::cos(b)+Vec3{0,std::sin(b),0};
+        mesh.vertices.push_back({center+radial*(radius+width*std::cos(b))+Vec3{0,width*std::sin(b),0},normal,{.045f,.052f,.049f},0});
+    }
+    for(int side=0;side<segments;++side)for(int ring=0;ring<rings;++ring) {
+        const uint32_t a=first+uint32_t(side*rings+ring),b=first+uint32_t(((side+1)%segments)*rings+ring);
+        const uint32_t c=first+uint32_t(((side+1)%segments)*rings+(ring+1)%rings),d=first+uint32_t(side*rings+(ring+1)%rings);
+        mesh.indices.insert(mesh.indices.end(),{a,d,c,a,c,b});
+    }
+}
+void workshopRoll(Mesh& mesh,Vec3 center,float halfLength,float radius,int sides) {
+    for(int side=0;side<sides;++side) {
+        const float a=2*Pi*side/sides,b=2*Pi*(side+1)/sides;
+        const Vec3 pa{0,std::cos(a)*radius,std::sin(a)*radius},pb{0,std::cos(b)*radius,std::sin(b)*radius};
+        const Vec3 left=center-Vec3{halfLength,0,0},right=center+Vec3{halfLength,0,0};
+        addQuad(mesh,left+pb,right+pb,right+pa,left+pa,{.43f,.49f,.46f},1);
+        tri(mesh,left,left+pb,left+pa,{.26f,.32f,.30f},1);
+        tri(mesh,right,right+pa,right+pb,{.26f,.32f,.30f},1);
+    }
+}
+}
+void appendGarage(Chunk& chunk,const World& world,WorldLod lod) {
+    const auto site=World::garageSite();const auto grade=garageGrade();
+    const bool detail=lod==WorldLod::Detail,medium=lod==WorldLod::Medium;
+    const float floor=site.floorHeight,x0=site.shell.min.x,x1=site.shell.max.x,z0=site.shell.min.z,z1=site.shell.max.z;
+    Mesh& mesh=chunk.mesh;
+    const Vec3 plaster{.71f,.74f,.67f},teal{.075f,.27f,.25f},orange{.84f,.34f,.12f},steel{.30f,.36f,.34f};
+    auto solid=[&](Vec3 center,Vec3 half,Vec3 color,float material=0,float yaw=0) {
+        addBox(mesh,center,half,color,yaw,material);
+        if(detail) {
+            const float s=std::abs(std::sin(yaw)),c=std::abs(std::cos(yaw));
+            const Vec3 extent{half.x*c+half.z*s,half.y,half.x*s+half.z*c};
+            chunk.solids.push_back({center-extent,center+extent});
+        }
+    };
+    auto wall=[&](float ax,float az,float bx,float bz,float bottom,float top,Vec3 color) {
+        solid({(ax+bx)*.5f,floor+(bottom+top)*.5f,(az+bz)*.5f},{(bx-ax)*.5f,(top-bottom)*.5f,(bz-az)*.5f},color);
+    };
+    auto floorQuad=[&](Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 color) {addQuad(mesh,a,b,c,d,color);};
+    // Four planar apron sectors are exactly the min-of-four-ramps support profile.
+    floorQuad({grade.x0,0,grade.z0},{grade.x0,0,grade.z1},{x0,floor,z1},{x0,floor,z0},{.39f,.42f,.38f});
+    floorQuad({grade.x1,0,grade.z1},{grade.x1,0,grade.z0},{x1,floor,z0},{x1,floor,z1},{.39f,.42f,.38f});
+    floorQuad({grade.x1,0,grade.z0},{grade.x0,0,grade.z0},{x0,floor,z0},{x1,floor,z0},{.40f,.43f,.39f});
+    floorQuad({grade.x0,0,grade.z1},{grade.x1,0,grade.z1},{x1,floor,z1},{x0,floor,z1},{.43f,.45f,.41f});
+    floorQuad({x0,floor,z0},{x0,floor,z1},{x1,floor,z1},{x1,floor,z0},{.35f,.39f,.36f});
+    // Thin volumes supply correctly oriented interior faces; both portals are physical gaps.
+    wall(x0,z0,x0+.3f,z1,0,6.2f,plaster);wall(x1-.3f,z0,x1,z1,0,6.2f,plaster);
+    wall(x0+.3f,z0,x1-.3f,z0+.3f,0,6.2f,plaster);
+    wall(x0+.3f,z1-.3f,159,z1,0,6.2f,plaster);
+    wall(161,z1-.3f,171,z1,0,6.2f,plaster);
+    wall(179,z1-.3f,x1-.3f,z1,0,6.2f,plaster);
+    wall(159,z1-.3f,161,z1,2.8f,6.2f,plaster);
+    wall(171,z1-.3f,179,z1,4.5f,6.2f,plaster);
+    addQuad(mesh,{x0,floor+5.2f,z0},{x1,floor+5.2f,z0},{x1,floor+5.2f,z1},{x0,floor+5.2f,z1},{.53f,.58f,.53f});
+    if(detail)chunk.solids.push_back({{x0,floor+5.2f,z0},{x1,floor+6.2f,z1}});
+    // Three original sawtooth bays retain their exact silhouette at every distance.
+    for(int tooth=0;tooth<3;++tooth) {
+        const float a=x0+tooth*10,b=a+10,low=floor+6.2f,high=floor+7.6f;
+        addQuad(mesh,{a,low,z0},{a,low,z1},{b,high,z1},{b,high,z0},{.22f,.34f,.31f},1);
+        addQuad(mesh,{b,low,z0},{b,high,z0},{b,high,z1},{b,low,z1},{.24f,.40f,.39f},2);
+        tri(mesh,{a,low,z1},{b,low,z1},{b,high,z1},plaster);
+        tri(mesh,{b,high,z0},{b,low,z0},{a,low,z0},plaster);
+    }
+    solid({159,floor+1.35f,97.05f},{.90f,1.35f,.055f},orange,1,Pi*.5f);
+    workshopRoll(mesh,{site.vehicleDoor.x,floor+4.97f,z1-.05f},4,.34f,detail?12:8);
+    addQuad(mesh,{156,floor+4.96f,98.32f},{182,floor+4.96f,98.32f},{182,floor+6.14f,98.32f},{156,floor+6.14f,98.32f},teal);
+    if(lod==WorldLod::Far)return;
+    // The office is part of the same space, with a separate open two-metre passage.
+    wall(155,80,155.22f,87,0,3.8f,{.67f,.69f,.60f});wall(162.78f,80,163,87,0,3.8f,{.67f,.69f,.60f});
+    wall(155.22f,80,162.78f,80.22f,0,3.8f,{.67f,.69f,.60f});
+    wall(155.22f,86.78f,159,87,0,3.8f,{.67f,.69f,.60f});wall(161,86.78f,162.78f,87,0,3.8f,{.67f,.69f,.60f});
+    wall(159,86.78f,161,87,2.8f,3.8f,{.67f,.69f,.60f});
+    addQuad(mesh,{155,floor+3.8f,80},{163,floor+3.8f,80},{163,floor+3.8f,87},{155,floor+3.8f,87},{.72f,.73f,.65f});
+    if(detail)chunk.solids.push_back({{155,floor+3.8f,80},{163,floor+3.95f,87}});
+    solid({168.5f,floor+2.05f,88},{.33f,2.05f,.43f},orange,1);
+    solid({181.5f,floor+2.05f,88},{.33f,2.05f,.43f},orange,1);
+    solid({175,floor+4.2f,88},{6.83f,.15f,.27f},steel,1);
+    solid({175,floor+.94f,79.3f},{5.5f,.12f,.7f},{.43f,.46f,.37f},1);
+    if(medium)return;
+    // Deep reveals, painted plinths and a legible sign make the frontage readable on foot.
+    for(const auto span:std::array<Vec2,3>{{{154.3f,159},{161,171},{179,183.7f}}}) {
+        addBox(mesh,{(span.x+span.y)*.5f,floor+.78f,98.035f},{(span.y-span.x)*.5f,.78f,.035f},teal);
+        addBox(mesh,{(span.x+span.y)*.5f,floor+1.63f,98.045f},{(span.y-span.x)*.5f,.045f,.045f},{.83f,.73f,.44f});
+    }
+    for(float x:{159.0f,161.0f})addBox(mesh,{x,floor+1.42f,98.10f},{.065f,1.42f,.12f},steel,0,1);
+    for(float x:{171.0f,179.0f})addBox(mesh,{x,floor+2.28f,98.08f},{.085f,2.28f,.10f},steel,0,1);
+    addBox(mesh,{175,floor+4.54f,98.08f},{4.1f,.065f,.1f},steel,0,1);
+    signText(mesh,{169,floor+5.08f,98.35f},{-1,0,0},"HARBOR MOTOR WORKS",.16f,{.91f,.85f,.62f},5);
+    signText(mesh,{166,floor+2.35f,98.075f},{-1,0,0},"SERVICE",.075f,{.14f,.30f,.27f});
+    signText(mesh,{157,floor+2.25f,98.078f},{-1,0,0},"OFFICE",.052f,{.91f,.78f,.52f});
+    // The personnel door is propped fully inward, including its handle and hinge plates.
+    for(float y:{.35f,2.30f})addBox(mesh,{159.08f,floor+y,97.88f},{.035f,.09f,.06f},{.70f,.66f,.48f},0,1);
+    addBox(mesh,{159.08f,floor+1.18f,96.42f},{.045f,.035f,.18f},{.80f,.72f,.51f},0,1);
+    tri(mesh,{159.16f,floor,96.26f},{158.89f,floor,96.26f},{159.03f,floor+.13f,96.59f},{.56f,.39f,.18f});
+    for(int rib=0;rib<28;++rib) {
+        const float x=171+rib*(8.0f/27);
+        branch(mesh,{x,floor+4.72f,98.17f},{x,floor+5.20f,98.16f},.014f,.014f,{.69f,.72f,.65f},4);
+    }
+    // Brick and corrugated cladding are authored as shallow geometry rather than decals.
+    for(int row=0;row<6;++row)for(int brick=0;brick<20;++brick) {
+        float a=154.35f+brick*1.47f+(row%2)*.735f,b=std::min(a+1.40f,183.65f);
+        if(b<=a)continue;
+        const float y=floor+.18f+row*.245f;
+        addQuad(mesh,{a,y,78.32f},{b,y,78.32f},{b,y+.20f,78.32f},{a,y+.20f,78.32f},row%2?Vec3{.44f,.49f,.43f}:Vec3{.47f,.52f,.46f});
+    }
+    for(int strip=0;strip<28;++strip) {
+        const float z=78.5f+strip*.68f;
+        addBox(mesh,{183.675f,floor+3.6f,z},{.025f,1.15f,.025f},{.57f,.62f,.56f},0,1);
+    }
+    // Structural ties leave the five-metre workshop volume open below the roof.
+    for(float z:{80.5f,86.2f,96.0f}) {
+        addBox(mesh,{169,floor+5.04f,z},{14.6f,.065f,.055f},steel,0,1);
+        for(int brace=0;brace<6;++brace) {
+            const float a=154.6f+brace*4.8f;
+            branch(mesh,{a,floor+5.1f,z},{a+2.4f,floor+4.72f,z},.032f,.032f,steel,4);
+            branch(mesh,{a+2.4f,floor+4.72f,z},{a+4.8f,floor+5.1f,z},.032f,.032f,steel,4);
+        }
+    }
+    // Lift mechanisms stay folded outside the complete drive-through clearance envelope.
+    for(float x:{168.5f,181.5f}) {
+        solid({x,floor+.12f,88},{.60f,.12f,.66f},{.30f,.34f,.29f},1);
+        addBox(mesh,{x,floor+1.55f,87.55f},{.24f,1.28f,.035f},steel,0,1);
+        addCylinder(mesh,{x,floor+.35f,88.12f},.12f,3.40f,{.58f,.64f,.58f},10,1);
+        for(float z:{86.9f,89.1f})solid({x,floor+.28f,z},{.31f,.16f,.76f},{.72f,.30f,.10f},1);
+        for(int slot=0;slot<13;++slot)addBox(mesh,{x,floor+.6f+slot*.24f,87.50f},{.13f,.045f,.018f},{.095f,.14f,.13f});
+    }
+    // Back-wall bench, drawer banks, pegboard, hand tools and a stocked rolling cabinet.
+    for(float x:{170,175,180}) {
+        solid({x,floor+.43f,79.3f},{2.0f,.43f,.62f},teal,1);
+        for(int drawer=0;drawer<4;++drawer) {
+            addBox(mesh,{x,floor+.16f+drawer*.19f,79.96f},{1.86f,.072f,.035f},{.21f,.37f,.32f},0,1);
+            addBox(mesh,{x,floor+.16f+drawer*.19f,80.015f},{.70f,.025f,.035f},{.64f,.65f,.52f},0,1);
+        }
+    }
+    addBox(mesh,{175,floor+2.35f,78.39f},{6.1f,.95f,.07f},{.38f,.42f,.33f});
+    for(int row=0;row<7;++row)for(int col=0;col<37;++col) {
+        const float x=169.2f+col*.32f,y=floor+1.54f+row*.26f;
+        addQuad(mesh,{x-.022f,y-.022f,78.465f},{x+.022f,y-.022f,78.465f},{x+.022f,y+.022f,78.465f},{x-.022f,y+.022f,78.465f},{.11f,.17f,.14f});
+    }
+    for(int tool=0;tool<16;++tool) {
+        const float x=169.45f+tool*.73f,y=floor+1.78f+(tool%3)*.31f;
+        facadeLine(mesh,{x,y,78.50f},{1,0,0},0,0,.08f,.55f,.06f,{.61f,.68f,.63f},1);
+        facadeLine(mesh,{x,y,78.50f},{1,0,0},-.10f,.57f,.10f,.57f,.05f,{.61f,.68f,.63f},1);
+        addCylinder(mesh,{x,floor+1.09f,79.35f},.055f,.20f,{.58f,.61f,.54f},8,1);
+    }
+    solid({165.6f,floor+.66f,94.0f},{.73f,.52f,.43f},orange,1);
+    addBox(mesh,{165.6f,floor+1.22f,94.0f},{.79f,.06f,.48f},{.22f,.29f,.25f},0,1);
+    for(int drawer=0;drawer<5;++drawer) {
+        addBox(mesh,{165.6f,floor+.30f+drawer*.17f,94.46f},{.65f,.064f,.026f},{.64f,.25f,.10f},0,1);
+        addBox(mesh,{165.6f,floor+.30f+drawer*.17f,94.50f},{.49f,.019f,.025f},{.78f,.74f,.59f},0,1);
+    }
+    for(float x:{165.05f,166.15f})for(float z:{93.66f,94.34f})addCylinder(mesh,{x,floor+.03f,z},.095f,.16f,steel,8,1);
+    // Six individually modelled tires and their cradles are outside the bay and walking route.
+    for(int stack=0;stack<3;++stack) {
+        const Vec3 p{182.8f,floor+.27f,82.3f+stack*4.6f};
+        for(int tire=0;tire<2;++tire)workshopTire(mesh,p+Vec3{0,tire*.44f,0},.47f,.18f);
+        chunk.solids.push_back({p+Vec3{-.68f,-.27f,-.68f},p+Vec3{.68f,.90f,.68f}});
+    }
+    // Counter placement leaves the office customer and staff markers on opposite clear sides.
+    solid({159.7f,floor+.51f,82.75f},{2.65f,.51f,.40f},teal);
+    addBox(mesh,{159.7f,floor+1.055f,82.75f},{2.76f,.045f,.48f},{.62f,.55f,.39f});
+    addBox(mesh,{157.7f,floor+1.30f,82.77f},{.32f,.21f,.045f},{.12f,.20f,.18f},0,1);
+    addBox(mesh,{157.7f,floor+1.30f,82.821f},{.27f,.16f,.009f},{.30f,.57f,.49f},0,5);
+    addBox(mesh,{161.5f,floor+1.13f,82.80f},{.28f,.04f,.22f},{.75f,.71f,.52f});
+    addCylinder(mesh,{160.9f,floor+1.10f,82.66f},.085f,.19f,{.82f,.76f,.58f},10);
+    signText(mesh,{159.8f,floor+2.30f,80.24f},{-1,0,0},"HONEST WORK",.065f,{.13f,.30f,.26f});
+    for(int page=0;page<5;++page) {
+        addBox(mesh,{155.245f,floor+1.95f,81.2f+page*.8f},{.012f,.30f,.24f},{.82f,.79f,.63f});
+        for(int line=0;line<4;++line)addBox(mesh,{155.261f,floor+2.10f-line*.09f,81.2f+page*.8f},{.009f,.007f,.17f},{.31f,.40f,.31f});
+    }
+    // Directional sources stay inside the walls; their visible lenses are the emitter planes.
+    auto fixture=[&](Vec3 position,float halfX,float halfZ,float radius,float intensity,float cone,bool always) {
+        addBox(mesh,position+Vec3{0,.067f,0},{halfX+.065f,.055f,halfZ+.055f},{.25f,.31f,.28f},0,1);
+        const Vec3 color=always?Vec3{.93f,.98f,.87f}:Vec3{1,.77f,.45f};
+        addQuad(mesh,position+Vec3{-halfX,0,-halfZ},position+Vec3{halfX,0,-halfZ},position+Vec3{halfX,0,halfZ},position+Vec3{-halfX,0,halfZ},color,always?5.0f:2.0f);
+        Light light{position,radius,color,intensity,{0,-1,0},cone};
+        if(always)chunk.alwaysLights.push_back(light);else chunk.lights.push_back(light);
+    };
+    for(float x:{170.0f,178.0f})for(float z:{82.0f,88.0f,94.0f})fixture({x,floor+4.98f,z},1.10f,.17f,8,55,.68f,true);
+    for(float x:{157.5f,160.5f})fixture({x,floor+3.65f,83.5f},.55f,.18f,5,22,.85f,true);
+    for(float x:{156.0f,182.0f})fixture({x,floor+4.78f,98.70f},.38f,.22f,9,32,.70f,false);
+    // Paint is raised by twelve millimetres, including the sloped approach markings.
+    for(float x:{170.0f,180.0f})groundPatch(mesh,world,x-.055f,82,x+.055f,95,{.82f,.64f,.24f},.012f);
+    for(float z:{82.0f,95.0f})groundPatch(mesh,world,170,z-.055f,180,z+.055f,{.82f,.64f,.24f},.012f);
+    for(float x:{171.0f,179.0f})groundPatch(mesh,world,x-.065f,99,x+.065f,113,{.80f,.76f,.53f},.012f);
+    for(int stripe=0;stripe<7;++stripe)groundPatch(mesh,world,166.0f+stripe*.45f,98.1f,166.20f+stripe*.45f,100.0f,{.83f,.65f,.22f},.012f);
+}
+
 Vec3 terrainColor(const World& world,float x,float z) {
     const Biome b=world.biome(x,z);const float d=landDistance(x,z);
     Vec3 color{.24f,.34f,.16f};
@@ -930,6 +1143,7 @@ void appendMesh(Mesh& dst,const Mesh& src) {
     for(uint32_t i:src.indices)dst.indices.push_back(base+i);
 }
 float World::height(float x,float z) const {
+    if(garagePaving(x,z))return garageElevation(x,z);
     if(dockDeck(x,z))return lerp(naturalHeight(2600,z),.4f,clamp((x-2600)/24,0,1));
     if(causeway(x,z)) {
         float shoreX=coast(0)-160;
@@ -951,6 +1165,7 @@ Biome World::biome(float x,float z) const {
 bool World::road(float x,float z) const {return axialRoad(x,z)||coastalRoad(x,z)||causeway(x,z)||(x>=-3200&&x<=-3072&&std::abs(z+1024)<5);}
 GroundSurface World::groundSurface(float x,float z) const {
     if(!std::isfinite(x)||!std::isfinite(z)||std::abs(x)>Extent+512||std::abs(z)>Extent+512)return GroundSurface::Soil;
+    if(garagePaving(x,z))return GroundSurface::Pavement;
     if(dockDeck(x,z))return GroundSurface::Wood;
     if(DockApproach.contains(x,z))return GroundSurface::Soil;
     for(const auto& area:AirfieldPaving)if(area.contains(x,z))return GroundSurface::Pavement;
@@ -1043,8 +1258,8 @@ Chunk World::generate(int cx,int cz,WorldLod lod) const {
             const bool vertical=edge<2;const float line=vertical?x+(edge%2)*128:z+(edge%2)*128;
             if(!axialRoad(vertical?line:x+64,vertical?z+64:line))continue;
             const float side=edge%2?-1.0f:1.0f,a=line+side*10,b=line+side*14;
-            if(vertical)groundPatch(m,*this,std::min(a,b),z+10,std::max(a,b),z+118,{.62f,.62f,.55f},.14f);
-            else groundPatch(m,*this,x+10,std::min(a,b),x+118,std::max(a,b),{.62f,.62f,.55f},.14f);
+            if(vertical)sidewalkPatch(m,*this,std::min(a,b),z+10,std::max(a,b),z+118,{.62f,.62f,.55f},.14f);
+            else sidewalkPatch(m,*this,x+10,std::min(a,b),x+118,std::max(a,b),{.62f,.62f,.55f},.14f);
             for(float off:{29.0f,99.0f}) {
                 Vec3 p=vertical?Vec3{line+side*16,0,z+off}:Vec3{x+off,0,line+side*16};p.y=height(p.x,p.z);
                 coarseTree(m,{p,.86f,seed+uint32_t(edge*53+off),worldGeometry::TreeKind::Palm},lod);
@@ -1055,12 +1270,12 @@ Chunk World::generate(int cx,int cz,WorldLod lod) const {
             bool vertical=edge<2;float line=vertical?x+(edge%2)*128:z+(edge%2)*128;
             if(!axialRoad(vertical?line:x+64,vertical?z+64:line))continue;
             float s=edge%2?-1.0f:1.0f;float a=line+s*10,b=line+s*14;
-            if(vertical)groundPatch(m,*this,std::min(a,b),z+10,std::max(a,b),z+118,{.62f,.62f,.55f},.14f);
-            else groundPatch(m,*this,x+10,std::min(a,b),x+118,std::max(a,b),{.62f,.62f,.55f},.14f);
+            if(vertical)sidewalkPatch(m,*this,std::min(a,b),z+10,std::max(a,b),z+118,{.62f,.62f,.55f},.14f);
+            else sidewalkPatch(m,*this,x+10,std::min(a,b),x+118,std::max(a,b),{.62f,.62f,.55f},.14f);
             for(int tile=0;tile<13;++tile) {
                 float t=(vertical?z:x)+12+tile*8;
-                if(vertical)groundPatch(m,*this,std::min(a,b),t,std::max(a,b),t+.045f,{.39f,.42f,.38f},.145f);
-                else groundPatch(m,*this,t,std::min(a,b),t+.045f,std::max(a,b),{.39f,.42f,.38f},.145f);
+                if(vertical)sidewalkPatch(m,*this,std::min(a,b),t,std::max(a,b),t+.045f,{.39f,.42f,.38f},.145f);
+                else sidewalkPatch(m,*this,t,std::min(a,b),t+.045f,std::max(a,b),{.39f,.42f,.38f},.145f);
             }
         }
         // Zebra crossings are set back from every central city intersection.
@@ -1087,7 +1302,7 @@ Chunk World::generate(int cx,int cz,WorldLod lod) const {
             for(float offset:{24.0f,64.0f,104.0f}) {
                 // Leave the walking line at offset 12 clear, including the opening mission marker.
                 Vec3 pole=vertical?Vec3{line+side*11,0,z+offset}:Vec3{x+offset,0,line+side*11};
-                pole.y=height(pole.x,pole.z)+.14f;
+                pole.y=height(pole.x,pole.z)+(garagePaving(pole.x,pole.z)?0.0f:.14f);
                 streetlight(c,pole,vertical?(side>0?Pi:0):(side>0?Pi*.5f:-Pi*.5f));
             }
             if(edge%2==0)streetFurniture(c,p,vertical?0:-Pi*.5f,seed+static_cast<uint32_t>(edge)*13);
@@ -1144,6 +1359,7 @@ Chunk World::generate(int cx,int cz,WorldLod lod) const {
             }
         }
     }
+    if(block.garage)worldGeometry::appendGarage(c,*this,lod);
     transportSites(c,*this,lod,coarseProjection);
     if(cx==24&&cz==8)clinicLaunch(c,lod);
     if(lod!=WorldLod::Detail) {m.vertices.shrink_to_fit();m.indices.shrink_to_fit();}
@@ -1168,7 +1384,7 @@ const char* World::district(Vec3 p) const {
     return "MERIDIAN COAST";
 }
 const std::vector<Landmark>& World::landmarks() {
-    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,World{}.height(4096,0),0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"},{{3090,WaterLevel,1080},"Leena's Launch"}};
+    static const std::vector<Landmark> places={{{384,0,384},"Meridian Exchange"},{{-512,0,256},"Founders Gardens"},{{-640,0,128},"Lantern Quarter"},{{896,0,-512},"Palm Mile"},{{1024,0,-2816},"Cypress Reach"},{{-4096,0,2048},"Alder Ridge"},{{4096,World{}.height(4096,0),0},"Glasswater Causeway"},{{2304,0,768},"Eastwind Strand"},{{-2048,0,-2048},"Breaker Lowlands"},{{2674,.4f,768},"Glasswater Landing"},{{-3200,4,-1190},"Breaker Airfield"},{{3090,WaterLevel,1080},"Leena's Launch"},{World::garageSite().marker,"Harbor Motor Works"}};
     return places;
 }
 }

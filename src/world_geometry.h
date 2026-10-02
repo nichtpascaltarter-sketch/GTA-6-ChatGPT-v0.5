@@ -17,11 +17,13 @@ std::vector<TreeSpec> describeNaturalTrees(const World&,int x,int z);
 struct BlockSpec {
     uint32_t seed=0;
     Biome biome=Biome::Ocean;
-    bool urban=false,plaza=false,exchange=false;
+    bool urban=false,plaza=false,exchange=false,garage=false;
     std::vector<BuildingSpec> buildings;
 };
 BuildingSpec describeBuilding(Vec3 position,float halfWidth,float halfDepth,float height,uint32_t seed,bool suburban);
 BlockSpec describeBlock(const World&,int x,int z);
+// Emits the complete authored workshop and its graded apron at the requested LOD.
+void appendGarage(Chunk&,const World&,WorldLod);
 // Appends only terrain, with the same canonical eight-metre boundary at every LOD.
 // Returns the detailed shoreline coverage decision for the chunk's water plane.
 bool appendTerrain(Mesh&,const World&,int x,int z,WorldLod);
