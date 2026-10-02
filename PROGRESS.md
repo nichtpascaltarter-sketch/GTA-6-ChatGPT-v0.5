@@ -136,9 +136,11 @@ part of the game distribution.
 ### Current candidate (not yet the verified executable)
 
 - LOD source `3c25f7d` passed native workflow `36949428131` and its evidence
-  is archived. The aggregation-only comparison rerun is `36949428138`.
-- The current candidate integrates Harbor Split and frame timing after the
-  verified LOD milestone. Root owns the added HUD/map, F9 message preservation,
+  is archived. The aggregation-only comparison rerun `36949428138` also passed. Its 120-frame
+  median changed by -2.288%, smaller than the old build's 5.658% spread; all
+  equal-frame captures matched. Evidence is under the comparison `rerun/` directory.
+- Native workflow `36950056156` is building source `060dd8e1e6beb2559311416f3039aa9a73e63340`,
+  which integrates Harbor Split and frame timing after the verified LOD milestone. Root owns the added HUD/map, F9 message preservation,
   three trial scenes and `timing_probe.h`; build validation owns build/CI and
   parser changes. The executable in `/workspace/outputs/` remains the last
   verified LOD build until this candidate passes native validation.
