@@ -1,6 +1,7 @@
 #pragma once
 #include "renderer.h"
 #include "game.h"
+#include "cinematics.h"
 #include <cstdio>
 #include <cstring>
 
@@ -111,5 +112,16 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     if(g.occupied<0){float x=ui.width*.5f,y=ui.height*.5f;ui.line(x-8*s,y,x-3*s,y,s,{1,1,1},.75f);ui.line(x+3*s,y,x+8*s,y,s,{1,1,1},.75f);ui.line(x,y-8*s,x,y-3*s,s,{1,1,1},.75f);ui.line(x,y+3*s,x,y+8*s,s,{1,1,1},.75f);}
     const char* radio[]={"RADIO OFF","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};ui.text(ui.width-margin-260*s,88*s,radio[std::clamp(g.radioStation,0,3)],1.4f*s,muted);
     if(diagnostics){std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s",fps,static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER");ui.rect(0,ui.height-16*s,ui.width,16*s,{0,0,0},.8f);ui.text(5*s,ui.height-13*s,b,1.25f*s,teal);}
+}
+inline void drawCinematic(Ui& ui,const Cinematic& scene,const char* missionTitle) {
+    float s=ui.scale;
+    ui.rect(0,0,ui.width,66*s,{.005f,.009f,.012f},.96f);
+    ui.rect(0,ui.height-142*s,ui.width,142*s,{.005f,.009f,.012f},.96f);
+    ui.text(32*s,26*s,missionTitle?missionTitle:"MERIDIAN COAST",1.7f*s,{.85f,.91f,.9f});
+    const auto* line=scene.dialogue();if(!line)return;
+    float width=std::min(ui.width-80*s,940*s),left=(ui.width-width)*.5f;
+    ui.text(left,ui.height-118*s,line->speaker,1.6f*s,{.31f,.88f,.77f});
+    ui.wrapped(left,ui.height-91*s,line->text,2*s,width,{.93f,.95f,.93f});
+    ui.text(ui.width-250*s,ui.height-22*s,"SPACE / A  SKIP SCENE",1.3f*s,{.48f,.58f,.6f});
 }
 }

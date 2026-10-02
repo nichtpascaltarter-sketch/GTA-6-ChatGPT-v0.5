@@ -152,7 +152,8 @@ int execute(HINSTANCE instance,const Options& options) {
         Audio audio;std::string audioError;if(!options.smoke&&!audio.initialize(audioError)){log<<"Audio: "<<audioError<<'\n';game.message="No audio output device is available. The city is ready to play.";game.messageTime=7;}
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
-        auto last=std::chrono::steady_clock::now();float fps=60;Ui ui;
+        auto last=std::chrono::steady_clock::now();float fps=60;Ui ui;Cinematic cinematic;
+        if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
             auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);fps=lerp(fps,1/std::max(elapsed,.0001f),.04f);
             if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();continue;}
@@ -169,22 +170,31 @@ int execute(HINSTANCE instance,const Options& options) {
                 if(app.showSettings&&(confirm||direction)){switch(app.selected){case 0:settings.fullscreen=!settings.fullscreen;fullscreen(app,settings.fullscreen!=0);break;case 1:settings.vsync=!settings.vsync;break;case 2:settings.rayTracing=!settings.rayTracing;break;case 3:settings.volume=clamp(settings.volume+(direction?float(direction):1)*.05f,0,1);break;case 4:settings.exposure=clamp(settings.exposure+(direction?float(direction):1)*.1f,.5f,1.8f);break;case 5:app.showSettings=false;app.selected=0;break;}}
                 else if(!app.showSettings&&confirm){switch(app.selected){case 0:app.menu=app.title=false;break;case 1:app.showSettings=true;app.selected=0;break;case 2:game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=5;app.menu=app.title=false;break;case 3:app.running=false;break;}}
             }else {captureMouse(app,!options.smoke);if(app.pressed[VK_F5]){game.message=game.save(saveFile)?"Progress saved.":"The save could not be written.";game.messageTime=4;}
-                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded)uploaded=UINT64_MAX;}}
-            if(!app.running)break;game.paused=app.menu;
+                if(app.pressed[VK_F9]){bool loaded=game.load(saveFile);game.message=loaded?"Progress restored.":"No valid saved game was found.";game.messageTime=4;if(loaded){uploaded=UINT64_MAX;cinematic.advance(0,true);}}}
+            if(!app.running)break;game.paused=app.menu||cinematic.active();
             if(options.smoke){dt=1.f/60;input={};
                 if(options.scene=="city"){input.moveY=.45f;input.lookX=.0015f;}
                 if(options.scene=="drive")input.moveY=.7f;
                 if(options.scene=="night")game.dayTime=23;
                 if(options.scene=="storm"){game.dayTime=14;game.rain=.9f;}
             }
-            if(!app.menu)game.update(input,dt);
+            if(!app.menu){
+                if(cinematic.active())cinematic.advance(dt,app.pressed[VK_SPACE]||(padPressed&XINPUT_GAMEPAD_A));
+                else {
+                    int previousMission=game.activeMission;game.update(input,dt);
+                    if(!options.smoke&&previousMission<0&&game.activeMission>=0){cinematic.start(game.activeMission,game.player,game.yaw);game.messageTime=0;}
+                }
+            }
             game.world.stream(game.player);
             if(uploaded!=game.world.revision){Mesh world=game.world.combinedMesh();log<<"World revision "<<game.world.revision<<": "<<world.vertices.size()<<" vertices, "<<world.indices.size()/3<<" triangles\n";log.flush();if(!renderer.setWorld(world,error)){result=5;break;}uploaded=game.world.revision;}
             Mesh dynamic=game.dynamicMesh();ui.begin(float(app.width),float(app.height));
-            if(app.menu)drawMenu(ui,app,settings,renderer);else drawHud(ui,game,fps,app.diagnostics,renderer);
+            if(app.menu)drawMenu(ui,app,settings,renderer);
+            else if(cinematic.active())drawCinematic(ui,cinematic,game.missionInfo()?game.missionInfo()->title:nullptr);
+            else drawHud(ui,game,fps,app.diagnostics,renderer);
             RenderFrame frame;frame.eye=game.cameraEye();frame.target=game.cameraTarget();frame.time=game.time;frame.dayTime=game.dayTime;frame.rain=game.rain;frame.rayTracing=settings.rayTracing!=0;frame.vsync=!options.smoke&&settings.vsync!=0;frame.exposure=settings.exposure;frame.dynamic=&dynamic;frame.ui=&ui.vertices;
+            if(cinematic.active()){cinematic.camera(game.world,frame.eye,frame.target);frame.time+=cinematic.elapsed();}
             if(!renderer.render(frame,error)){result=6;break;}
-            AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume;audioState.paused=app.menu;
+            AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu;
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){audioState.engine=1;audioState.speed=game.vehicles[size_t(game.occupied)].speed;}audio.update(audioState);
             if(options.smoke&&renderer.frameCount()>=options.frames){if(!options.screenshot.empty()&&!renderer.capture(options.screenshot,error))result=7;break;}
             app.pressed.fill(false);
