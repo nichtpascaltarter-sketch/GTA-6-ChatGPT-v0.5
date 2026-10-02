@@ -11,7 +11,7 @@
 namespace mc {
 namespace {
 bool sameRequest(const ChunkBuildRequest& a,const ChunkBuildRequest& b) {
-    return a.x==b.x&&a.z==b.z&&a.epoch==b.epoch&&a.ticket==b.ticket;
+    return a.x==b.x&&a.z==b.z&&a.epoch==b.epoch&&a.ticket==b.ticket&&a.lod==b.lod;
 }
 bool contains(const std::vector<ChunkBuildRequest>& values,const ChunkBuildRequest& value) {
     for(const auto& entry:values)if(sameRequest(entry,value))return true;
@@ -22,7 +22,7 @@ struct WorldStreamer::Impl {
     struct Completion {ChunkBuildResult result;size_t bytes=0;std::array<char,256> error{};};
     mutable std::mutex mutex;
     std::condition_variable changed;
-    bool stopping=false,hasEpoch=false;
+    bool stopping=false,hasEpoch=false,distantEnabled=false;
     uint64_t epoch=0;
     std::vector<ChunkBuildRequest> wanted,active;
     std::deque<ChunkBuildRequest> queued;
@@ -40,7 +40,7 @@ struct WorldStreamer::Impl {
     explicit Impl(unsigned count,BuildFunction builder):build(builder) {
         if(!build)throw std::invalid_argument("World streamer requires a chunk builder");
         count=std::max(1u,std::min(unsigned(WorldStreamer::MaxWorkers),count));
-        active.reserve(count);workers.reserve(count);wanted.reserve(49);completed.reserve(WorldStreamer::MaxCompleted);
+        active.reserve(count);workers.reserve(count);wanted.reserve(49);completed.reserve(WorldStreamer::MaxCompletionBatch);
         try {for(unsigned i=0;i<count;++i)workers.emplace_back([this]{run();});}
         catch(...) {
             {std::lock_guard<std::mutex> lock(mutex);stopping=true;}changed.notify_all();
@@ -67,9 +67,10 @@ struct WorldStreamer::Impl {
                 if(!sameRequest(completion.result.request,request)||completion.result.chunk.x!=request.x||completion.result.chunk.z!=request.z)
                     throw std::runtime_error("Chunk builder returned a mismatched request");
                 completion.bytes=World::chunkBytes(completion.result.chunk);
-                if(completion.bytes>WorldStreamer::MaxChunkBytes) {
+                const bool detailed=request.lod==WorldLod::Detail;
+                if(completion.bytes>(detailed?WorldStreamer::MaxChunkBytes:World::MaxVisualChunkBytes)) {
                     completion.result.chunk=Chunk{};completion.bytes=0;
-                    setError(completion,"Generated chunk exceeds the 8 MiB streaming payload limit");
+                    setError(completion,detailed?"Generated chunk exceeds the 8 MiB streaming payload limit":"Generated coarse chunk exceeds the 256 KiB payload limit");
                 }
             } catch(const std::exception& exception) {
                 completion.result.request=request;completion.result.chunk=Chunk{};completion.bytes=0;setError(completion,exception.what());
@@ -77,9 +78,10 @@ struct WorldStreamer::Impl {
                 completion.result.request=request;completion.result.chunk=Chunk{};completion.bytes=0;setError(completion,"Chunk generation failed with an unknown exception");
             }
             {
-                std::unique_lock<std::mutex> lock(mutex);++counters.built;
+                std::unique_lock<std::mutex> lock(mutex);
+                if(request.lod==WorldLod::Detail)++counters.built;else ++counters.distantBuilt;
                 changed.wait(lock,[&]{return stopping||!contains(wanted,request)||
-                    (completed.size()<WorldStreamer::MaxCompleted&&counters.completedBytes+completion.bytes<=WorldStreamer::MaxCompletedBytes);});
+                    (completed.size()<counters.completedLimit&&counters.completedBytes+completion.bytes<=WorldStreamer::MaxCompletedBytes);});
                 active.erase(std::remove_if(active.begin(),active.end(),[&](const ChunkBuildRequest& entry){return sameRequest(entry,request);}),active.end());
                 if(stopping)return;
                 if(!contains(wanted,request)){++counters.rejectedResults;continue;}
@@ -87,35 +89,61 @@ struct WorldStreamer::Impl {
             }
         }
     }
-    void reconcile(const std::vector<ChunkBuildRequest>& requests,bool schedule) {
+    bool reconcile(const std::vector<ChunkBuildRequest>& requests,bool schedule) {
+        bool wake=requests.size()!=wanted.size()||!std::equal(requests.begin(),requests.end(),wanted.begin(),wanted.end(),sameRequest);
         wanted=requests;
         for(auto iterator=queued.begin();iterator!=queued.end();) {
-            if(!contains(wanted,*iterator)){iterator=queued.erase(iterator);++counters.cancelledRequests;}else ++iterator;
+            if(!contains(wanted,*iterator)){iterator=queued.erase(iterator);++counters.cancelledRequests;wake=true;}else ++iterator;
         }
         for(auto iterator=completed.begin();iterator!=completed.end();) {
             if(!contains(wanted,iterator->result.request)) {
-                counters.completedBytes-=iterator->bytes;iterator=completed.erase(iterator);++counters.rejectedResults;
+                counters.completedBytes-=iterator->bytes;iterator=completed.erase(iterator);++counters.rejectedResults;wake=true;
             } else ++iterator;
         }
-        if(!schedule)return;
+        if(!schedule)return wake;
+        std::array<ChunkBuildRequest,WorldStreamer::MaxQueued> priorityQueue{};
+        size_t count=0;
         for(const auto& request:wanted) {
-            if(queued.size()>=WorldStreamer::MaxQueued)break;
+            if(count>=WorldStreamer::MaxQueued)break;
             bool outstanding=contains(active,request);
-            if(!outstanding)for(const auto& entry:queued)if(sameRequest(entry,request)){outstanding=true;break;}
             if(!outstanding)for(const auto& entry:completed)if(sameRequest(entry.result.request,request)){outstanding=true;break;}
-            if(!outstanding){queued.push_back(request);++counters.scheduled;}
+            if(!outstanding)priorityQueue[count++]=request;
         }
+        bool queueChanged=count!=queued.size();
+        if(!queueChanged)for(size_t index=0;index<count;++index)if(!sameRequest(priorityQueue[index],queued[index])){queueChanged=true;break;}
+        if(queueChanged) {
+            for(size_t index=0;index<count;++index) {
+                bool existing=false;for(const auto& old:queued)if(sameRequest(old,priorityQueue[index])){existing=true;break;}
+                if(!existing) {
+                    if(priorityQueue[index].lod==WorldLod::Detail)++counters.scheduled;else ++counters.distantScheduled;
+                }
+            }
+            queued.clear();for(size_t index=0;index<count;++index)queued.push_back(priorityQueue[index]);wake=true;
+        }
+        return wake;
     }
 };
 
 WorldStreamer::WorldStreamer(unsigned workers,BuildFunction build):impl(new Impl(workers,build)){}
 WorldStreamer::~WorldStreamer()=default;
+void WorldStreamer::setDistantEnabled(bool enabled,size_t completedLimit) {
+    bool changed=false;
+    {
+        std::lock_guard<std::mutex> lock(impl->mutex);
+        const size_t limit=enabled?std::max(MaxCompleted,std::min(MaxCompletionBatch,completedLimit)):MaxCompleted;
+        changed=impl->distantEnabled!=enabled||impl->counters.completedLimit!=limit;
+        impl->distantEnabled=enabled;impl->counters.completedLimit=limit;
+    }
+    if(changed)impl->changed.notify_all();
+}
 void WorldStreamer::reset(uint64_t epoch) {
     {
         std::lock_guard<std::mutex> lock(impl->mutex);impl->epoch=epoch;impl->hasEpoch=true;
         impl->counters.cancelledRequests+=impl->queued.size();impl->counters.rejectedResults+=impl->completed.size();
         impl->queued.clear();impl->completed.clear();impl->wanted.clear();impl->counters.completedBytes=0;
         impl->counters.pendingChunks=impl->counters.stagedChunks=impl->counters.stagedBytes=0;
+        impl->counters.distantPending=impl->counters.distantTiles=impl->counters.distantBytes=0;
+        impl->counters.detailFallbackTiles=impl->counters.detailFallbackBytes=0;
     }
     impl->changed.notify_all();
 }
@@ -124,36 +152,55 @@ bool WorldStreamer::update(World& world,Vec3 position,uint64_t epoch,std::string
         error.clear();
         if(!std::isfinite(position.x)||!std::isfinite(position.z)) {error="Streaming position is not finite";return false;}
         if(!impl->hasEpoch||impl->epoch!=epoch)reset(epoch);
+        world.setDistantEnabled(impl->distantEnabled);
         if(!world.collisionReady(position)) {
+            if(impl->distantEnabled)world.requestDistant(position,epoch);
             reset(epoch);
             const bool published=world.stream(position);
             if(!world.collisionReady(position)){error="Synchronous streaming did not restore collision coverage";return false;}
             std::lock_guard<std::mutex> lock(impl->mutex);++impl->counters.synchronousFallbacks;
             if(published)++impl->counters.publications;
         }
-        auto requests=world.requestStream(position,epoch);
-        std::vector<Impl::Completion> ready;ready.reserve(MaxCompleted);
+        auto requestsForPosition=[&] {
+            auto requests=world.requestStream(position,epoch);
+            if(impl->distantEnabled) {
+                const auto visual=world.requestDistant(position,epoch);
+                requests.insert(requests.end(),visual.begin(),visual.end());
+            }
+            return requests;
+        };
+        auto requests=requestsForPosition();
+        std::array<Impl::Completion,MaxCompletionBatch> ready{};size_t readyCount=0;bool wake=false;
         {
-            std::lock_guard<std::mutex> lock(impl->mutex);impl->reconcile(requests,false);
-            ready.swap(impl->completed);impl->counters.completedBytes=0;
+            std::lock_guard<std::mutex> lock(impl->mutex);wake=impl->reconcile(requests,false);
+            readyCount=impl->completed.size();
+            for(size_t index=0;index<readyCount;++index)ready[index]=std::move(impl->completed[index]);
+            impl->completed.clear();impl->counters.completedBytes=0;wake=wake||readyCount>0;
         }
-        impl->changed.notify_all();
-        for(auto& completion:ready) {
+        for(size_t index=0;index<readyCount;++index) {
+            auto& completion=ready[index];
             if(completion.error[0]){error="World streaming: "+std::string(completion.error.data());reset(epoch);return false;}
-            const bool installed=world.installChunk(std::move(completion.result));
+            const bool detailed=completion.result.request.lod==WorldLod::Detail;
+            const bool installed=detailed?world.installChunk(std::move(completion.result)):world.installDistant(std::move(completion.result));
             std::lock_guard<std::mutex> lock(impl->mutex);
-            if(installed)++impl->counters.installed;else ++impl->counters.rejectedResults;
+            if(installed){if(detailed)++impl->counters.installed;else ++impl->counters.distantInstalled;}
+            else ++impl->counters.rejectedResults;
         }
         const bool published=world.publishReady();
-        requests=world.requestStream(position,epoch);
+        requests=requestsForPosition();
         {
-            std::lock_guard<std::mutex> lock(impl->mutex);impl->reconcile(requests,true);
+            std::lock_guard<std::mutex> lock(impl->mutex);wake=impl->reconcile(requests,true)||wake;
             if(published)++impl->counters.publications;
             impl->counters.pendingChunks=world.pendingChunkCount();
             impl->counters.stagedChunks=world.stagedChunkCount();
             impl->counters.stagedBytes=world.stagedChunkBytes();
+            impl->counters.distantPending=world.distantPendingCount();
+            impl->counters.distantTiles=world.distantTileCount();impl->counters.distantBytes=world.distantBytes();
+            impl->counters.detailFallbackTiles=world.detailFallbackCount();impl->counters.detailFallbackBytes=world.detailFallbackBytes();
+            impl->counters.forcedCoarseBuilds=world.forcedCoarseBuilds();impl->counters.visualBudgetDeferrals=world.visualBudgetDeferrals();
         }
-        impl->changed.notify_all();return true;
+        if(wake)impl->changed.notify_all();
+        return true;
     } catch(const std::exception& exception) {error="World streaming: "+std::string(exception.what());reset(epoch);return false;}
     catch(...) {error="World streaming failed with an unknown exception";reset(epoch);return false;}
 }
