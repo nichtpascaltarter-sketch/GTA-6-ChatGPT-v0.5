@@ -1,0 +1,44 @@
+{
+  "validatedCommit": "fad1a20c85c8a3fa14b3cc70e1b443fd1bba72b7",
+  "command": "./tools/test-portable.sh",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-pthread"
+  ],
+  "testTargets": [
+    "world",
+    "market",
+    "world_streamer",
+    "world_lod_geometry",
+    "world_lod_streaming",
+    "render_visibility",
+    "render_timing",
+    "game (49/49)",
+    "pedestrian (9/9)",
+    "workshop_lighting",
+    "pedestrian_visuals",
+    "audio",
+    "world_audio",
+    "audio_output",
+    "world_audio_scene",
+    "world_audio_integration",
+    "cinematics"
+  ],
+  "allPassed": true,
+  "warningsObserved": 0,
+  "sourceHashesUnchangedDuringBuildAndRun": true,
+  "hashedSourceFiles": 55,
+  "hashScope": [
+    "src/**",
+    "tests/**",
+    "shaders/**"
+  ],
+  "coverage": "Integrated market geometry, collision and LOD checks plus all existing world, gameplay, resident, lighting, timing, audio and cinematic suites. Natural live audio integration remained deterministic.",
+  "limits": "Portable simulation/DSP tests only. New market views and native compiler behavior require a later Windows candidate; current native6faf source was not modified."
+}

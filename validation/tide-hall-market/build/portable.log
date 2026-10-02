@@ -1,0 +1,173 @@
+Compiling portable simulation and synthesis tests with c++
+Running world tests
+Central light sources: 588 street lamps, 129 shop/market downlights
+Clinic launch: 1330 owner-chunk triangles, four collision sections, attached red hazard beacon
+Bench collision: 8 seats, clear front/side shots and cameras, solid backrests/seats/legs
+Harbor Motor Works: 1408 clear route samples, 8 all-day lights, 11995 owner triangles, 347447 loaded triangles
+Central 49 chunks: 737973 vertices, 349211 triangles, 108 collision solids in block 0,0
+Countryside: 221134 triangles, 861 collision solids, 1776 clear road samples, 3112 clear paths
+Wetlands: 294430 triangles, 861 collision solids, 2802 clear road samples, 4831 clear paths
+Island: 132888 triangles, 685 collision solids, 1035 clear road samples, 1858 clear paths
+Coast: 140226 triangles, 543 collision solids, 2586 clear road samples, 4213 clear paths
+Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions
+Ground surfaces: paved roads, sidewalks and 360 path triangles; wood, soil, grass and sand independent of streaming
+Pedestrian neighborhood: 54 reachable places, 252 nodes, 369 edges, 24 painted crossings, 9987 clear path samples
+World tests passed.
+Running market tests
+Unchanged neighborhood: 54 places, 252 nodes, 369 edges, 24 crossings, 8 seat surfaces, 19343 clear samples
+Market circulation: 714 clear player samples; three solid countertops and grounded fruit, tea and bread displays
+Market LOD triangles: 8822/1478/1246; owner capacity bytes 932600/125856/111872; loaded triangles 349211, net +1470
+Tide Hall Market tests passed.
+Running world_streamer tests
+Request protocol: stable overlap tickets, stale epochs, duplicate rejection, atomic 49-chunk publication
+Worker publication: 7 scheduled, 7 installed, no synchronous fallback
+Workshop worker generation: interior walls, mesh and all-day emitters match synchronous construction
+Reset and teleport: blocked old workers rejected; synchronous collision recovery immediately complete
+Backpressure: cancellation and destruction drain a full queue without publishing partial chunks
+Builder failures: oversized capacities, exceptions and mismatched identities report bounded errors
+World streamer tests passed.
+Running world_lod_geometry tests
+Terrain: 512/160/80 triangles, canonical eight-metre boundaries, 288 mixed-LOD seams; no unmatched interior edges
+Chunks: deterministic geometry and bounds in 16 regions; visual-only LODs stay within per-tile capacity budget
+Skyline: all six city styles and suburban chimney/roof maxima preserved across 21 LOD samples
+Landmarks: exchange spire, clock pavilion, market roofs, hangar, dock and clinic launch retain defining geometry at every LOD
+Vegetation: 374 coarse trunk anchors match deterministic descriptors and detail collision across all four tree kinds
+Road visibility: 19800 triangle centroids across 119 regional chunks retain at least 0.024999 m terrain clearance
+Workshop LODs: 11995/1012/636 triangles, 1858600/79824/51312 capacity bytes; open entrances and matched roof 7.76m
+Prefetch cache (0,0): 1450 visual tiles, 735976 triangles, 54678272 capacity bytes; largest tile 125856 bytes
+  Downtown: Medium 13765168B/225 tiles, Far 16851616B/420 tiles
+  Residential: Medium 0B/0 tiles, Far 20829184B/664 tiles
+  Countryside: Medium 0B/0 tiles, Far 1850524B/88 tiles
+  Wetland: Medium 0B/0 tiles, Far 1116672B/39 tiles
+  Beach: Medium 0B/0 tiles, Far 254164B/13 tiles
+  Island: Medium 0B/0 tiles, Far 0B/0 tiles
+  Ocean: Medium 0B/0 tiles, Far 10944B/1 tiles
+Prefetch cache (-4,4): 1450 visual tiles, 739234 triangles, 56682928 capacity bytes; largest tile 125856 bytes
+Prefetch cache (5,5): 1450 visual tiles, 679471 triangles, 50001292 capacity bytes; largest tile 125856 bytes
+Prefetch cache (-8,-5): 1450 visual tiles, 716391 triangles, 53041412 capacity bytes; largest tile 111872 bytes
+Prefetch cache (20,0): 1450 visual tiles, 394993 triangles, 26166236 capacity bytes; largest tile 75920 bytes
+Prefetch cache (-32,15): 1450 visual tiles, 570404 triangles, 35691208 capacity bytes; largest tile 58120 bytes
+Prefetch cache (8,-22): 1450 visual tiles, 475688 triangles, 29683096 capacity bytes; largest tile 71968 bytes
+Prefetch cache (20,6): 1450 visual tiles, 400715 triangles, 26644740 capacity bytes; largest tile 75920 bytes
+Prefetch cache (32,-2): 1450 visual tiles, 242798 triangles, 13874936 capacity bytes; largest tile 69328 bytes
+Prefetch cache (-32,16): 1450 visual tiles, 569748 triangles, 35539696 capacity bytes; largest tile 58120 bytes
+World LOD geometry tests passed
+Running world_lod_streaming tests
+LOD default/readiness: unchanged detail49; exact off-center missing-cell distance; disable clears visuals
+LOD requests: overlap tickets stable; stale epochs, wrong LOD/ticket, malformed and duplicate results rejected
+LOD handover: detail publishes atomically, wins overlapping cells, and remains until coarse coverage arrives
+LOD fallback cap: oversized departing detail is replaced with generated Far geometry without coverage holes
+LOD saturated handover: eviction preserves departing cells' sole coarse coverage after detail publication
+LOD cache cap: capacity-based accounting defers over-budget work and preserves installed coverage
+LOD world edge: genuine Far chunks cover the prefetch envelope beyond old detail-only limits
+LOD workers: blocked old-world jobs cannot install after replacement; teleport restores collision49 immediately
+LOD cancellation: disabling during blocked coarse builds discards queued and in-flight visual work
+LOD real warmup: 1450 cached tiles, 49/176/864 selected LODs, 2056m ready, 54678272 cache bytes
+LOD medium hysteresis: axial moves retain one 15-tile edge; 49/191/849 complete selection and 240 shadow candidates
+World LOD streaming tests passed.
+Running render_visibility tests
+Culling math: 200000 perspective (half reverse-Z) + 200000 shadow cases passed; 8-corner supports matched; no false culls against float clip oracle.
+Perspective oracle-visible=120026; extra conservative draws=2287 (padding/roundoff).
+Explicit cases passed: camera inside, near-plane intersection, edge-on zero-volume box, outside side/far planes, shadow depth-disabled caster, invalid input fallback, reverse-Z near=1/far=0 and monotonic depth.
+Running render_timing tests
+Render timing: measured frame rates, startup/wake/reset intervals, timestamp units, invalid/reversed ticks, full-width precision, matched frame IDs, 120-frame wrap, valid-GPU mean, repeat polls, and CPU-only replacement passed.
+Running game tests
+Dynamic mesh triangles: spawn 37086, urban teleport 47098
+PASS initialization and geometry
+PASS lighting activation and vehicle transforms
+PASS lighting capacity, range, and order
+PASS movement, pause, and timestep bounds
+PASS movement sound follows displacement and contact
+PASS vehicle interaction
+PASS vehicle boarding respects walls
+PASS vehicle exit requires a clear path
+PASS workshop bay repairs
+PASS workshop service boundaries
+PASS workshop counter first aid
+Populated workshop visit: 8.73333 s drive, 11.25 s walk, repair and first aid $100
+PASS workshop populated service visit
+PASS workshop interior save round trip
+PASS camera close walls and workshop sweep
+PASS boat handling and swimming
+PASS aircraft flight, stall, and landing
+PASS hard aircraft landings across frame offsets
+PASS aircraft altitude separates road contacts
+PASS ditched aircraft exit and swimming
+PASS aircraft exit prefers a clear dock
+PASS weapons and radio
+PASS shoulder aim and nearest hit
+PASS police damage respects solid walls
+PASS patrol detection uses altitude
+PASS officer detection uses altitude
+PASS road campaign progression and rescue unlock
+PASS delivery deadline and retry
+PASS save round trip and corruption
+PASS version 1 save migration
+PASS version 2 save migration
+PASS version 3 save migration
+PASS version 4 save migration
+Legacy original population: 84 -> 84
+Migrated neighborhood: 84 people, 50 vehicles, 16 residents travelled, 15 reached work in 150 s
+Legacy distant population: 84 -> 100
+Migrated neighborhood: 100 people, 50 vehicles, 16 residents travelled, 16 reached work in 150 s
+PASS authentic legacy population migration
+PASS resident routines save and corruption
+PASS seated resident save validation
+PASS resident save away from neighborhood
+PASS rescue contract and hold persistence
+PASS survey contract flight and landing
+PASS craft contract failure and recovery
+PASS craft loans preserve occupied vehicles
+PASS craft contract visuals survive load
+PASS Harbor Split start and objectives
+PASS Harbor Split failure and loan recovery
+PASS Harbor Split ordered gates and medal rewards
+PASS Harbor Split collision penalties
+PASS Harbor Split save interruption and corruption
+Harbor Split driven: 67.8333 s, peak penalty 0 s, path deviation 4.2646 m, bike health 100
+PASS Harbor Split populated control-driven course
+PASS unoccupied aircraft motion and persistence
+PASS thirty second simulation smoke
+49/49 game tests passed
+Running pedestrian tests
+PASS identities, pause, and unloaded residents
+PASS dense population work budgets
+Natural hour 8 arrivals in 124.667 s
+Natural hour 19 arrivals in 116.267 s
+PASS natural daily arrivals
+PASS physical seat slot occupancy
+PASS conversation interruption and recovery
+PASS crossing wait, commitment, and traffic yield
+PASS initial attachment respects roads
+PASS vehicle threat source and TTC
+PASS gunshot hearing and visibility
+9/9 pedestrian tests passed
+Running workshop_lighting tests
+Authored workshop: 8 powered lights retained at bay, counter and approach by day/night; 416 luminous vertices.
+Workshop lighting: constant fixture energy, ordinary night scaling, weather independence, input validation, range culling, stable 64-light selection, useful beam coverage and nearby attendant passed.
+Running pedestrian_visuals tests
+Seated contact: 8 authored pelvis anchors at both detail levels, grounded feet and clear thighs passed.
+Pedestrian visuals: stationary feet, displacement-driven stride, conversation/startle/run gestures, stock-check pencil contact and downward gaze, real parcel ownership, stable identity, pose blending and finite normals passed.
+Running audio tests
+Procedural audio: stations, stereo, finite peaks, silence, four engines, ambience, five contact surfaces, alternating steps/cadence, water strokes, tire scrub/gating, transitions, weather, siren, shot, pause, gain, device rates and buffer determinism passed.
+Running world_audio tests
+World audio worst mix: rate=8000 samples=23760 render_wall_ms=27.754 process_cpu_ms=27.751 audio_seconds=2.970 cpu_realtime_fraction=0.00934 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=111.531757
+World audio worst mix: rate=44100 samples=132120 render_wall_ms=141.608 process_cpu_ms=141.603 audio_seconds=2.996 cpu_realtime_fraction=0.04727 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=603.361078
+World audio worst mix: rate=48000 samples=144000 render_wall_ms=161.068 process_cpu_ms=161.070 audio_seconds=3.000 cpu_realtime_fraction=0.05369 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=647.002120
+World audio worst mix: rate=96000 samples=288000 render_wall_ms=291.656 process_cpu_ms=291.645 audio_seconds=3.000 cpu_realtime_fraction=0.09721 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=1209.677793
+World audio worst mix: rate=384000 samples=1152000 render_wall_ms=1087.166 process_cpu_ms=1086.849 audio_seconds=3.000 cpu_realtime_fraction=0.36228 peak_engines=12 peak_feet=12 peak_contacts=36 checksum=4710.110256
+World audio: spatial gains, serials, epochs, admission, pause, expiry, deterministic partitions/order, surfaces, transitions, fixed capacities, malformed input, zero allocations and sample rates passed.
+Running audio_output tests
+Audio output: exact PCM endpoints/midpoints, all valid-bit precisions, float identity, mono/surround silence, bounded writes, malformed formats, finite clipping, device-reopen shot priming and coherent publication passed.
+Running world_audio_scene tests
+PASS actual displacement, alternating landings, interpolated age, blocked/pause/seat/air/death suppression
+PASS heartbeat, source teleport, residency loss, load epoch, camera cut and malformed listener
+PASS nearest eight, reorder identity, equal-power pan, cutoff, occupied/parked/dead filtering and four kinds
+PASS near-tie nearest-source turnover, DSP admission and retained-tail readmission without replay
+PASS pier contact, swimming suppression, bounded capacity, duplicate rejection and 1000 allocation-free updates (39080 bytes tracker)
+PASS vehicle initialization, stable update, byte-identical saves, fresh load, traffic recycle and trial replacement
+Running world_audio_integration tests
+Live scene audio passed: people=84; vehicles=50; audioFrames=843200; maximumEngines=6; maximumFeet=2; contacts=1616; playedStrikes=52; peak=0.0188868; energy=13.307; fingerprint=3321151913064490441
+Running cinematics tests
+Cinematic timing, dialogue, camera and skip tests passed.
+All portable tests passed. Windows renderer and device checks require the native build.
