@@ -466,6 +466,85 @@ void aircraftAltitudeSeparatesContacts() {
             "aircraft overhead struck a pedestrian on the ground");
 }
 
+void ditchedAircraftExitAndSwimming() {
+    mc::Game game;
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {3200, mc::World::WaterLevel, 1000};
+    aircraft.health = 0;
+    game.vehicles.push_back(aircraft);
+    game.player = aircraft.position;
+    game.occupied = 0;
+    game.health = 40;
+    game.money = 1234;
+    require(game.world.waterDepth(aircraft.position.x, aircraft.position.z) > 25,
+            "ditched aircraft fixture is not over deep ocean");
+    mc::Input interact;
+    interact.interact = true;
+    tick(game, interact);
+    require(game.occupied == -1, "destroyed ditched aircraft could not be exited");
+    require(close(game.health, 40) && game.money == 1234,
+            "deep-water exit injured or respawned the player");
+    require(mc::length(game.player - aircraft.position) < 10 &&
+            close(game.player.y, mc::World::WaterLevel - 1.1f, 0.05f),
+            "deep-water exit placed the player away from the water surface");
+    const mc::Vec3 swimStart = game.player;
+    mc::Input swim;
+    swim.moveY = 1;
+    tick(game, swim, 30);
+    require(mc::length(game.player - swimStart) > 0.5f &&
+            close(game.player.y, mc::World::WaterLevel - 1.1f, 0.05f),
+            "player could not swim at the surface after leaving a ditched aircraft");
+    require(close(game.health, 40) && game.money == 1234,
+            "swimming after a deep-water exit caused injury or respawn");
+
+    game = mc::Game{};
+    aircraft.position.y = mc::World::WaterLevel + 10;
+    aircraft.health = 100;
+    game.vehicles.push_back(aircraft);
+    game.player = aircraft.position;
+    game.occupied = 0;
+    game.health = 40;
+    game.money = 1234;
+    tick(game, interact);
+    require(game.occupied == 0, "airborne aircraft allowed an exit above deep water");
+    require(game.player.y > mc::World::WaterLevel + 9 &&
+            close(game.health, 40) && game.money == 1234,
+            "refused airborne exit changed the player's safety or progress");
+}
+
+void aircraftExitPrefersDock() {
+    mc::Game game;
+    mc::Vehicle aircraft;
+    aircraft.kind = mc::VehicleKind::Aircraft;
+    aircraft.position = {2678, mc::World::WaterLevel, 768};
+    aircraft.yaw = mc::Pi;
+    aircraft.health = 0;
+    game.vehicles.push_back(aircraft);
+    game.player = aircraft.position;
+    game.occupied = 0;
+    game.health = 40;
+    game.money = 1234;
+    game.world.stream(game.player);
+    const mc::Vec3 waterSide = aircraft.position - mc::right(aircraft.yaw) * 3.8f;
+    mc::Vec3 dockSide = aircraft.position + mc::right(aircraft.yaw) * 3.8f;
+    dockSide.y = game.world.height(dockSide.x, dockSide.z);
+    require(game.world.waterDepth(waterSide.x, waterSide.z) > 0.9f &&
+            game.world.height(waterSide.x, waterSide.z) < mc::World::WaterLevel,
+            "first aircraft exit fixture is not in the water");
+    require(dockSide.y > mc::World::WaterLevel && !game.world.blocked(dockSide, 0.35f),
+            "opposite aircraft exit fixture is not a clear dock");
+    mc::Input interact;
+    interact.interact = true;
+    tick(game, interact);
+    require(game.occupied == -1, "aircraft beside an open dock could not be exited");
+    require(game.player.y > mc::World::WaterLevel &&
+            close(game.player.y, game.world.height(game.player.x, game.player.z)),
+            "aircraft exit chose water despite a clear dock on the opposite side");
+    require(close(game.health, 40) && game.money == 1234,
+            "dock exit injured or respawned the player");
+}
+
 void weaponsAndRadio() {
     mc::Game game;
     game.initialize();
@@ -1053,6 +1132,8 @@ int main() {
         {"boat handling and swimming", boatHandlingAndSwimming},
         {"aircraft flight, stall, and landing", aircraftFlightAndLanding},
         {"aircraft altitude separates road contacts", aircraftAltitudeSeparatesContacts},
+        {"ditched aircraft exit and swimming", ditchedAircraftExitAndSwimming},
+        {"aircraft exit prefers a clear dock", aircraftExitPrefersDock},
         {"weapons and radio", weaponsAndRadio},
         {"shoulder aim and nearest hit", shoulderAimAndNearestHit},
         {"police damage respects solid walls", policeObstruction},
