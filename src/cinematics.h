@@ -7,11 +7,12 @@ struct DialogueLine { const char* speaker; const char* text; float duration; };
 class Cinematic {
 public:
     void start(int chapter,Vec3 position,float heading) {
-        if(chapter<0||chapter>=4){chapter_=-1;return;}
+        if(chapter<0||chapter>=chapterCount()){chapter_=-1;return;}
         chapter_=chapter;anchor_=position;yaw_=heading;elapsed_=0;
     }
     bool active() const {return chapter_>=0;}
     int chapter() const {return chapter_;}
+    static int chapterCount() {return int(lines().size());}
     float elapsed() const {return elapsed_;}
     void advance(float dt,bool skip=false) {
         if(!active())return;
@@ -51,8 +52,8 @@ public:
     }
 private:
     int chapter_=-1;float elapsed_=0,yaw_=0;Vec3 anchor_;
-    static const std::array<std::array<DialogueLine,3>,4>& lines() {
-        static const std::array<std::array<DialogueLine,3>,4> script{{
+    static const std::array<std::array<DialogueLine,3>,6>& lines() {
+        static const std::array<std::array<DialogueLine,3>,6> script{{
             {{{"INEZ / PHONE","The tide is coming in. My car is still by the exchange. Bring it to the harbor steps.",6.5f},
               {"ROWAN","One delivery, then we're even. Why can't you collect it?",4.5f},
               {"INEZ / PHONE","Because somebody is watching the harbor. Keep your eyes on the road, Rowan.",6.0f}}},
@@ -64,7 +65,13 @@ private:
               {"MARA / PHONE","Yes. But don't bring a patrol to our meeting. Lose them first. I'll wait as long as I can.",6.5f}}},
             {{{"MARA / PHONE","Our witness left two recordings on the eastern promenade. The account numbers are only half the story.",7.0f},
               {"ROWAN","And the other half?",3.0f},
-              {"MARA / PHONE","Names. Get both recordings. Once they're on the air, this city can decide who it belongs to.",6.5f}}}
+              {"MARA / PHONE","Names. Get both recordings. Once they're on the air, this city can decide who it belongs to.",6.5f}}},
+            {{{"MARA / RADIO","Leena's clinic launch lost power out past Glasswater. She's still aboard, but the running lights are fading.",7.5f},
+              {"ROWAN","I'll take the runabout. Tell her to keep a light on. I'll find her.",5.0f},
+              {"MARA / RADIO","Come alongside slowly and hold there while she crosses. Bring her back to this pier. We don't leave anyone out there.",7.5f}}},
+            {{{"INEZ / RADIO","Leena gave Mara a radio log. Three survey passes will locate the unlisted transmitters behind those harbor shipments.",7.5f},
+              {"ROWAN","Mark the passes and the safe heights. I'll take the survey plane up.",5.0f},
+              {"INEZ / RADIO","Fly each height band. Ease off the throttle for the turns, then bring the recorder back to Breaker with a gentle landing.",7.5f}}}
         }};
         return script;
     }

@@ -6,9 +6,9 @@
 
 int main(){
     mc::Cinematic scene;assert(!scene.active());assert(!scene.dialogue());
-    scene.start(-1,{},0);assert(!scene.active());scene.start(4,{},0);assert(!scene.active());
+    scene.start(-1,{},0);assert(!scene.active());scene.start(mc::Cinematic::chapterCount(),{},0);assert(!scene.active());
     mc::World world;world.stream({8,0,8});
-    for(int chapter=0;chapter<4;++chapter){
+    for(int chapter=0;chapter<mc::Cinematic::chapterCount();++chapter){
         scene.start(chapter,{8,0,8},.2f);assert(scene.active());
         const char* first=scene.dialogue()->speaker;
         scene.advance(std::numeric_limits<float>::quiet_NaN());assert(scene.elapsed()==0);

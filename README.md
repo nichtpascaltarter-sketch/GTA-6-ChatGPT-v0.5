@@ -63,8 +63,18 @@ slows the boat. Exit near the pier or swim with movement controls and Shift / A.
 The light aircraft starts at Breaker Airfield inland. W/S sets its throttle,
 A/D banks, Shift / A pitches up, and Space / B pitches down or brakes on the
 runway. Build speed along the runway before climbing; reduce throttle and
-approach gently to land. Exit only after landing and slowing down. The flight
-HUD shows throttle, height above terrain, and a low-speed warning.
+approach gently to land. Around 160 km/h leaves room for the survey turns;
+reduce toward 135 km/h on final approach and idle the throttle near touchdown.
+Exit only after landing and slowing down. The flight HUD shows throttle, height
+above terrain, and a low-speed warning.
+
+Six sequential contracts follow Rowan, Mara, and Inez through harbor deliveries,
+a clinic supply run, a pursuit, recovered recordings, an offshore rescue, and
+an aerial transmitter survey. Meet the amber marker and accept with M / D-pad
+up. The last two contracts provide a serviced loan craft. Hold beside Leena
+slowly for three seconds, then return her to the pier; fly all three survey
+height bands, then land and stop at Breaker. The HUD keeps the current objective
+and remaining time visible, and saves preserve each active contract.
 
 ## Validation
 

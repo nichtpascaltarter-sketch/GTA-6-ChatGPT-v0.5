@@ -49,6 +49,10 @@ public:
             if(*end=='\n'){cursor=x;y+=size*10;}p=*end?end+1:end;
         }
     }
+    void shadowText(float x,float y,const char* str,float size,Vec3 color={.94f,.96f,.94f}) {
+        const float offset=std::max(1.f,size*.65f);
+        text(x+offset,y+offset,str,size,{.005f,.01f,.015f},.9f);text(x,y,str,size,color);
+    }
 private:
     static const unsigned char* glyph(char c) {
         // Original 5x7 bitmap alphabet; each row is a five-bit mask.
@@ -83,10 +87,10 @@ private:
 
 inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Renderer& renderer,const Vec3* waypoint=nullptr) {
     const float s=ui.scale,margin=30*s;char b[160];const Vec3 teal{.31f,.88f,.77f},gold{1,.74f,.36f},muted{.65f,.72f,.74f};
-    ui.rect(margin,margin,5*s,39*s,teal);ui.text(margin+18*s,margin,g.world.district(g.player),2.5f*s);
+    ui.rect(margin,margin,5*s,39*s,teal);ui.shadowText(margin+18*s,margin,g.world.district(g.player),2.5f*s);
     int hour=int(g.dayTime),minute=int((g.dayTime-hour)*60);
-    std::snprintf(b,sizeof(b),"MERIDIAN COAST  /  %02d:%02d",hour,minute);ui.text(margin+18*s,margin+26*s,b,1.4f*s,muted);
-    std::snprintf(b,sizeof(b),"$%06d",g.money);ui.text(ui.width-margin-ui.textWidth(b,3*s),margin,b,3*s,teal);
+    std::snprintf(b,sizeof(b),"MERIDIAN COAST  /  %02d:%02d",hour,minute);ui.shadowText(margin+18*s,margin+26*s,b,1.4f*s,muted);
+    std::snprintf(b,sizeof(b),"$%06d",g.money);ui.shadowText(ui.width-margin-ui.textWidth(b,3*s),margin,b,3*s,teal);
     for(int i=0;i<5;++i)ui.text(ui.width-margin-(5-i)*19*s,margin+37*s,"*",2.2f*s,i<g.wanted?gold:Vec3{.25f,.29f,.31f});
     const float map=186*s,mx=margin,my=ui.height-margin-map;
     ui.rect(mx-3*s,my-3*s,map+6*s,map+6*s,{.28f,.4f,.4f},.9f);ui.rect(mx,my,map,map,{.025f,.07f,.085f},.94f);
@@ -108,16 +112,18 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     if(waypoint){float dx=(waypoint->x-g.player.x)*map/(range*2),dy=-(waypoint->z-g.player.z)*map/(range*2);
         float extent=std::max(std::fabs(dx),std::fabs(dy));if(extent>limit){dx*=limit/extent;dy*=limit/extent;}
         ui.line(cx+dx-4*s,cy+dy,cx+dx+4*s,cy+dy,2*s,teal);ui.line(cx+dx,cy+dy-4*s,cx+dx,cy+dy+4*s,2*s,teal);
-        std::snprintf(b,sizeof(b),"WAYPOINT %.2f KM",std::hypot(waypoint->x-g.player.x,waypoint->z-g.player.z)*.001f);ui.text(ui.width-margin-260*s,110*s,b,1.4f*s,teal);
+        std::snprintf(b,sizeof(b),"WAYPOINT %.2f KM",std::hypot(waypoint->x-g.player.x,waypoint->z-g.player.z)*.001f);ui.shadowText(ui.width-margin-260*s,110*s,b,1.4f*s,teal);
     }
     float a=g.yaw;ui.triangle({cx+std::sin(a)*8*s,cy-std::cos(a)*8*s},{cx+std::sin(a+2.5f)*7*s,cy-std::cos(a+2.5f)*7*s},{cx+std::sin(a-2.5f)*7*s,cy-std::cos(a-2.5f)*7*s},teal);
     ui.text(mx+7*s,my+7*s,"N",1.5f*s);ui.rect(mx,my+map+8*s,map,5*s,{.11f,.2f,.2f});ui.rect(mx,my+map+8*s,map*clamp(g.health/100,0,1),5*s,teal);
     const Mission* mission=g.missionInfo();float tx=mx+map+24*s,ty=ui.height-margin-64*s;
-    ui.text(tx,ty,g.activeMission>=0?"ACTIVE CONTRACT":"AVAILABLE CONTRACT",1.4f*s,gold);
-    if(mission){ui.text(tx,ty+19*s,mission->title,2.1f*s);float dist=length(objective-g.player);std::snprintf(b,sizeof(b),"%.0f M  /  %s",dist,g.activeMission>=0?"FOLLOW THE GOLD MARKER":"M TO ACCEPT AT THE MARKER");ui.text(tx,ty+43*s,b,1.3f*s,muted);}
+    if(g.activeMission>=0&&g.missionTimer>0){int seconds=int(std::ceil(g.missionTimer));std::snprintf(b,sizeof(b),"ACTIVE CONTRACT  /  %d:%02d",seconds/60,seconds%60);ui.shadowText(tx,ty,b,1.4f*s,gold);}
+    else ui.shadowText(tx,ty,!mission?"EXPLORE THE COAST":g.activeMission>=0?"ACTIVE CONTRACT":"AVAILABLE CONTRACT",1.4f*s,gold);
+    if(mission){ui.shadowText(tx,ty+19*s,mission->title,2.1f*s);float dist=length(objective-g.player);std::snprintf(b,sizeof(b),"%.0f M  /  %s",dist,g.activeMission>=0?g.missionInstruction():"M TO ACCEPT AT THE MARKER");ui.shadowText(tx,ty+43*s,b,1.3f*s,muted);}
+    else {ui.shadowText(tx,ty+19*s,"THE CITY IS YOURS TO EXPLORE",1.7f*s);ui.shadowText(tx,ty+43*s,"TAB / BACK  MAP    M AT SHOPS  SERVICES",1.3f*s,muted);}
     if(g.occupied>=0&&g.occupied<int(g.vehicles.size())){
         const auto& vehicle=g.vehicles[size_t(g.occupied)];
-        std::snprintf(b,sizeof(b),"%03d",int(std::fabs(vehicle.speed)*3.6f));ui.text(ui.width-margin-102*s,ui.height-margin-60*s,b,5*s);ui.text(ui.width-margin-71*s,ui.height-margin-17*s,"KM/H",1.6f*s,muted);
+        std::snprintf(b,sizeof(b),"%03d",int(std::fabs(vehicle.speed)*3.6f));ui.shadowText(ui.width-margin-102*s,ui.height-margin-60*s,b,5*s);ui.shadowText(ui.width-margin-71*s,ui.height-margin-17*s,"KM/H",1.6f*s,muted);
         if(vehicle.kind==VehicleKind::Aircraft){
             const float altitude=std::max(0.f,vehicle.position.y-g.world.height(vehicle.position.x,vehicle.position.z));
             float x=ui.width-margin-218*s,y=ui.height-margin-260*s;
@@ -139,7 +145,7 @@ inline void drawHud(Ui& ui,const Game& g,float fps,bool diagnostics,const Render
     else {std::snprintf(b,sizeof(b),"%02d / %03d",g.ammo,g.reserveAmmo);ui.text(ui.width-margin-ui.textWidth(b,2.2f*s),ui.height-margin-20*s,b,2.2f*s);}
     if(g.messageTime>0&&!g.message.empty()){float w=std::min(ui.width-80*s,720*s);ui.rect((ui.width-w)*.5f,110*s,w,92*s,{.025f,.045f,.06f},.92f);ui.rect((ui.width-w)*.5f,110*s,4*s,92*s,gold);ui.wrapped((ui.width-w)*.5f+20*s,127*s,g.message.c_str(),1.8f*s,w-40*s);}
     if(g.occupied<0){float x=ui.width*.5f,y=ui.height*.5f;ui.line(x-8*s,y,x-3*s,y,s,{1,1,1},.75f);ui.line(x+3*s,y,x+8*s,y,s,{1,1,1},.75f);ui.line(x,y-8*s,x,y-3*s,s,{1,1,1},.75f);ui.line(x,y+3*s,x,y+8*s,s,{1,1,1},.75f);}
-    const char* radio[]={"RADIO OFF","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};ui.text(ui.width-margin-260*s,88*s,radio[std::clamp(g.radioStation,0,3)],1.4f*s,muted);
+    const char* radio[]={"RADIO OFF","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};ui.shadowText(ui.width-margin-260*s,88*s,radio[std::clamp(g.radioStation,0,3)],1.4f*s,muted);
     if(diagnostics){std::snprintf(b,sizeof(b),"%.1f FPS  /  %llu FRAMES  /  %s",fps,static_cast<unsigned long long>(renderer.frameCount()),renderer.rayTracingAvailable()?"DXR AVAILABLE":"RASTER");ui.rect(0,ui.height-16*s,ui.width,16*s,{0,0,0},.8f);ui.text(5*s,ui.height-13*s,b,1.25f*s,teal);}
 }
 inline void drawCinematic(Ui& ui,const Cinematic& scene,const char* missionTitle) {

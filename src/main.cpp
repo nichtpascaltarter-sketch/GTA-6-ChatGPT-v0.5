@@ -148,11 +148,14 @@ int execute(HINSTANCE instance,const Options& options) {
             else if(options.scene=="suburbs"){game.player={-2048,0,128};game.yaw=.8f;game.pitch=.12f;}
             else if(options.scene=="rural"){game.player={-4096,0,1536};game.yaw=.4f;game.pitch=.12f;}
             else if(options.scene=="drive"){game.occupied=0;game.player=game.vehicles[0].position;game.vehicles[0].parked=false;}
-            else if(options.scene=="boat"||options.scene=="aircraft"){
-                const VehicleKind kind=options.scene=="boat"?VehicleKind::Boat:VehicleKind::Aircraft;
+            else if(options.scene=="boat"||options.scene=="aircraft"||options.scene=="rescue"||options.scene=="survey"){
+                const bool rescue=options.scene=="rescue",survey=options.scene=="survey";
+                const VehicleKind kind=options.scene=="boat"||rescue?VehicleKind::Boat:VehicleKind::Aircraft;
                 for(size_t index=0;index<game.vehicles.size();++index)if(game.vehicles[index].kind==kind){
                     game.occupied=int(index);auto& craft=game.vehicles[index];craft.parked=false;
                     if(kind==VehicleKind::Aircraft){craft.position.y+=80;craft.speed=42;craft.throttle=.75f;craft.velocity={0,0,42};}
+                    if(rescue){craft.position={3079,World::WaterLevel,1080};craft.yaw=Pi*.5f;game.activeMission=game.completedMissions=4;game.missionStage=1;game.missionTimer=210;}
+                    if(survey){craft.position={-3200,game.world.height(-3200,-610)+90,-610};game.activeMission=game.completedMissions=5;game.missionStage=0;game.missionTimer=330;}
                     game.player=craft.position;game.yaw=craft.yaw;game.pitch=.15f;break;
                 }
             }
@@ -247,6 +250,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(cinematic.active())cinematic.camera(game.world,frame.eye,frame.target);
             if(options.smoke&&options.scene=="portrait"){frame.eye=game.player+Vec3{1,1.65f,1.85f};frame.target=game.player+Vec3{0,1.52f,0};}
             if(options.smoke&&options.scene=="vehicle"&&!game.vehicles.empty()){frame.eye=game.vehicles[0].position+Vec3{4,2.1f,5};frame.target=game.vehicles[0].position+Vec3{0,.85f,0};}
+            if(options.smoke&&options.scene=="rescue"){frame.eye=game.player+Vec3{-6,4,-8};frame.target=Vec3{3085,World::WaterLevel+1,1080};}
             if(!renderer.render(frame,error)){result=6;break;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);

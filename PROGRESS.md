@@ -21,9 +21,9 @@ part of the game distribution.
 - Branch: `development/meridian-coast`, based on initial commit `76bbb11`.
 - Linux execution environment; native MSVC/SDK/D3D12 validation runs in Windows
   GitHub Actions. No local Windows GPU or connected desktop is available.
-- Latest verified executable: `a56e0584d9fbb56aeb2dfe50e4eb92183b69737e`,
-  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 02 below.
-- Native Release/Debug, system-import audits, 19 gameplay suites, 13 additional
+- Latest verified executable: `f70a8e99cdbb5af41c4ea3e6fd3c7bd42be7b1db`,
+  copied to `/workspace/outputs/MeridianCoast.exe`; see Milestone 03 below.
+- Native Release/Debug, system-import audits, 22 gameplay suites, 13 additional
   scene captures, and strict window lifecycle validation pass. WARP does not
   establish hardware DXR correctness or RTX 4070 performance.
 - This remains a very early game, far below the full target. No claim of AAA
@@ -54,11 +54,11 @@ part of the game distribution.
   342,248 triangles. Countryside: 221,134 triangles; wetland: 294,430; island:
   130,916; coast: 140,226. Tests cover deterministic regeneration, collision,
   seams, 8,199 regional road samples, 14,014 road sweeps, lights, dock and runway.
-- Native 19/19 gameplay suites pass, including actual runway takeoff, banking,
-  stall descent, landing, boat handling/swimming, old-save migration, passive
-  aircraft motion, and altitude-aware police visibility. Core craft tests passed
-  ASan/UBSan. New aircraft exit preference tests bring the working tree to 21
-  passing strict portable suites; those later changes await the next native run.
+- Native 22/22 gameplay suites pass, including runway takeoff, banking, stall,
+  hard-landing damage across frame offsets, boat handling/swimming, save migration,
+  passive aircraft motion, altitude-aware police visibility and dry exit preference.
+  Six-contract source now passes 28/28 strict and sanitizer suites; the expanded
+  campaign, matching cinematics and persistent guidance await native capture.
 - Audio synthesis passes strict tests and ASan/UBSan, including four engine
   sounds, biome ambience, finite output, transition continuity and chunking.
 - Archived `fd058a8` passed a 648-simulated-second sanitizer soak, 38,880 updates,
@@ -73,24 +73,16 @@ part of the game distribution.
 
 ## Active tasks
 
-1. HDR/MSAA rendering is now in progress: linear floating-point scene color,
-   queried 4x/2x MSAA with 1x fallback, resolve, tone mapping, restrained bloom,
-   then crisp UI. Renderer agent owns renderer/shaders; coordinate build-time DXC
-   additions with build validation. Validate resize resources and all captures,
-   including explicit 1x/2x limits via `MERIDIAN_MSAA_LIMIT`. Renderer code is
-   committed as `1f14074`, shader tooling `68707c7`, lifecycle coverage `5bec864`.
-2. Include the already committed aircraft exit preference improvement (`b8c4821`,
-   tests `0f1770e`) and smoke process-duration reporting (`798a0f8`) in the next
-   native checkpoint. The original deep-water exit was already safe; the actual
-   improvement prefers clear dry land/deck and reports swimming correctly.
-3. Validate the isolated hard-landing repair. In parallel, gameplay/world are
-   adding two original playable contracts: Leena's offshore clinic-launch
-   rescue and a three-pass aircraft radio survey followed by runway landing.
-   Root has drafted matching cinematics, intentionally uncommitted until the
-   contracts exist. Current verified executable still has four contracts.
-   Root owns main/UI/map
-   and milestone documentation; gameplay owns game/visuals/tests; world owns
-   deterministic generation; build validation owns build scripts and CI.
+1. HDR/MSAA passed native Release and Debug validation, including actual 4x, 2x,
+   and 1x resize/fullscreen paths. Evidence and scorecard are in Milestone 03.
+2. Validate the six-contract campaign natively: Leena's offshore clinic rescue
+   and the three-pass aircraft survey with runway landing, six cinematics,
+   persistent objectives/countdowns and rescue/survey scene captures. Both new
+   contracts completed control-driven portable probes without state edits after
+   acceptance; the full survey completed in 193.67 seconds with full health.
+3. Root owns main/UI/map and milestone documentation; gameplay owns game/visuals/
+   tests; world owns deterministic generation; build validation owns build/CI;
+   renderer owns D3D12 resources/shaders. Complete snapshot commits precede sync.
 4. Remove full-world GPU replacement and synchronous generation stalls. Preserve
    per-chunk GPU geometry and BLAS, retire allocations by fence, add per-instance
    reflection index metadata, then use bounded application-owned workers. Keep
@@ -104,9 +96,9 @@ part of the game distribution.
    actual hardware frame times and compatibility as access becomes available.
 
 Captures for the verified checkpoint are in
-`/workspace/scratch/repair-a56e058/`; Debug evidence is in
-`/workspace/scratch/debug-a56e058/`. Machine-readable committed evidence is under
-`validation/milestone-02/`. The full original target remains unchanged.
+`/workspace/scratch/hdr-f70a8e9/`; Debug evidence is in
+`/workspace/scratch/debug-hdr-f70a8e9/`. Machine-readable committed evidence is under
+`validation/milestone-03/`. The full original target remains unchanged.
 
 ## Initial scorecard — before native validation
 
@@ -245,3 +237,43 @@ startup and are not a controlled GPU benchmark or a hardware performance claim.
 
 Continue immediately with the active rendering milestone; none of these scores
 is a completion condition.
+
+
+## Milestone 03 — HDR and antialiasing, 2026-10-02
+
+Validated source: `f70a8e99cdbb5af41c4ea3e6fd3c7bd42be7b1db`.
+[Native build, execution and captures](https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36946847879).
+Evidence is in `validation/milestone-03/`. Release is 716,288 bytes; SHA256:
+`ae0b8549486360b06959e766fecd86741f213ae50029b8f964f286534cc54602`.
+Nine DXC shader variants are embedded; only the same seven Windows system
+libraries are imported. The single-EXE isolation checks pass.
+
+Scene lighting now renders into a linear floating-point HDR target, using
+queried 4x/2x MSAA with 1x fallback, resolve, soft-knee bloom and tone mapping.
+The HUD renders afterward and remains sharp. Native portrait, vehicle, night
+and coast captures show smoother silhouettes without the earlier facade bands.
+The 13-scene Release sweep and 120-frame launch pass. Debug enabled the actual
+D3D12 validation layer and passed 120-frame resize/fullscreen/restore runs at
+actual 4x, 1x and 2x, with no corruption/error messages. The aircraft exit and
+hard-landing repairs pass all 22 native gameplay suites.
+
+On hosted WARP runners, the 120-frame Release process took 23.767 seconds versus
+21.398 seconds before HDR; night capture took 5.724 versus 5.654 seconds. These
+are process launch-to-exit measurements on separate software-rendering runners,
+not controlled GPU frame-time comparisons. Debug lifecycle elapsed times were
+34.365, 30.014 and 32.340 seconds at 4x, 1x and 2x respectively. Real DXR hardware,
+1440p/60, clean Windows 10, listening, and controller hardware remain unverified.
+
+### Milestone 03 scorecard
+
+| Category | Score | Evidence against GTA 6 |
+| --- | ---: | --- |
+| Map scale and variety | 1/10 | Large procedural bounds and several regions exist, but detailed residency is short-range and individual locations remain sparse. |
+| Visual fidelity | 0.5/10 | HDR and antialiasing improve inspected native captures, while material complexity, animation, characters and lighting remain far below the benchmark. |
+| World density and life | 0.5/10 | Basic traffic and pedestrians occupy the scene, without rich schedules, social behavior or broad ambient activities. |
+| Vehicles and driving | 1/10 | Four craft classes are playable with tested takeoff, stall, landing and water movement, but handling detail and damage remain rudimentary. |
+| On-foot and combat | 0.5/10 | Tested movement and aimed combat work, with limited animation, encounters, weapon variety and interaction depth. |
+| NPC and police AI | 0.5/10 | Sight and damage respect walls and altitude, but pursuit behavior and civilian reactions remain simple. |
+| Missions and story | 0.5/10 | The verified binary has four contracts and short original conversations; the expanded six-contract source still awaits native validation. |
+| Audio | 0.5/10 | Original synthesis covers radio, four engines and ambience, but speech, rich acoustics and native listening are absent from verification. |
+| Performance and stability | 0.5/10 | Release and three Debug MSAA lifecycle paths pass, while synchronous streaming stalls and unmeasured hardware performance remain substantial gaps. |
