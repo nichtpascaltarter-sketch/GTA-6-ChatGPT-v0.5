@@ -202,7 +202,7 @@ void crossingWaitCommitAndTrafficYield() {
     const mc::Vec3 center=(from+to)*.5f,crossingDirection=mc::normalized(to-from);
     const float heading=std::abs(to.x-from.x)>std::abs(to.z-from.z)?0:mc::Pi*.5f;
     for(bool parked:{true,false}) {
-        mc::Game game=base;mc::Vehicle car;car.yaw=heading;car.parked=parked;car.speed=parked?0:8;
+        mc::Game game=base;mc::Vehicle car;car.yaw=heading;car.parked=parked;car.speed=parked?0.f:8.f;
         car.position=center+mc::forward(heading)*(parked?.5f:-14.f)+mc::right(heading)*3.2f;
         car.position.y=game.world.height(car.position.x,car.position.z);car.velocity=mc::forward(heading)*car.speed;
         mc::Vehicle distant;distant.position={300,game.world.height(300,300),300};distant.parked=true;

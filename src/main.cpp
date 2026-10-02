@@ -27,6 +27,7 @@
 #include "lod_probe.h"
 #include "timing_probe.h"
 #include "resident_scenes.h"
+#include "market_scenes.h"
 
 namespace {
 using namespace mc;
@@ -165,9 +166,12 @@ int execute(HINSTANCE instance,const Options& options) {
         Renderer renderer;std::string error;
         if(!renderer.initialize(app.window,app.width,app.height,error,options.warp)){log<<error<<'\n';std::fprintf(stderr,"%s\n",error.c_str());if(!options.smoke)MessageBoxA(app.window,error.c_str(),"Meridian Coast - graphics initialization",MB_OK|MB_ICONERROR);DestroyWindow(app.window);return 3;}
         log<<"Adapter: "<<renderer.adapterName()<<"\nDXR available: "<<renderer.rayTracingAvailable()<<'\n';log.flush();
-        Game game;game.initialize();ResidentCapture residentCapture;if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
+        Game game;game.initialize();ResidentCapture residentCapture;MarketCapture marketCapture;if(!options.smoke&&std::filesystem::exists(savePath))game.load(saveFile);
         if(options.smoke){
-            if(options.scene.rfind("residents-",0)==0){
+            if(options.scene.rfind("market-",0)==0){
+                if(!marketCapture.prepare(game,options.scene,log,error)){log<<error<<'\n';throw std::runtime_error(error);}
+            }
+            else if(options.scene.rfind("residents-",0)==0){
                 auto pump=[&](){MSG message;while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)){if(message.message==WM_QUIT)app.running=false;TranslateMessage(&message);DispatchMessageW(&message);}return app.running;};
                 if(!residentCapture.prepare(game,options.scene,log,error,pump)){log<<error<<'\n';throw std::runtime_error(error);}
             }
@@ -320,6 +324,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(options.smoke&&(options.scene=="trial"||options.scene=="trial-run"))game.paused=true;
             if(options.smoke&&options.scene.rfind("workshop",0)==0){game.paused=true;game.dayTime=options.scene=="workshop-night"?23.0f:14.0f;game.rain=0;}
             if(residentCapture.active)game.paused=true;
+            if(marketCapture.active)game.paused=true;
             if(options.smoke&&options.scene=="streaming"){streamingProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;}
             if(options.smoke&&options.scene=="lod"){
                 lodProbe.beginFrame(game,worldStreamer,worldEpoch,renderer.frameCount());game.paused=true;
@@ -369,6 +374,7 @@ int execute(HINSTANCE instance,const Options& options) {
             }
             if(options.smoke&&options.scene=="lod")lodProbe.camera(game,frame.eye,frame.target);
             if(residentCapture.active){frame.eye=residentCapture.eye;frame.target=residentCapture.target;}
+            if(marketCapture.active){frame.eye=marketCapture.eye;frame.target=marketCapture.target;}
             AudioState audioState;audioState.rain=game.rain;audioState.wanted=float(game.wanted);audioState.shot=game.shotFlash;audioState.station=game.radioStation;audioState.volume=settings.volume*(cinematic.active()?.35f:1.f);audioState.paused=app.menu||app.mapOpen;
             const Biome listenerBiome=game.world.biome(game.player.x,game.player.z);
             audioState.shore=listenerBiome==Biome::Ocean||listenerBiome==Biome::Beach?1.f:listenerBiome==Biome::Island?.55f:0;
