@@ -113,6 +113,10 @@ try {
             @{ Name = 'workshop_lighting'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'pedestrian_visuals'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
+            @{ Name = 'world_audio'; Sources = @() },
+            @{ Name = 'audio_output'; Sources = @() },
+            @{ Name = 'world_audio_scene'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'world_audio_integration'; Sources = @('game', 'pedestrians', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
         )
         foreach ($test in $testSets) {

@@ -31,9 +31,13 @@ printf 'Compiling portable simulation and synthesis tests with %s\n' "$compiler"
 "$compiler" "${flags[@]}" "$repo/tests/workshop_lighting_tests.cpp" "$repo/src/game.cpp" "$repo/src/pedestrians.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/visuals.cpp" -o "$output/workshop_lighting_tests"
 "$compiler" "${flags[@]}" "$repo/tests/pedestrian_visuals_tests.cpp" "$repo/src/game.cpp" "$repo/src/pedestrians.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/visuals.cpp" -o "$output/pedestrian_visuals_tests"
 "$compiler" "${flags[@]}" "$repo/tests/audio_tests.cpp" -o "$output/audio_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_audio_tests.cpp" -o "$output/world_audio_tests"
+"$compiler" "${flags[@]}" "$repo/tests/audio_output_tests.cpp" -o "$output/audio_output_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_audio_scene_tests.cpp" "$repo/src/game.cpp" "$repo/src/pedestrians.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/visuals.cpp" -o "$output/world_audio_scene_tests"
+"$compiler" "${flags[@]}" "$repo/tests/world_audio_integration_tests.cpp" "$repo/src/game.cpp" "$repo/src/pedestrians.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" "$repo/src/visuals.cpp" -o "$output/world_audio_integration_tests"
 "$compiler" "${flags[@]}" "$repo/tests/cinematics_tests.cpp" "$repo/src/world.cpp" "$repo/src/world_geometry.cpp" -o "$output/cinematics_tests"
 
-for suite in world world_streamer world_lod_geometry world_lod_streaming render_visibility render_timing game pedestrian workshop_lighting pedestrian_visuals audio cinematics; do
+for suite in world world_streamer world_lod_geometry world_lod_streaming render_visibility render_timing game pedestrian workshop_lighting pedestrian_visuals audio world_audio audio_output world_audio_scene world_audio_integration cinematics; do
     printf 'Running %s tests\n' "$suite"
     "$output/${suite}_tests"
 done
