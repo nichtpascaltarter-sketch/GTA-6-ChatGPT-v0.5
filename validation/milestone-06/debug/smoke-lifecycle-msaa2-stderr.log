@@ -1,0 +1,5 @@
+D3D12 debug layer enabled.
+D3D12 corruption/error message validation enabled.
+Scene depth: reverse-Z; near=0.12m; far=3000m; shadows=forward-Z
+Scene target: R16G16B16A16_FLOAT; samples=2; requested limit=2
+World stream arenas: vertex=134217720 index=33554432 bytes; limits=256/64 MiB, staging=384 MiB/4 batches.

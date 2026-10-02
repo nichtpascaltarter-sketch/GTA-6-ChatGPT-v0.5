@@ -1,0 +1,197 @@
+{
+  "sourceCommit": "3c25f7def4417a6ad22d95ca3b695ab01f4a710d",
+  "workflowRun": 36949428131,
+  "workflowUrl": "https://github.com/nichtpascaltarter-sketch/GTA-6-ChatGPT-v0.5/actions/runs/36949428131",
+  "workflowConclusion": "success",
+  "releaseArtifact": 11203223986,
+  "debugArtifact": 11203855123,
+  "executables": {
+    "release": {
+      "bytes": 909824,
+      "sha256": "61673c04ced42197e3aadb22251d6bf92b522000276a66be66ef7f4ddcd60e7d"
+    },
+    "debug": {
+      "bytes": 2504192,
+      "sha256": "24cfc641714ea5c699db5b3206644542825d3569152d0c8e470a61a646a36b35"
+    }
+  },
+  "nativeConfigurations": [
+    "Release",
+    "Debug"
+  ],
+  "nativeTestSuites": [
+    "world",
+    "world_streamer",
+    "world_lod_geometry",
+    "world_lod_streaming",
+    "render_visibility (400,000 cases)",
+    "game (29/29)",
+    "procedural audio",
+    "cinematics"
+  ],
+  "precompiledShaderVariants": 10,
+  "compileWarningsObserved": 0,
+  "releaseAdditionalScenes": 19,
+  "standaloneLaunches": 28,
+  "renderedFramesTotal": 1632,
+  "renderTargetFormat": "R16G16B16A16_FLOAT",
+  "releaseSampleCount": 4,
+  "debugSampleCountsValidated": [
+    1,
+    2,
+    4
+  ],
+  "debugLayer": "D3D12 debug layer and corruption/error validation enabled in all six Debug launches; no error or corruption diagnostics reported",
+  "lifecycleValidation": "Each sample count completed 120 frames; verified clients 976x657 at frame 30, 1024x768 fullscreen at frame 60, 976x657 restored at frame 90; actual captured BMP dimensions agree",
+  "streamingValidation": "Both configurations passed all eight legacy phases; exact upload/retention counts, adjacent worker generation 7/7/13, epoch reset and zero ordinary/pressure/repack waits",
+  "lodValidation": {
+    "phases": 5,
+    "renderedFramesEach": 320,
+    "selectedTilesEach": 1089,
+    "detailEach": 49,
+    "mediumByPhase": [
+      176,
+      191,
+      176,
+      176,
+      176
+    ],
+    "farByPhase": [
+      864,
+      849,
+      864,
+      864,
+      864
+    ],
+    "shadowCandidatesByPhase": [
+      225,
+      240,
+      225,
+      225,
+      225
+    ],
+    "fogEndMetres": 2000,
+    "allPhasesDrainedWithNoOrdinaryPressureOrRepackWaits": true,
+    "results": {
+      "release": {
+        "settledFrames": [
+          44,
+          48,
+          88,
+          133,
+          137
+        ],
+        "residentByteRange": [
+          33186716,
+          71886792
+        ],
+        "coverageMetreRange": [
+          2048.31,
+          2051.77
+        ],
+        "mainDrawnRange": [
+          324,
+          359
+        ],
+        "mainCulledRange": [
+          730,
+          765
+        ]
+      },
+      "debug": {
+        "settledFrames": [
+          64,
+          68,
+          137,
+          190,
+          194
+        ],
+        "residentByteRange": [
+          33186716,
+          71886792
+        ],
+        "coverageMetreRange": [
+          2048.31,
+          2051.77
+        ],
+        "mainDrawnRange": [
+          324,
+          359
+        ],
+        "mainCulledRange": [
+          730,
+          765
+        ]
+      }
+    }
+  },
+  "probeRepair": "Initial a2aa8ba failure came from the test expecting 176 medium tiles after an adjacent move. The deliberate one-cell cache hysteresis retains 15 extra medium tiles; corrected probe and parser expect 191 medium/849 far at phase 1. Production world/renderer behavior was unchanged. Failed evidence remains in initial-lod/.",
+  "visualInspection": "Root inspected survey, aircraft, coast and night native captures: distant terrain and city coverage visible to the 2 km fog boundary, coherent sky transition, no obvious missing tiles or new corruption in those views. Geometry and characters remain primitive.",
+  "selectedCaptures": [
+    {
+      "scene": "city",
+      "path": "captures/city.bmp",
+      "sha256": "4904853f420cd9f7b9b6fa3e8ca86ddc30055012c852927a327b1fa8f8117eec"
+    },
+    {
+      "scene": "night",
+      "path": "captures/night.bmp",
+      "sha256": "125cfd482572ad35d5b695fbbf357e8cec5c62bd966fde43dfcd0bb70d0f9622"
+    },
+    {
+      "scene": "coast",
+      "path": "captures/coast.bmp",
+      "sha256": "0d1affe33c88549d8327130c10573de04a7341f10d368b0f495e4e50b90c6a33"
+    },
+    {
+      "scene": "aircraft",
+      "path": "captures/aircraft.bmp",
+      "sha256": "e22dab5a3bc67d4fb363d40b5f57813c70a6087089f48e6351df1cae17393fc6"
+    },
+    {
+      "scene": "survey",
+      "path": "captures/survey.bmp",
+      "sha256": "487d0ba247894e1ec73fd35bab22d2f822b1cfb1dd43e4a1b4b5e11cac7d2d83"
+    },
+    {
+      "scene": "lod",
+      "path": "captures/lod.bmp",
+      "sha256": "1d49540e5f96814e23f3b411dcc6a3df534f75ea9d79feea85d9bc0405cb13ba"
+    }
+  ],
+  "captureProvenance": "Exact original native Release BMP bytes, verified against report hashes; no editing or resampling",
+  "elapsedSecondsByReport": {
+    "release/smoke-aircraft-report.json": 2.412,
+    "release/smoke-boat-report.json": 2.025,
+    "release/smoke-cinematic-report.json": 3.073,
+    "release/smoke-coast-report.json": 1.848,
+    "release/smoke-drive-report.json": 2.875,
+    "release/smoke-lod-report.json": 52.935,
+    "release/smoke-map-report.json": 3.026,
+    "release/smoke-night-report.json": 7.95,
+    "release/smoke-passenger-bike-report.json": 3.206,
+    "release/smoke-passenger-boat-report.json": 2.034,
+    "release/smoke-passenger-car-report.json": 3.438,
+    "release/smoke-passenger-plane-report.json": 2.675,
+    "release/smoke-portrait-report.json": 3.13,
+    "release/smoke-report.json": 34.134,
+    "release/smoke-rescue-report.json": 1.867,
+    "release/smoke-rural-report.json": 2.556,
+    "release/smoke-storm-report.json": 3.097,
+    "release/smoke-streaming-report.json": 29.164,
+    "release/smoke-suburbs-report.json": 2.489,
+    "release/smoke-survey-report.json": 2.531,
+    "release/smoke-vehicle-report.json": 3.063,
+    "release/smoke-wetland-report.json": 2.589,
+    "debug/smoke-lifecycle-msaa1-report.json": 36.544,
+    "debug/smoke-lifecycle-msaa2-report.json": 37.936,
+    "debug/smoke-lifecycle-report.json": 40.954,
+    "debug/smoke-lod-report.json": 60.34,
+    "debug/smoke-report.json": 37.026,
+    "debug/smoke-streaming-report.json": 30.769
+  },
+  "performance": "Hosted WARP process launch-to-exit timings include startup, rendering and capture. They are not hardware GPU frame times or evidence of RTX 4070 60 fps. Direct frame telemetry arrives in a later snapshot.",
+  "runtimeDependencies": "Every executable launched alone from a fresh temporary directory. Import audit reports only seven Windows system DLLs.",
+  "nativeRendering": "D3D12 WARP; hardware DXR and RTX 4070 frame rates remain unverified",
+  "archiveContents": "Original reports, session/diagnostic logs, native build/test output, executable hashes/imports, selected original BMPs and this manifest; no executable files"
+}
