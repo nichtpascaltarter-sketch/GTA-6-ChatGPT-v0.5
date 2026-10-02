@@ -47,7 +47,7 @@ jobs:
       # never linked, bundled, installed, or required by the game or local build.
       - name: Upload executable and validation evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: MeridianCoast-Windows-x64-${{ matrix.configuration }}
           if-no-files-found: warn

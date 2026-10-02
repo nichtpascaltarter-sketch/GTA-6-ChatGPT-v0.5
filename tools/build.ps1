@@ -55,13 +55,14 @@ try {
         @{ Source = 'world'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
         @{ Source = 'world'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null },
         @{ Source = 'world'; Stage = 'rt_ps'; Profile = 'ps_6_5'; Entry = 'PSMain'; Define = 'ENABLE_RAYTRACING=1' },
+        @{ Name = 'shadow_vs'; Source = 'world'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSShadow'; Define = $null },
         @{ Source = 'ui'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
         @{ Source = 'ui'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null },
         @{ Source = 'sky'; Stage = 'vs'; Profile = 'vs_6_0'; Entry = 'VSMain'; Define = $null },
         @{ Source = 'sky'; Stage = 'ps'; Profile = 'ps_6_0'; Entry = 'PSMain'; Define = $null }
     )
     foreach ($shader in $shaders) {
-        $name = "$($shader.Source)_$($shader.Stage)"
+        $name = if ($shader.ContainsKey('Name')) { $shader.Name } else { "$($shader.Source)_$($shader.Stage)" }
         $arguments = @('-T', $shader.Profile, '-E', $shader.Entry,
             '-HV', '2021', '-Ges', '-WX', '-O3', '-Qstrip_debug', '-Qstrip_reflect',
             '-Fh', (Join-Path $generated "$name.h"), '-Vn', "g_$name",
