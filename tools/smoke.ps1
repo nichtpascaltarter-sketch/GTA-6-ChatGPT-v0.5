@@ -26,12 +26,14 @@ $runDirectory = Join-Path ([IO.Path]::GetTempPath()) ("MeridianCoast-smoke-" + [
 New-Item -ItemType Directory -Path $runDirectory | Out-Null
 $isolatedExecutable = Join-Path $runDirectory $fileName
 $process = $null
+$processTimer = [Diagnostics.Stopwatch]::new()
 $exitCode = -1
 $startedAt = [DateTime]::UtcNow
 try {
     # The launch directory contains exactly one file. Build products, external
     # shaders, and neighboring DLLs cannot silently satisfy runtime dependencies.
     Copy-Item -LiteralPath $Executable -Destination $isolatedExecutable
+    $processTimer.Start()
     $process = Start-Process -FilePath $isolatedExecutable -WorkingDirectory $runDirectory -PassThru -NoNewWindow `
         -ArgumentList @('--smoke', '--warp', '--scene', $Scene, '--frames', "$Frames", '--screenshot', ('"' + $screenshot + '"')) `
         -RedirectStandardOutput $stdout -RedirectStandardError $stderr
@@ -41,9 +43,11 @@ try {
         $process.WaitForExit()
         throw "WARP smoke test exceeded $TimeoutSeconds seconds."
     }
+    $processTimer.Stop()
     $process.Refresh()
     $exitCode = $process.ExitCode
 } finally {
+    $processTimer.Stop()
     try {
         if ($process) {
             if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
@@ -129,6 +133,7 @@ if ($colors.Count -lt 16) { throw "Smoke screenshot is nearly uniform ($($colors
     requestedFrames = $Frames
     renderedFrames = [int] $frameMatch.Groups[1].Value
     exitCode = $exitCode
+    elapsedSeconds = [Math]::Round($processTimer.Elapsed.TotalSeconds, 3)
     width = $width
     height = $height
     sampledColors = $colors.Count
