@@ -1,0 +1,17 @@
+src/game.cpp: OK
+src/game_law.cpp: OK
+src/law.cpp: OK
+src/law_navigation.cpp: OK
+src/pedestrians.cpp: OK
+src/world.cpp: OK
+src/world_geometry.cpp: OK
+src/visuals.cpp: OK
+src/game.h: OK
+src/law.h: OK
+src/law_navigation.h: OK
+src/pedestrians.h: OK
+src/world.h: OK
+src/world_geometry.h: OK
+src/mc_math.h: OK
+tests/police_visuals_tests.cpp: OK
+tests/pedestrian_visuals_tests.cpp: OK
