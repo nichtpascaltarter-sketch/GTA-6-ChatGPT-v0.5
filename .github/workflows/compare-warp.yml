@@ -2,6 +2,12 @@ name: Compare pinned WARP artifacts
 
 on:
   workflow_dispatch:
+  # GitHub cannot register a dispatch-only workflow first added on this branch.
+  # Limit automatic runs to deliberate changes to the comparison tooling.
+  push:
+    paths:
+      - '.github/workflows/compare-warp.yml'
+      - 'tools/compare-warp.ps1'
 
 permissions:
   contents: read
