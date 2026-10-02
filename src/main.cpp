@@ -256,14 +256,16 @@ int execute(HINSTANCE instance,const Options& options) {
         ShowWindow(app.window,options.smoke?SW_SHOWNOACTIVATE:SW_SHOW);UpdateWindow(app.window);if(settings.fullscreen&&!options.smoke)fullscreen(app,true);
         RAWINPUTDEVICE rid{1,2,0,app.window};if(!RegisterRawInputDevices(&rid,1,sizeof(rid)))log<<"Raw mouse registration failed\n";
         auto last=std::chrono::steady_clock::now();float presentationTime=game.time;FrameRateWindow frameRate;Ui ui;Cinematic cinematic;WorldMap worldMap;
+        AudioState audible;audible.station=game.radioStation;audible.volume=settings.volume;
+        auto suspendAudio=[&](){audible.paused=true;audio.update(audible);};
         if(options.smoke&&(options.scene=="map"||options.scene=="trial-map")){app.mapOpen=true;if(options.scene=="trial-map")worldMap.span=1024;worldMap.focus(game.player);}
         RECT lifecycleWindow{};
         if(options.smoke&&options.scene=="cinematic")cinematic.start(0,game.player,game.yaw);
         while(app.running){MSG msg;while(PeekMessageW(&msg,nullptr,0,0,PM_REMOVE)){if(msg.message==WM_QUIT)app.running=false;TranslateMessage(&msg);DispatchMessageW(&msg);}if(!app.running)break;
             auto now=std::chrono::steady_clock::now();float elapsed=std::chrono::duration<float>(now-last).count();last=now;float dt=clamp(elapsed,0.0001f,.05f);
-            if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);WaitMessage();last=std::chrono::steady_clock::now();frameRate.reset();continue;}
+            if(!app.active&&!options.smoke){game.paused=true;captureMouse(app,false);suspendAudio();WaitMessage();last=std::chrono::steady_clock::now();frameRate.reset();continue;}
             frameRate.observe(renderer.frameCount(),std::chrono::duration<double>(now.time_since_epoch()).count());
-            if(IsIconic(app.window)){WaitMessage();last=std::chrono::steady_clock::now();continue;}
+            if(IsIconic(app.window)){suspendAudio();WaitMessage();last=std::chrono::steady_clock::now();continue;}
             if(options.smoke&&options.scene=="lifecycle"){
                 const uint64_t frameNumber=renderer.frameCount();
                 if(frameNumber==30){
@@ -390,7 +392,7 @@ int execute(HINSTANCE instance,const Options& options) {
             if(game.occupied>=0&&game.occupied<int(game.vehicles.size())){const auto& vehicle=game.vehicles[size_t(game.occupied)];audioState.engine=vehicle.health>0?1.f:0;audioState.speed=vehicle.speed;audioState.engineKind=int(vehicle.kind);audioState.throttle=std::fabs(vehicle.throttle);
                 if(vehicle.kind==VehicleKind::Aircraft){float groundGain=clamp(1-(game.player.y-game.world.height(game.player.x,game.player.z))/120,0,1);audioState.shore*=groundGain;audioState.nature*=groundGain;audioState.urban*=groundGain;}}
             movementAudio(audioState,game,movementStart,movementVehicle,input,dt);
-            audio.update(audioState);
+            audible=audioState;audio.update(audible);
             if(options.smoke&&renderer.frameCount()>=options.frames){
                 if(options.scene=="streaming"&&!streamingProbe.complete()){error="Streaming diagnostic reached its frame limit before all phases settled.";result=10;break;}
                 if(options.scene=="lod"&&!lodProbe.complete()){error="Distant-world diagnostic reached its frame limit before all phases settled.";result=10;break;}
