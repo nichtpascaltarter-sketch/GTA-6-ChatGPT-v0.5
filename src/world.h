@@ -9,6 +9,7 @@ struct Mesh { std::vector<Vertex> vertices; std::vector<uint32_t> indices; void 
 struct Box {Vec3 min,max;};
 struct Light {Vec3 position;float radius=24;Vec3 color{1,.72f,.4f};float intensity=70;Vec3 direction{0,-1,0};float cone=-1;};
 enum class Biome { Downtown, Residential, Countryside, Wetland, Beach, Island, Ocean };
+enum class GroundSurface { Pavement, Soil, Grass, Sand, Wood };
 struct Landmark { Vec3 position; const char* name; };
 struct Chunk {int x=0,z=0; Mesh mesh; std::vector<Box> solids;std::vector<Light> lights;};
 // Value-only jobs: workers never retain a World, Game, or resident-chunk reference.
@@ -40,6 +41,7 @@ public:
     float height(float x,float z) const;
     float waterDepth(float x,float z) const;
     Biome biome(float x,float z) const;
+    GroundSurface groundSurface(float x,float z) const;
     bool road(float x,float z) const;
     bool blocked(Vec3 position,float radius) const;
     Vec3 move(Vec3 from,Vec3 delta,float radius) const;

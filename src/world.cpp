@@ -8,6 +8,12 @@ namespace mc {
 namespace {
 constexpr float WaterLevel=World::WaterLevel;
 constexpr float RoadHalf=10.0f;
+struct SurfaceArea {
+    float x0,z0,x1,z1;
+    bool contains(float x,float z) const {return x>=x0&&x<=x1&&z>=z0&&z<=z1;}
+};
+constexpr SurfaceArea AirfieldPaving[]={{-3218,-1256,-3182,-744},{-3288,-1058,-3182,-994},{-3182,-1029,-3072,-1019}};
+constexpr SurfaceArea DockApproach{2504,765,2600,771};
 float smooth(float a,float b,float x) { float t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); }
 uint32_t seedAt(int x,int z,uint32_t salt=0) { return hash32(uint32_t(x)*0x9e3779b9u ^ uint32_t(z)*0x85ebca6bu ^ salt); }
 float coast(float z) { return 2480+180*std::sin(z*.0009f)+95*std::sin(z*.0022f); }
@@ -70,6 +76,11 @@ bool axialRoad(float x,float z) {
     return gridDistance(x,s)<RoadHalf || gridDistance(z,s)<RoadHalf;
 }
 bool coastalRoad(float x,float z) { return std::abs(x-(coast(z)-185))<8.0f && z>-4210 && z<5500; }
+bool plazaBlock(int x,int z) {return (x==3&&z==3)||(x==-4&&z==2)||seedAt(x,z)%17==0;}
+SurfaceArea residentialPath(float px,float pz,uint32_t seed) {
+    const float halfDepth=11.0f+random01(seed+1)*6;
+    return {px-2,pz-halfDepth-10,px+2,pz-halfDepth};
+}
 Vec3 rotated(Vec3 p,float yaw) {float s=std::sin(yaw),c=std::cos(yaw);return {p.x*c+p.z*s,p.y,-p.x*s+p.z*c};}
 void tri(Mesh& m,Vec3 a,Vec3 b,Vec3 c,Vec3 color,float material=0) {
     uint32_t n=static_cast<uint32_t>(m.vertices.size()); Vec3 normal=normalized(cross(b-a,c-a));
@@ -550,9 +561,10 @@ void transportSites(Chunk& c,const World& world) {
     };
     Mesh& m=c.mesh;
     if(x1>-3320&&x0<-3050&&z1>-1430&&z0<-550) {
-        patch(-3218,-1256,-3182,-744,{.13f,.16f,.17f},.025f,4);
-        patch(-3288,-1058,-3182,-994,{.20f,.22f,.21f},.025f,4);
-        patch(-3182,-1029,-3072,-1019,{.20f,.22f,.21f},.025f,4);
+        for(size_t index=0;index<std::size(AirfieldPaving);++index) {
+            const auto& area=AirfieldPaving[index];
+            patch(area.x0,area.z0,area.x1,area.z1,index?Vec3{.20f,.22f,.21f}:Vec3{.13f,.16f,.17f},.025f,4);
+        }
         for(float x:{-3216.0f,-3184.0f})patch(x-.10f,-1248,x+.10f,-752,{.82f,.82f,.68f},.038f);
         for(int stripe=0;stripe<15;++stripe) {
             float z=-1232+stripe*32.0f;patch(-3200.17f,z,-3199.83f,z+12,{.84f,.83f,.72f},.04f);
@@ -585,7 +597,7 @@ void transportSites(Chunk& c,const World& world) {
         }
     }
     if(x1>2494&&x0<2690&&z1>740&&z0<795) {
-        patch(2504,765,2600,771,{.58f,.54f,.39f},.035f);
+        patch(DockApproach.x0,DockApproach.z0,DockApproach.x1,DockApproach.z1,{.58f,.54f,.39f},.035f);
         for(int board=0;board<34;++board) {
             float x=2600+board*2.0f;patch(x,765,std::min(x+1.97f,2667.0f),771,board%3?Vec3{.48f,.35f,.20f}:Vec3{.55f,.41f,.24f});
         }
@@ -671,6 +683,44 @@ Biome World::biome(float x,float z) const {
     return Biome::Countryside;
 }
 bool World::road(float x,float z) const {return axialRoad(x,z)||coastalRoad(x,z)||causeway(x,z)||(x>=-3200&&x<=-3072&&std::abs(z+1024)<5);}
+GroundSurface World::groundSurface(float x,float z) const {
+    if(!std::isfinite(x)||!std::isfinite(z)||std::abs(x)>Extent+512||std::abs(z)>Extent+512)return GroundSurface::Soil;
+    if(dockDeck(x,z))return GroundSurface::Wood;
+    if(DockApproach.contains(x,z))return GroundSurface::Soil;
+    for(const auto& area:AirfieldPaving)if(area.contains(x,z))return GroundSurface::Pavement;
+    const int cx=int(std::floor(x/ChunkSize)),cz=int(std::floor(z/ChunkSize));
+    const float bx=cx*ChunkSize,bz=cz*ChunkSize;
+    const Biome center=biome(bx+64,bz+64);
+    const bool urban=center==Biome::Downtown||center==Biome::Residential;
+    for(int edge=0;edge<4;++edge) {
+        const bool vertical=edge<2;
+        const float line=(vertical?bx:bz)+(edge%2)*128;
+        const float across=vertical?x:z,along=vertical?z:x,base=vertical?bz:bx;
+        const float distance=(across-line)*(edge%2?-1.0f:1.0f);
+        const float middle=base+std::floor((along-base)/16)*16+8;
+        const float ax=vertical?line:middle,az=vertical?middle:line;
+        if(distance<=RoadHalf&&(axialRoad(ax,az)||causeway(ax,az)))return GroundSurface::Pavement;
+        if(urban&&distance>=10&&distance<=14&&along>=base+10&&along<=base+118&&
+           axialRoad(vertical?line:bx+64,vertical?bz+64:line))return GroundSurface::Pavement;
+    }
+    if(urban) {
+        if(plazaBlock(cx,cz)) {
+            if(SurfaceArea{bx+15,bz+15,bx+113,bz+113}.contains(x,z))return GroundSurface::Pavement;
+        } else if(center==Biome::Residential) {
+            for(int j=0;j<2;++j)for(int i=0;i<2;++i) {
+                const float px=bx+36+i*56,pz=bz+36+j*56;
+                if(!road(px,pz)&&biome(px,pz)!=Biome::Ocean&&residentialPath(px,pz,seedAt(cx*2+i,cz*2+j,71)).contains(x,z))return GroundSurface::Pavement;
+            }
+        }
+    }
+    // Coastal paving and base terrain are authored in eight-metre patches.
+    const float sx=std::floor(x/8)*8+4,sz=std::floor(z/8)*8+4;
+    if(coastalRoad(sx,sz))return GroundSurface::Pavement;
+    const Biome natural=biome(sx,sz);
+    if(natural==Biome::Wetland||natural==Biome::Ocean)return GroundSurface::Soil;
+    if(natural==Biome::Beach)return GroundSurface::Sand;
+    return GroundSurface::Grass;
+}
 
 Chunk World::generate(int cx,int cz) const {
     Chunk c;c.x=cx;c.z=cz;Mesh& m=c.mesh;
@@ -734,9 +784,7 @@ Chunk World::generate(int cx,int cz) const {
             groundPatch(m,*this,x+15,z+i*1.5f,x+18,z+i*1.5f+.8f,{.82f,.81f,.70f},.06f);
             groundPatch(m,*this,x+i*1.5f,z+15,x+i*1.5f+.8f,z+18,{.82f,.81f,.70f},.06f);
         }
-        bool landmark=(cx==3&&cz==3)||(cx==-4&&cz==2);
-        bool park=!landmark && seed%17==0;
-        if(landmark || park)landmarkPlaza(c,*this,x,z,(cx==3&&cz==3)?0:1);
+        if(plazaBlock(cx,cz))landmarkPlaza(c,*this,x,z,(cx==3&&cz==3)?0:1);
         else for(int j=0;j<2;++j) for(int i=0;i<2;++i) {
             uint32_t bs=seedAt(cx*2+i,cz*2+j,71);
             float px=x+36+i*56,pz=z+36+j*56;
@@ -747,7 +795,8 @@ Chunk World::generate(int cx,int cz) const {
             if(!sub && bs%7==0)h+=18;
             building(c,{px,height(px,pz),pz},hx,hz,h,bs,sub);
             if(sub) {
-                groundPatch(m,*this,px-2,pz-hz-10,px+2,pz-hz,{.55f,.54f,.45f},.06f);
+                const auto path=residentialPath(px,pz,bs);
+                groundPatch(m,*this,path.x0,path.z0,path.x1,path.z1,{.55f,.54f,.45f},.06f);
                 broadleaf(m,{px+hx+5,height(px+hx+5,pz),pz},.8f,bs);
                 addBox(m,{px,height(px,pz+hz+5)+.6f,pz+hz+5},{hx+2,.6f,.5f},{.19f,.32f,.10f});
             }

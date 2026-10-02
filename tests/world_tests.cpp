@@ -166,6 +166,41 @@ void vehicleSites() {
     assert(length(world.move(end,start-end,4)-start)<.01f);
     std::puts("Vehicle sites: dock and seabed remain independent; 512 m runway clear in both directions");
 }
+void groundSurfaces() {
+    struct Sample {float x,z;GroundSurface surface;};
+    const Sample samples[]={
+        {8,8,GroundSurface::Pavement},{12,24,GroundSurface::Pavement},
+        {14,64,GroundSurface::Pavement},{14.01f,64,GroundSurface::Grass},{16,64,GroundSurface::Pavement},
+        {400,400,GroundSurface::Pavement},{3200,0,GroundSurface::Pavement},
+        {-3200,-1256,GroundSurface::Pavement},{-3218,-1150,GroundSurface::Pavement},
+        {-3218.01f,-1150,GroundSurface::Grass},{-3228,-1045,GroundSurface::Pavement},
+        {-3130,-1024,GroundSurface::Pavement},{2560,768,GroundSurface::Soil},
+        {2600,768,GroundSurface::Wood},{2675,764,GroundSurface::Wood},{2675.01f,768,GroundSurface::Soil},
+        {1100,-2800,GroundSurface::Soil},{4140,-250,GroundSurface::Grass},
+        {2600,800,GroundSurface::Sand},{-4200,1500,GroundSurface::Grass}
+    };
+    World world;
+    for(const auto& sample:samples)assert(world.groundSurface(sample.x,sample.z)==sample.surface);
+    assert(world.chunks.empty()); // Sound queries cannot require geometry residency or allocate chunks.
+    assert(world.groundSurface(std::numeric_limits<float>::quiet_NaN(),0)==GroundSurface::Soil);
+    assert(world.groundSurface(std::numeric_limits<float>::infinity(),0)==GroundSurface::Soil);
+    for(int index=1;index<512;++index) {
+        const Vec3 point=World::coastalRoadPoint(index/512.f);
+        assert(world.groundSurface(point.x,point.z)==GroundSurface::Pavement);
+    }
+    world.stream({-2048,0,128});size_t paths=0;
+    for(const auto& chunk:world.chunks)for(size_t index=0;index<chunk.mesh.indices.size();index+=3) {
+        const auto& a=chunk.mesh.vertices[chunk.mesh.indices[index]];
+        const auto& b=chunk.mesh.vertices[chunk.mesh.indices[index+1]];
+        const auto& c=chunk.mesh.vertices[chunk.mesh.indices[index+2]];
+        if(!sameVector(a.color,{.55f,.54f,.45f})||a.normal.y<.7f)continue;
+        const Vec3 middle=(a.position+b.position+c.position)/3;
+        assert(world.groundSurface(middle.x,middle.z)==GroundSurface::Pavement);++paths;
+    }
+    assert(paths>40);
+    for(const auto& sample:samples)assert(world.groundSurface(sample.x,sample.z)==sample.surface);
+    std::printf("Ground surfaces: paved roads, sidewalks and %zu path triangles; wood, soil, grass and sand independent of streaming\n",paths);
+}
 bool sourceOnEmissiveFace(const Mesh& m,Vec3 p) {
     for(size_t i=0;i<m.indices.size();i+=3) {
         const Vertex& a=m.vertices[m.indices[i]];const Vertex& b=m.vertices[m.indices[i+1]];const Vertex& c=m.vertices[m.indices[i+2]];
@@ -285,4 +320,4 @@ void collision() {
     p=w.move({-5,0,2},{20,0,20},.5f);assert(p.x<=-.5f&&p.z<=8.5f);assert(!w.blocked(p,.5f));
 }
 }
-int main(){geometry();geography();lighting();rescueLaunch();streamingAndSeams();naturalRegions();vehicleSites();collision();std::puts("World tests passed.");}
+int main(){geometry();geography();lighting();rescueLaunch();streamingAndSeams();naturalRegions();vehicleSites();groundSurfaces();collision();std::puts("World tests passed.");}
