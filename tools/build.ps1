@@ -109,6 +109,7 @@ try {
             @{ Name = 'render_visibility'; Sources = @() },
             @{ Name = 'render_timing'; Sources = @() },
             @{ Name = 'game'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
+            @{ Name = 'workshop_lighting'; Sources = @('game', 'world', 'world_geometry', 'visuals') },
             @{ Name = 'audio'; Sources = @('audio') },
             @{ Name = 'cinematics'; Sources = @('world', 'world_geometry') }
         )
