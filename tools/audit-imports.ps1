@@ -9,9 +9,15 @@ $ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $Executable -PathType Leaf)) {
     throw "Executable not found: $Executable"
 }
-$headers = & $Dumpbin /nologo /headers $Executable
-if ($LASTEXITCODE -ne 0) { throw 'dumpbin header inspection failed.' }
-if (($headers -join "`n") -notmatch '(?im)8664 machine \(x64\)') {
+$image = [IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Executable).Path)
+if ($image.Length -lt 64 -or $image[0] -ne 77 -or $image[1] -ne 90) {
+    throw 'The executable does not have a DOS/PE image header.'
+}
+$peOffset = [BitConverter]::ToUInt32($image, 60)
+if ($peOffset + 26 -gt $image.Length -or
+    [BitConverter]::ToUInt32($image, $peOffset) -ne 0x00004550 -or
+    [BitConverter]::ToUInt16($image, $peOffset + 4) -ne 0x8664 -or
+    [BitConverter]::ToUInt16($image, $peOffset + 24) -ne 0x20b) {
     throw 'The executable is not a Windows x64 PE image.'
 }
 $imports = & $Dumpbin /nologo /dependents $Executable
