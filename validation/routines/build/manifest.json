@@ -1,0 +1,40 @@
+{
+  "validatedCommit": "24e86aabee35d08b18abd5febcf9754a665bbd15",
+  "toolingCommit": "3591ba70094af5e59507f1e785cdcac311898c41",
+  "command": "./tools/test-portable.sh",
+  "compiler": "c++ (Debian 14.2.0-19) 14.2.0",
+  "flags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-pthread"
+  ],
+  "testTargets": [
+    "world",
+    "world_streamer",
+    "world_lod_geometry",
+    "world_lod_streaming",
+    "render_visibility",
+    "render_timing",
+    "game (49/49)",
+    "pedestrian (9/9)",
+    "workshop_lighting",
+    "pedestrian_visuals",
+    "audio",
+    "cinematics"
+  ],
+  "allPassed": true,
+  "warningsObserved": 0,
+  "sourceHashesUnchangedDuringBuildAndRun": true,
+  "hashedSourceFiles": 45,
+  "hashScope": [
+    "src/**",
+    "tests/**",
+    "shaders/**"
+  ],
+  "coverage": "Integrated world/streaming/cache/culling/timing, game v5 persistence and migration, natural resident schedules and reactions, workshop lighting, resident pose/contact/props, synthesis and cinematic tests. Existing per-owner sanitizer evidence is archived separately.",
+  "limits": "Portable simulation tests only. Windows/D3D12 compilation, native capture visibility, and hardware behavior require the subsequent native candidate validation."
+}
