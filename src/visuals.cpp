@@ -178,7 +178,88 @@ void vehicleWheel(Mesh& mesh,Vec3 center,float yaw,float radius,float halfWidth,
         }
     }
 }
+Vec3 craftRotation(Vec3 point,const Vehicle& vehicle){
+    const float sr=std::sin(vehicle.roll),cr=std::cos(vehicle.roll),sp=std::sin(vehicle.pitch),cp=std::cos(vehicle.pitch);
+    Vec3 rolled{point.x*cr+point.y*sr,-point.x*sr+point.y*cr,point.z};
+    return rotate({rolled.x,rolled.y*cp+rolled.z*sp,-rolled.y*sp+rolled.z*cp},vehicle.yaw);
+}
+void craftMesh(Mesh& mesh,const Vehicle& vehicle,float time,bool detail){
+    const size_t first=mesh.vertices.size();const int segments=detail?12:8;
+    const Vec3 trim{.055f,.070f,.081f},chrome{.62f,.66f,.69f},cream{.83f,.82f,.72f};
+    const Vec3 paint=vehicle.color*(.55f+.45f*clamp(vehicle.health/100,0,1));
+    auto panel=[&](Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 normal,Vec3 color,float material=0){vehicleQuad(mesh,a,b,c,d,normal,color,material);};
+    auto pipe=[&](Vec3 a,Vec3 b,float radius,Vec3 color,float material=1){tube(mesh,a,b,radius,radius,color,detail?8:5,material);};
+    if(vehicle.kind==VehicleKind::Boat){
+        const float z[5]={-2.65f,-1.65f,.50f,1.80f,2.85f},width[5]={1.0f,1.10f,1.03f,.68f,.055f};
+        Vec3 section[5][6];
+        for(int i=0;i<5;++i){const float bow=float(i)/4,top=.58f+.18f*bow*bow;
+            section[i][0]={-width[i],top,z[i]};section[i][1]={-width[i]*.82f,-.18f+.17f*bow*bow,z[i]};section[i][2]={-width[i]*.10f,-.45f+.25f*bow*bow,z[i]};
+            section[i][3]={width[i]*.10f,-.45f+.25f*bow*bow,z[i]};section[i][4]={width[i]*.82f,-.18f+.17f*bow*bow,z[i]};section[i][5]={width[i],top,z[i]};
+        }
+        for(int j=0;j<4;++j){
+            for(int k=0;k<5;++k){Vec3 normal=normalized(Vec3{section[j][k].x+section[j][k+1].x,section[j][k].y+section[j][k+1].y-.6f,0});panel(section[j][k],section[j+1][k],section[j+1][k+1],section[j][k+1],normal,k==2?trim:paint,1);}
+            panel(section[j][0],section[j][5],section[j+1][5],section[j+1][0],{0,1,0},cream);
+            for(float side:{-1.0f,1.0f}){pipe({side*width[j],section[j][0].y+.035f,z[j]},{side*width[j+1],section[j+1][0].y+.035f,z[j+1]},.028f,chrome);}
+        }
+        for(int end:{0,4})for(int k=1;k<5;++k)vehicleTriangle(mesh,section[end][0],section[end][k],section[end][k+1],{0,0,end?1.0f:-1.0f},paint,1);
+        // Raised foredeck, central helm, and upholstered seating leave a readable open-boat silhouette.
+        panel({-.76f,.76f,1.25f},{.76f,.76f,1.25f},{.055f,.77f,2.80f},{-.055f,.77f,2.80f},{0,1,0},cream);
+        addBox(mesh,{0,.91f,-.02f},{.34f,.33f,.36f},{.78f,.79f,.73f});
+        panel({-.35f,1.18f,.29f},{.35f,1.18f,.29f},{.31f,1.60f,.12f},{-.31f,1.60f,.12f},{0,.2f,1},{.055f,.19f,.23f},1);
+        for(float side:{-1.0f,1.0f})pipe({side*.35f,1.18f,.29f},{side*.31f,1.60f,.12f},.018f,chrome);
+        pipe({-.31f,1.60f,.12f},{.31f,1.60f,.12f},.018f,chrome);
+        for(float x:{-.54f,.54f}){
+            ellipsoid(mesh,{x,.70f,-1.30f},{.39f,.12f,.39f},0,{.53f,.34f,.18f},segments,4);
+            ellipsoid(mesh,{x,.92f,-1.65f},{.39f,.25f,.09f},0,{.58f,.39f,.22f},segments,4);
+        }
+        ellipsoid(mesh,{0,.28f,-2.80f},{.31f,.45f,.25f},0,trim,segments,5,1);
+        pipe({0,.17f,-2.79f},{0,-.65f,-2.81f},.065f,chrome);
+        if(detail){
+            for(int i=0;i<12;++i){const float a=float(i)*2*Pi/12,b=float(i+1)*2*Pi/12;pipe({std::sin(a)*.15f,1.18f+std::cos(a)*.13f,-.415f},{std::sin(b)*.15f,1.18f+std::cos(b)*.13f,-.415f},.017f,trim,0);}
+            addBox(mesh,{0,1.18f,-.385f},{.11f,.065f,.018f},{.025f,.045f,.052f});
+            pipe({-.75f,.72f,-2.30f},{-.75f,1.28f,-2.30f},.018f,chrome);
+            ellipsoid(mesh,{-.75f,1.29f,-2.30f},{.04f,.045f,.04f},0,{1,.93f,.77f},6,3,2);
+        }
+        ellipsoid(mesh,{0,.83f,1.6f},{.08f,.055f,.06f},0,{1,.93f,.80f},8,4,2);
+        ellipsoid(mesh,{-.95f,.68f,1.0f},{.045f,.04f,.085f},0,{1,.03f,.015f},6,3,2);
+        ellipsoid(mesh,{.95f,.68f,1.0f},{.045f,.04f,.085f},0,{.03f,1,.17f},6,3,2);
+    }else{
+        ellipsoid(mesh,{0,1.28f,-.10f},{.47f,.48f,3.34f},0,paint,segments,detail?10:6,1);
+        ellipsoid(mesh,{0,1.27f,2.62f},{.38f,.36f,.67f},0,paint,segments,5,1);
+        ellipsoid(mesh,{0,1.64f,.80f},{.405f,.30f,.91f},0,{.045f,.12f,.16f},segments,6,1);
+        for(float side:{-1.0f,1.0f}){
+            // Tapered airfoil sections, each with a shallow upper crown and dihedral toward the tip.
+            const float span[4]={.35f,2.2f,4.70f,5.15f},leading[4]={.94f,.73f,.22f,.0f},trailing[4]={-1.12f,-1.08f,-.94f,-.86f};
+            Vec3 wing[4][4];
+            for(int j=0;j<4;++j){float x=side*span[j],y=1.19f+span[j]*.025f;wing[j][0]={x,y,leading[j]};wing[j][1]={x,y+.105f,lerp(leading[j],trailing[j],.32f)};wing[j][2]={x,y+.018f,trailing[j]};wing[j][3]={x,y-.047f,lerp(leading[j],trailing[j],.40f)};}
+            for(int j=0;j<3;++j)for(int k=0;k<4;++k){int next=(k+1)%4;panel(wing[j][k],wing[j+1][k],wing[j+1][next],wing[j][next],{0,k<2?1.0f:-1.0f,0},paint,1);}
+            panel(wing[3][0],wing[3][1],wing[3][2],wing[3][3],{side,0,0},cream,1);
+            panel({side*2.3f,1.282f,-.83f},{side*4.70f,1.345f,-.72f},{side*4.70f,1.326f,-.925f},{side*2.3f,1.27f,-1.055f},{0,1,0},cream,1);
+            panel({side*.10f,1.45f,-2.20f},{side*1.90f,1.51f,-2.80f},{side*1.85f,1.49f,-3.30f},{side*.10f,1.43f,-3.18f},{0,1,0},paint,1);
+            panel({side*.10f,1.41f,-3.18f},{side*1.85f,1.45f,-3.30f},{side*1.90f,1.47f,-2.80f},{side*.10f,1.41f,-2.20f},{0,-1,0},paint,1);
+            pipe({side*.31f,.95f,-.20f},{side*1.07f,.27f,-.25f},.043f,chrome);
+            vehicleWheel(mesh,{side*1.08f,.245f,-.25f},0,.245f,.095f,time*vehicle.speed/.245f,detail);
+            ellipsoid(mesh,{side*5.15f,1.335f,-.38f},{.075f,.038f,.09f},0,side<0?Vec3{1,.025f,.012f}:Vec3{.03f,1,.14f},6,3,2);
+            if(detail){pipe({side*.25f,1.83f,.10f},{side*.28f,1.75f,1.51f},.021f,cream);pipe({side*.28f,1.75f,1.51f},{side*.35f,1.45f,1.68f},.021f,cream);}
+        }
+        for(float side:{-1.0f,1.0f}){
+            panel({side*.055f,1.36f,-3.32f},{side*.055f,2.66f,-3.04f},{side*.055f,2.30f,-2.48f},{side*.055f,1.36f,-2.17f},{side,0,0},paint,1);
+            panel({side*.058f,1.48f,-3.28f},{side*.058f,2.55f,-3.04f},{side*.058f,2.40f,-2.86f},{side*.058f,1.48f,-3.0f},{side,0,0},cream,1);
+        }
+        pipe({0,.99f,2.46f},{0,.19f,2.46f},.038f,chrome);
+        vehicleWheel(mesh,{0,.19f,2.46f},0,.19f,.070f,time*vehicle.speed/.19f,detail);
+        ellipsoid(mesh,{0,1.27f,3.31f},{.15f,.15f,.23f},0,chrome,segments,4,1);
+        const float rotation=time*(vehicle.throttle*85+std::min(vehicle.speed,15.0f)*.9f);
+        for(int i=0;i<2;++i){float angle=rotation+float(i)*Pi;Vec3 radial{std::cos(angle),std::sin(angle),0},edge{-std::sin(angle),std::cos(angle),0};Vec3 hub{0,1.27f,3.40f};
+            panel(hub+radial*.17f-edge*.08f,hub+radial*1.02f-edge*.045f,hub+radial*1.02f+edge*.045f,hub+radial*.17f+edge*.08f,{0,0,1},trim,1);
+        }
+        ellipsoid(mesh,{0,1.10f,3.24f},{.065f,.042f,.030f},0,{1,.93f,.80f},8,4,2);
+        ellipsoid(mesh,{0,2.69f,-3.03f},{.05f,.045f,.06f},0,{1,.93f,.83f},6,3,2);
+    }
+    for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=vehicle.position+craftRotation(vertex.position,vehicle);vertex.normal=normalized(craftRotation(vertex.normal,vehicle));}
+}
 void vehicleMesh(Mesh& mesh,const Vehicle& v,float time,uint32_t seed,bool closeDetail){
+    if(v.kind==VehicleKind::Boat||v.kind==VehicleKind::Aircraft){craftMesh(mesh,v,time,closeDetail);return;}
     auto point=[&](Vec3 p){return v.position+rotate(p,v.yaw);};
     auto box=[&](Vec3 p,Vec3 half,Vec3 color,float material=0){addBox(mesh,point(p),half,color,v.yaw,material);};
     auto panel=[&](Vec3 a,Vec3 b,Vec3 c,Vec3 d,Vec3 normal,Vec3 color,float material=0){vehicleQuad(mesh,point(a),point(b),point(c),point(d),rotate(normal,v.yaw),color,material);};
@@ -303,6 +384,14 @@ Mesh Game::dynamicMesh() const {
     if(occupied<0)personMesh(mesh,player,yaw,playerPhase,playerMotion,{.035f,.16f,.19f},{.64f,.40f,.27f},aiming||shotFlash>0,false,24,true);
     else if(size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Motorcycle)
         personMesh(mesh,player,vehicles[size_t(occupied)].yaw,0,0,{.035f,.16f,.19f},{.64f,.40f,.27f},false,false,24,true,true);
+    if(occupied>=0&&size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Boat){
+        const Vehicle& boat=vehicles[size_t(occupied)];const size_t first=mesh.vertices.size();
+        personMesh(mesh,{0,.13f,-.85f},0,0,0,{.035f,.16f,.19f},{.64f,.40f,.27f},false,false,24,true,true);
+        for(size_t i=first;i<mesh.vertices.size();++i){Vertex& vertex=mesh.vertices[i];vertex.position=boat.position+craftRotation(vertex.position,boat);vertex.normal=normalized(craftRotation(vertex.normal,boat));}
+        if(std::abs(boat.speed)>1){const float trail=std::min(12.0f,std::abs(boat.speed)*.65f);const Vec3 aft=boat.position-forward(boat.yaw)*2.65f;
+            for(float side:{-1.0f,1.0f}){Vec3 a=aft+right(boat.yaw)*(side*.7f),b=aft-forward(boat.yaw)*trail+right(boat.yaw)*(side*(1.3f+trail*.12f));Vec3 c=b+right(boat.yaw)*(side*.2f);a.y=b.y=c.y=World::WaterLevel+.035f;vehicleTriangle(mesh,a,b,c,{0,1,0},{.59f,.77f,.76f},0);}
+        }
+    }
     if(shotFlash>0&&occupied<0){ellipsoid(mesh,shotOrigin,{.055f,.055f,.12f},yaw,{1,.73f,.22f},6,3,2);tube(mesh,shotOrigin,shotEnd,.012f,.007f,{1,.68f,.23f},4,2);}
     if(missionInfo()){
         Vec3 target=missionTarget();target.y=world.height(target.x,target.z);
@@ -344,6 +433,14 @@ std::vector<Light> Game::lightSources() const {
     for(const Vehicle& vehicle:vehicles){
         if(vehicle.health<=0)continue;
         auto point=[&](Vec3 local){return vehicle.position+rotate(local,vehicle.yaw);};
+        if(vehicle.kind==VehicleKind::Boat||vehicle.kind==VehicleKind::Aircraft){
+            if(night>.00001f){
+                const bool plane=vehicle.kind==VehicleKind::Aircraft;
+                for(float side:{-1.0f,1.0f}){Light navigation;Vec3 local=plane?Vec3{side*5.15f,1.335f,-.38f}:Vec3{side*.95f,.68f,1.0f};navigation.position=vehicle.position+craftRotation(local,vehicle);navigation.color=side<0?Vec3{1,.025f,.012f}:Vec3{.03f,1,.14f};navigation.radius=6;navigation.intensity=5*night;navigation.cone=-1;collect(navigation);}
+                Light beam;beam.position=vehicle.position+craftRotation(plane?Vec3{0,1.1f,3.24f}:Vec3{0,.83f,1.6f},vehicle);beam.direction=normalized(craftRotation({0,-.07f,1},vehicle));beam.color={1,.93f,.80f};beam.radius=plane?58.0f:34.0f;beam.intensity=(plane?250.0f:125.0f)*night;beam.cone=plane?.91f:.84f;collect(beam);
+            }
+            continue;
+        }
         if(night>.00001f){
             Light headlight;headlight.color={1,.92f,.75f};headlight.cone=.85f;
             const bool bike=vehicle.kind==VehicleKind::Motorcycle;

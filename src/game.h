@@ -14,6 +14,7 @@ struct Vehicle {
     Vec3 position; float yaw=0,speed=0,steer=0; Vec3 velocity;
     Vec3 color{.2f,.45f,.65f}; VehicleKind kind=VehicleKind::Car;
     bool police=false,parked=false; float health=100;
+    float pitch=0,roll=0,throttle=0;
 };
 struct Pedestrian {Vec3 position;float yaw=0,phase=0,panic=0,health=100;};
 struct Mission { const char* title;const char* briefing;Vec3 start,target;int reward;};
