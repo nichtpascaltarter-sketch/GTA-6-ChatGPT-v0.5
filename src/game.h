@@ -40,5 +40,6 @@ private:
     bool wasInteract=false,wasReload=false,wasMission=false,wasRadio=false,wasJump=false,aiming=false;
     std::vector<Vec3> trafficTargets,pedestrianTargets;
     uint32_t simulationTick=0;
+    Vec3 shotOrigin;
 };
 }

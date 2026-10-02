@@ -261,7 +261,7 @@ void Game::update(const Input& input,float elapsed){
     world.stream(player);
     if(trafficTargets.size()!=vehicles.size()){trafficTargets.clear();for(size_t i=0;i<vehicles.size();++i)trafficTargets.push_back(nextTrafficTarget(world,vehicles[i],uint32_t(i)));}
     if(pedestrianTargets.size()!=pedestrians.size()){pedestrianTargets.clear();for(size_t i=0;i<pedestrians.size();++i)pedestrianTargets.push_back(pedestrianCorner(world,pedestrians[i].position,uint32_t(i)));}
-    if(radio){radioStation=(radioStation+1)%4;static const char* names[]={"Radio off","96.4 NEON TIDE  /  night-drive synth","107.1 BRASS COAST  /  harbor jazz","88.8 LOW CURRENT  /  ambient waves"};message=names[radioStation];messageTime=4;}
+    if(radio){radioStation=(radioStation+1)%4;static const char* names[]={"Radio off","TIDELINE FM","NIGHT WINDOW","ION DRIVE"};message=names[radioStation];messageTime=4;}
     if(interact){
         if(occupied>=0){
             Vehicle& v=vehicles[size_t(occupied)];
@@ -320,8 +320,22 @@ void Game::update(const Input& input,float elapsed){
     if(in.fire&&occupied<0&&fireCooldown<=0&&reloadTimer<=0){
         if(ammo>0){
             --ammo;fireCooldown=.145f;shotFlash=.07f;
-            const Vec3 origin=player+Vec3{0,1.35f,0};
-            Vec3 direction=forward(yaw);if(aiming)direction=normalized(cameraTarget()-cameraEye());
+            const Vec3 shoulder=player+Vec3{0,1.35f,0};
+            Vec3 origin=player+Vec3{0,1.31f,0}+forward(yaw)*.74f+right(yaw)*.13f;
+            const Vec3 toMuzzle=origin-shoulder;
+            float clearance=length(toMuzzle);
+            for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)clearance=std::min(clearance,rayBox(shoulder,normalized(toMuzzle),box,clearance));
+            origin=shoulder+normalized(toMuzzle)*std::max(0.0f,clearance-.025f);
+            Vec3 direction=forward(yaw);
+            if(aiming){
+                const Vec3 eye=cameraEye(),sight=normalized(cameraTarget()-eye);
+                float aimDistance=140.0f;
+                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)aimDistance=std::min(aimDistance,rayBox(eye,sight,box,aimDistance));
+                for(const Pedestrian& p:pedestrians)if(p.health>0)aimDistance=std::min(aimDistance,raySphere(eye,sight,p.position+Vec3{0,1.0f,0},.56f,aimDistance));
+                for(const Vehicle& v:vehicles)aimDistance=std::min(aimDistance,raySphere(eye,sight,v.position+Vec3{0,.85f,0},1.2f,aimDistance));
+                direction=normalized(eye+sight*aimDistance-origin);
+            }
+            shotOrigin=origin;
             float hit=140.0f;int person=-1,car=-1;
             for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)hit=std::min(hit,rayBox(origin,direction,box,hit));
             for(size_t i=0;i<pedestrians.size();++i){const Pedestrian& p=pedestrians[i];if(p.health<=0)continue;float t=raySphere(origin,direction,p.position+Vec3{0,1.0f,0},.56f,hit);if(t<hit){hit=t;person=int(i);car=-1;}}
@@ -340,16 +354,16 @@ void Game::update(const Input& input,float elapsed){
         float targetSpeed=0;
         Vec3 target=trafficTargets[i];
         if(v.police&&wanted>0){
-            v.parked=false;float distance=planarDistance(v.position,player);
+            v.parked=false;float distance=planarDistance(v.position,player);bool hasSight=false;
             if(distance<95){
                 Vec3 ray=normalized(player+Vec3{0,1,0}-(v.position+Vec3{0,1,0}));float visible=distance;
                 for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(v.position+Vec3{0,1,0},ray,box,visible));
-                if(visible>=distance-.5f)policeSight=true;
+                if(visible>=distance-.5f){policeSight=true;hasSight=true;}
             }
             if(distance<28)target=player;
             else {float grid=roadGrid(v.position);Vec3 node{std::round(v.position.x/grid)*grid,0,std::round(v.position.z/grid)*grid};Vec3 delta=player-node;if(std::abs(delta.x)>std::abs(delta.z))target=node+Vec3{delta.x>0?grid:-grid,0,Lane};else target=node+Vec3{Lane,0,delta.z>0?grid:-grid};}
             targetSpeed=distance<8?3.0f:22+float(wanted)*2;
-            if(distance<6&&occupied<0&&invulnerabilityTimer<=0){health=std::max(0.0f,health-dt*(7+float(wanted)*3));}
+            if(hasSight&&distance<6&&occupied<0&&invulnerabilityTimer<=0){health=std::max(0.0f,health-dt*(7+float(wanted)*3));}
         }else if(v.parked){v.speed=0;v.velocity={};continue;}
         else {
             if(planarDistance(v.position,target)<11){trafficTargets[i]=nextTrafficTarget(world,v,uint32_t(i)*391+simulationTick);target=trafficTargets[i];}
@@ -376,7 +390,13 @@ void Game::update(const Input& input,float elapsed){
         Pedestrian& p=pedestrians[i];if(p.health<=0)continue;
         p.panic=std::max(0.0f,p.panic-dt);Vec3 target=pedestrianTargets[i];float speed=1.0f+random01(uint32_t(i)*37)*.65f;
         if(i<4){
-            if(wanted>0&&planarDistance(p.position,player)<85){target=player;speed=3.7f;if(planarDistance(p.position,player)<15){speed=0;policeSight=true;if(invulnerabilityTimer<=0)health=std::max(0.0f,health-dt*(2.0f+float(wanted)));}}
+            if(wanted>0&&planarDistance(p.position,player)<85){
+                target=player;speed=3.7f;
+                const Vec3 eye=p.position+Vec3{0,1.55f,0},toPlayer=player+Vec3{0,1.1f,0}-eye;
+                const float distance=length(toPlayer);float visible=distance;
+                for(const Chunk& chunk:world.chunks)for(const Box& box:chunk.solids)visible=std::min(visible,rayBox(eye,normalized(toPlayer),box,visible));
+                if(visible>=distance-.1f){policeSight=true;if(distance<15){speed=0;if(invulnerabilityTimer<=0)health=std::max(0.0f,health-dt*(2.0f+float(wanted)));}}
+            }
             else if(i+8<vehicles.size()){target=vehicles[i+8].position+Vec3{8,0,0};speed=1.3f;}
         }else if(p.panic>0){target=p.position+normalized(p.position-player)*15;speed=4.4f;}
         else if(planarDistance(p.position,target)<1.0f){
@@ -455,7 +475,7 @@ Mesh Game::dynamicMesh() const {
     }
     if(occupied<0)personMesh(mesh,player,yaw,playerPhase,playerMotion,{.035f,.16f,.19f},{.64f,.40f,.27f},aiming||shotFlash>0);
     else if(size_t(occupied)<vehicles.size()&&vehicles[size_t(occupied)].kind==VehicleKind::Motorcycle)personMesh(mesh,player+Vec3{0,.50f,0},vehicles[size_t(occupied)].yaw,0,.0f,{.035f,.16f,.19f},{.64f,.40f,.27f},false);
-    if(shotFlash>0&&occupied<0){Vec3 muzzle=player+Vec3{0,1.31f,0}+forward(yaw)*.74f+right(yaw)*.13f;addBox(mesh,muzzle,{.055f,.055f,.12f},{1,.73f,.22f},yaw,2);limb(mesh,muzzle,shotEnd,.012f,{1,.68f,.23f},2);}
+    if(shotFlash>0&&occupied<0){addBox(mesh,shotOrigin,{.055f,.055f,.12f},{1,.73f,.22f},yaw,2);limb(mesh,shotOrigin,shotEnd,.012f,{1,.68f,.23f},2);}
     if(missionInfo()){
         Vec3 target=missionTarget();target.y=world.height(target.x,target.z);
         if(planarDistance(target,player)<420){const Vec3 color=activeMission<0?Vec3{1,.58f,.08f}:Vec3{.1f,.88f,.68f};
