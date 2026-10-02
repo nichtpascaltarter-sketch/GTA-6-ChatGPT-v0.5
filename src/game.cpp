@@ -87,7 +87,7 @@ float simulateAircraft(Vehicle& v,const World& world,const Input& input,float dt
     float ground=world.height(v.position.x,v.position.z);
     const bool overWater=world.waterDepth(v.position.x,v.position.z)>.5f;
     if(overWater)ground=std::max(ground,World::WaterLevel);
-    const bool onGround=v.position.y<=ground+.10f&&v.velocity.y<.3f;
+    const bool onGround=v.position.y<=ground+.02f&&std::abs(v.velocity.y)<.3f;
     v.throttle=clamp(v.throttle+input.moveY*dt*.45f,0,1);if(v.health<=0)v.throttle=0;
     v.steer=lerp(v.steer,input.moveX,std::min(1.0f,dt*3));
     const float liftSpeed=std::max(15.0f,v.speed);
@@ -368,7 +368,7 @@ void Game::update(const Input& input,float elapsed){
         if(v.kind==VehicleKind::Aircraft){
             v.throttle=0;
             const float surface=std::max(world.height(v.position.x,v.position.z),world.waterDepth(v.position.x,v.position.z)>.5f?World::WaterLevel:-100.0f);
-            const bool landed=v.position.y<=surface+.10f;
+            const bool landed=v.position.y<=surface+.02f&&std::abs(v.velocity.y)<.3f;
             if(landed&&std::abs(v.speed)<.10f&&length(v.velocity)<.20f){
                 v.speed=0;v.velocity={};v.position.y=surface;v.pitch=0;v.roll=0;v.parked=true;
             }else {Input idle;idle.brake=landed;v.parked=false;simulateAircraft(v,world,idle,dt);}
