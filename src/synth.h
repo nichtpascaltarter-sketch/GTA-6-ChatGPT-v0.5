@@ -18,6 +18,10 @@ public:
         delta_=1.0/sampleRate_;
         smooth_=static_cast<float>(1.0-std::exp(-delta_/0.025));
         lowpass_=static_cast<float>(1.0-std::exp(-delta_*850.0));
+        contactLowpass_=filterCoefficient(180);
+        contactMidpass_=filterCoefficient(1500);
+        waterLowpass_=filterCoefficient(620);
+        scrubLowpass_=filterCoefficient(2600);
     }
     void update(const AudioState& value) {
         const float newShot=finiteClamp(value.shot,0,1);
@@ -39,6 +43,10 @@ public:
         state_.shore=finiteClamp(value.shore,0,1);
         state_.nature=finiteClamp(value.nature,0,1);
         state_.urban=finiteClamp(value.urban,0,1);
+        state_.footSurface=static_cast<FootSurface>(std::max(0,std::min(4,static_cast<int>(value.footSurface))));
+        state_.footSpeed=finiteClamp(value.footSpeed,0,15);
+        state_.waterMotion=finiteClamp(value.waterMotion,0,1);
+        state_.tireScrub=finiteClamp(value.tireScrub,0,1);
         if(state_.station!=station_) {
             station_=state_.station;
             step_=0;
@@ -115,6 +123,7 @@ public:
                 left+=blast;right+=blast*0.92f;
                 shotAge_+=delta_;
             }
+            renderContacts(left,right);
             // A continuous, symmetric soft limiter prevents inter-source clipping.
             stereo[i*2]=limit(left)*master_;
             stereo[i*2+1]=limit(right)*master_;
@@ -127,6 +136,11 @@ private:
         Instrument type=Instrument::Keys;
         double phase=0,age=0,frequency=0,duration=0;
         float amplitude=0,left=0.7071f,right=0.7071f,release=0;
+    };
+    struct ContactVoice {
+        double age=1,phase=0;
+        float strength=0,pan=0,pitch=1;
+        FootSurface surface=FootSurface::Pavement;
     };
     static constexpr double tau_=6.2831853071795864769;
     AudioState state_{};
@@ -141,14 +155,132 @@ private:
     std::array<float,4> engineMix_{{1,0,0,0}};
     float lowNoiseL_=0,lowNoiseR_=0,previousShot_=0,shotStrength_=0;
     std::uint32_t random_=0xb7e15162u,step_=0;
+    // Contact DSP has a separate noise stream, so adding footsteps never changes
+    // the notes, percussion, weather or engine noise already being synthesized.
+    std::uint32_t contactRandom_=0x6c8e9cf5u,contactStep_=0,waterStep_=0;
+    std::array<ContactVoice,4> contacts_{};
+    std::array<ContactVoice,2> splashes_{};
+    double contactPhase_=.90,waterPhase_=.85,scrubPhase_=0,scrubFlutter_=0;
+    float contactLowpass_=0,contactMidpass_=0,waterLowpass_=0,scrubLowpass_=0;
+    float contactLowL_=0,contactLowR_=0,contactMidL_=0,contactMidR_=0;
+    float waterLowL_=0,waterLowR_=0,scrubLowL_=0,scrubLowR_=0;
+    float footSpeed_=0,waterMotion_=0,tireScrub_=0;
     int station_=0;
     static float finiteClamp(float x,float lo,float hi) {return std::isfinite(x)?std::max(lo,std::min(hi,x)):lo;}
     static float wave(double phase) {return static_cast<float>(std::sin(tau_*phase));}
     static float limit(float x) {return x/(1.0f+std::abs(x));}
     void advance(double& phase,double hz) {phase+=hz*delta_;phase-=std::floor(phase);}
+    float filterCoefficient(double hz) const {
+        return static_cast<float>(1.0-std::exp(-tau_*std::min(hz,sampleRate_*.42)*delta_));
+    }
     float noise() {
         random_^=random_<<13;random_^=random_>>17;random_^=random_<<5;
         return static_cast<float>(random_>>8)*(2.0f/16777215.0f)-1.0f;
+    }
+    float contactNoise() {
+        contactRandom_^=contactRandom_<<13;contactRandom_^=contactRandom_>>17;contactRandom_^=contactRandom_<<5;
+        return static_cast<float>(contactRandom_>>8)*(2.0f/16777215.0f)-1.0f;
+    }
+    static float contactEnvelope(double age,double attack,double decay,double duration) {
+        if(age>=duration) return 0;
+        return static_cast<float>(std::min(1.0,age/attack)*std::exp(-age/decay)*std::min(1.0,(duration-age)/.025));
+    }
+    void renderContacts(float& left,float& right) {
+        footSpeed_+=(state_.footSpeed-footSpeed_)*smooth_;
+        waterMotion_+=(state_.waterMotion-waterMotion_)*smooth_;
+        const float scrubTarget=state_.engineKind<2?state_.tireScrub*finiteClamp((std::abs(state_.speed)-2)/10,0,1):0;
+        tireScrub_+=(scrubTarget-tireScrub_)*smooth_;
+        if(scrubTarget==0&&tireScrub_<.000001f)tireScrub_=0;
+        if(state_.waterMotion==0&&waterMotion_<.000001f)waterMotion_=0;
+
+        const float whiteL=contactNoise(),whiteR=contactNoise();
+        contactLowL_+=(whiteL-contactLowL_)*contactLowpass_;
+        contactLowR_+=(whiteR-contactLowR_)*contactLowpass_;
+        contactMidL_+=(whiteL-contactMidL_)*contactMidpass_;
+        contactMidR_+=(whiteR-contactMidR_)*contactMidpass_;
+        waterLowL_+=(whiteL-waterLowL_)*waterLowpass_;
+        waterLowR_+=(whiteR-waterLowR_)*waterLowpass_;
+        scrubLowL_+=(whiteL-scrubLowL_)*scrubLowpass_;
+        scrubLowR_+=(whiteR-scrubLowR_)*scrubLowpass_;
+
+        if(state_.footContact&&state_.footSpeed>.15f) {
+            // Longer strides temper cadence at a sprint. The accumulator advances
+            // per sample, never per device buffer, and stops against obstructions.
+            const double cadence=std::min(3.6,footSpeed_/(.9+.20*footSpeed_));
+            contactPhase_+=cadence*delta_;
+            if(contactPhase_>=1) {
+                contactPhase_-=1;
+                ContactVoice& foot=contacts_[contactStep_%contacts_.size()];
+                foot={};foot.age=0;foot.surface=state_.footSurface;
+                foot.strength=(.065f+.065f*finiteClamp(footSpeed_/7.3f,0,1))*(.94f+.06f*whiteL);
+                foot.pan=contactStep_%2?.20f:-.20f;
+                foot.pitch=1+.065f*whiteR;++contactStep_;
+            }
+        }else contactPhase_=.90;
+        for(auto& foot:contacts_) {
+            if(foot.age>=.32)continue;
+            const double age=foot.age;
+            const float impact=contactEnvelope(age,.002,.029,.20);
+            const float brush=contactEnvelope(age,.007,.064,.32);
+            float body=0,textureL=0,textureR=0;
+            double frequency=85;
+            switch(foot.surface) {
+            case FootSurface::Pavement:
+                body=wave(foot.phase)*impact*.75f;
+                textureL=(whiteL*.70f+contactMidL_*.25f)*impact;
+                textureR=(whiteR*.70f+contactMidR_*.25f)*impact;break;
+            case FootSurface::Soil:
+                body=wave(foot.phase)*impact*.42f;frequency=68;
+                textureL=(contactMidL_*.95f+whiteL*.15f)*brush;
+                textureR=(contactMidR_*.95f+whiteR*.15f)*brush;break;
+            case FootSurface::Grass:
+                body=wave(foot.phase)*impact*.26f;frequency=58;
+                textureL=(contactMidL_-contactLowL_)*brush*.92f;
+                textureR=(contactMidR_-contactLowR_)*brush*.92f;break;
+            case FootSurface::Sand:
+                body=wave(foot.phase)*impact*.34f;frequency=61;
+                textureL=(waterLowL_*.90f+contactMidL_*.10f)*brush;
+                textureR=(waterLowR_*.90f+contactMidR_*.10f)*brush;break;
+            case FootSurface::Wood:
+                frequency=142;
+                body=(wave(foot.phase)+.40f*wave(foot.phase*1.83))*contactEnvelope(age,.002,.050,.32)*.85f;
+                textureL=contactMidL_*impact*.25f;
+                textureR=contactMidR_*impact*.25f;break;
+            }
+            left+=(body+textureL)*foot.strength*(.78f-foot.pan);
+            right+=(body+textureR)*foot.strength*(.78f+foot.pan);
+            advance(foot.phase,frequency*foot.pitch);foot.age+=delta_;
+        }
+
+        if(state_.waterMotion>.01f) {
+            waterPhase_+=(.65+1.35*waterMotion_)*delta_;
+            if(waterPhase_>=1) {
+                waterPhase_-=1;
+                ContactVoice& splash=splashes_[waterStep_%splashes_.size()];
+                splash={};splash.age=0;splash.strength=.10f+.07f*waterMotion_;
+                splash.pan=waterStep_%2?.28f:-.28f;++waterStep_;
+            }
+        }else waterPhase_=.85;
+        float splashLeft=0,splashRight=0;
+        for(auto& splash:splashes_) {
+            if(splash.age>=.58)continue;
+            const float envelope=contactEnvelope(splash.age,.016,.11,.58);
+            // A falling resonant bubble under a broader rushing-water stroke.
+            const float bubble=wave(splash.phase)*envelope*.18f;
+            splashLeft+=(waterLowL_*envelope+bubble)*splash.strength*(.8f-splash.pan);
+            splashRight+=(waterLowR_*envelope+bubble)*splash.strength*(.8f+splash.pan);
+            advance(splash.phase,110+210*std::exp(-splash.age*15));splash.age+=delta_;
+        }
+        left+=waterMotion_*(splashLeft+.025f*waterLowL_);
+        right+=waterMotion_*(splashRight+.025f*waterLowR_);
+
+        advance(scrubFlutter_,6.5+speed_*.055);
+        const double scrubFrequency=std::min(sampleRate_*.18,780.0+speed_*8+310*tireScrub_+45*wave(scrubFlutter_));
+        advance(scrubPhase_,scrubFrequency);
+        const float squeal=(wave(scrubPhase_)+.28f*wave(scrubPhase_*2))*(.72f+.28f*wave(scrubFlutter_));
+        const float scrubGain=tireScrub_*.065f;
+        left+=scrubGain*(squeal+(scrubLowL_-contactLowL_)*.8f);
+        right+=scrubGain*(squeal*.9f+(scrubLowR_-contactLowR_)*.8f);
     }
     void note(Instrument type,int midi,float amplitude,double duration,float pan=0) {
         Voice* selected=&voices_[0];
